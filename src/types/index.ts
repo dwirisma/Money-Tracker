@@ -14,6 +14,18 @@ export interface Ledger {
 
 export type AccountType = 'bank' | 'ewallet' | 'cash' | 'credit_card';
 
+export interface AccountPocket {
+  id: string;
+  name: string;
+  balance: number;
+  targetAmount?: number;
+  emoji?: string;
+  colorAccent?: string;
+  description?: string;
+  type?: 'spending' | 'saving' | 'locked' | 'bills';
+  createdAt?: number | string;
+}
+
 export interface Account {
   id: string;
   ledgerId: string; // Relasi wajib ke Buku Kas
@@ -23,6 +35,7 @@ export interface Account {
   creditLimit?: number;
   colorAccent?: string;
   isArchived?: boolean;
+  pockets?: AccountPocket[]; // Sub-kantong alokasi dana ala Bank Jago
   createdAt: number | string;
 }
 

@@ -19,7 +19,7 @@ import type { Account, Ledger, Transaction } from '../types';
 import { evaluateMathExpression, formatRupiah } from '../utils/calculator';
 import { useCategories } from '../hooks/useCategories';
 import { scanReceipt } from '../services/receiptScanService';
-import { getGeminiKey, getGeminiModel } from '../services/geminiSettings';
+import { getGeminiKey, getGeminiModel, saveGeminiSettings } from '../services/geminiSettings';
 import type { ModuleId } from './layout/navConfig';
 
 interface Props {
@@ -82,6 +82,11 @@ export function AddTransactionView({
   // AI Scan Struk
   const receiptInputRef = useRef<HTMLInputElement>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [scannedResult, setScannedResult] = useState<{ amount: number; merchant?: string | null } | null>(null);
+  const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
+  const [inputApiKey, setInputApiKey] = useState<string>('');
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   // Sync default account when accounts change
   useEffect(() => {
@@ -141,28 +146,55 @@ export function AddTransactionView({
   }
 
   // Handle Scan Struk
-  async function handleReceiptFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    const apiKey = getGeminiKey();
-    if (!apiKey) {
-      showToast('Kunci Gemini belum terisi. Buka Pengaturan > Gemini AI.', 'error');
+  async function processReceiptFile(file: File, keyToUse?: string) {
+    const key = keyToUse || getGeminiKey();
+    if (!key) {
+      setPendingFile(file);
+      setShowApiKeyModal(true);
       return;
     }
+
+    const previewUrl = URL.createObjectURL(file);
+    setReceiptPreview(previewUrl);
     setIsScanning(true);
+
     try {
-      const r = await scanReceipt(file, categories.lists.expense, { apiKey, model: getGeminiModel() });
+      const r = await scanReceipt(file, categories.lists.expense, { apiKey: key, model: getGeminiModel() });
       setActiveTab('expense');
       setAmount(String(r.amount));
       if (r.date) setDate(r.date);
       if (r.category) setCategory(r.category);
       if (r.note) setNote(r.note);
-      showToast('Struk terbaca! Periksa kembali sebelum menyimpan.', 'info');
+      setScannedResult({ amount: r.amount, merchant: r.note });
+      showToast(`Struk terbaca! Rp ${r.amount.toLocaleString('id-ID')} (${r.note || 'Belanja'})`, 'success');
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Gagal membaca struk.', 'error');
     } finally {
       setIsScanning(false);
+    }
+  }
+
+  async function handleReceiptFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    await processReceiptFile(file);
+  }
+
+  async function handleSaveApiKeyAndScan(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = inputApiKey.trim();
+    if (!trimmed) {
+      showToast('API Key tidak boleh kosong', 'error');
+      return;
+    }
+    saveGeminiSettings(trimmed, getGeminiModel());
+    setShowApiKeyModal(false);
+    showToast('Kunci Gemini tersimpan!', 'success');
+    if (pendingFile) {
+      const f = pendingFile;
+      setPendingFile(null);
+      await processReceiptFile(f, trimmed);
     }
   }
 
@@ -342,6 +374,50 @@ export function AddTransactionView({
                   </div>
                 )}
               </div>
+
+              {/* Banner Preview Foto Struk yang Dianalisis */}
+              {receiptPreview && activeTab === 'expense' && (
+                <div className="p-3 bg-[var(--bg-elevated)] border-2 border-black dark:border-white/20 rounded-xl flex items-center justify-between gap-3 shadow-[2px_2px_0px_#000] animate-in fade-in duration-200">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <img
+                      src={receiptPreview}
+                      alt="Struk Belanja"
+                      className="w-12 h-12 object-cover rounded-lg border-2 border-black dark:border-white/20 shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-bold text-[var(--text-primary)]">Foto Struk Belanja</span>
+                        <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                          isScanning ? 'bg-amber-400 text-black animate-pulse' : 'bg-emerald-500 text-black'
+                        }`}>
+                          {isScanning ? 'Sedang AI Scan…' : '✓ Terbaca Gemini AI'}
+                        </span>
+                      </div>
+                      {scannedResult ? (
+                        <p className="text-[11px] font-mono text-[var(--accent-sand)] truncate mt-0.5">
+                          {scannedResult.merchant ? `${scannedResult.merchant} • ` : ''}{formatRupiah(scannedResult.amount)}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] font-mono text-[var(--text-muted)] truncate mt-0.5">
+                          {isScanning ? 'Membaca rincian toko & total nominal...' : 'Data otomatis terisi di bawah'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReceiptPreview(null);
+                      setScannedResult(null);
+                    }}
+                    className="p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--accent-terracotta)] hover:bg-[var(--bg-surface)] transition-all"
+                    title="Hapus foto struk"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
 
               <form onSubmit={handleSubmitTransaction} className="space-y-4">
                 {/* Field Nominal dengan Kalkulator */}
@@ -774,6 +850,69 @@ export function AddTransactionView({
                 Selesai
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL SETUP CEPAT GEMINI API UNTUK SCAN STRUK */}
+      {showApiKeyModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="brutal-card p-5 bg-[var(--bg-surface)] border-2 border-black max-w-md w-full space-y-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <ScanCamera className="w-5 h-5 text-[var(--accent-sand)]" />
+                <h3 className="font-heading font-bold text-base text-white">Aktifkan Gemini AI Scanner</h3>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowApiKeyModal(false)} 
+                className="p-1 text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              Fitur scan struk otomatis ditenagai oleh <strong>Google Gemini Flash AI Vision</strong>. Masukkan API Key Google AI Studio Anda untuk membaca struk belanja:
+            </p>
+
+            <form onSubmit={handleSaveApiKeyAndScan} className="space-y-3">
+              <div>
+                <input
+                  type="password"
+                  placeholder="AIzaSy..."
+                  value={inputApiKey}
+                  onChange={e => setInputApiKey(e.target.value)}
+                  className="brutal-input text-xs py-2 w-full font-mono"
+                  autoFocus
+                />
+                <a
+                  href="https://aistudio.google.com/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-block text-[10px] text-amber-400 hover:underline mt-1.5"
+                >
+                  🔗 Dapatkan API Key Gratis di Google AI Studio →
+                </a>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                <button
+                  type="button"
+                  onClick={() => setShowApiKeyModal(false)}
+                  className="brutal-btn brutal-btn-ghost text-xs py-1.5 px-3"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={!inputApiKey.trim()}
+                  className="brutal-btn brutal-btn-sand text-xs py-1.5 px-4 font-bold shadow-[2px_2px_0px_#000]"
+                >
+                  Simpan & Scan Sekarang
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

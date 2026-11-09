@@ -18,7 +18,7 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { Ledger, Account, Transaction, Goal, Bill, Debt, BillCycle, CustomIntervalUnit, AutomationRule, AutomationType, AutomationCycle, SalaryHistoryRecord } from '../types';
+import { Ledger, Account, AccountPocket, Transaction, Goal, Bill, Debt, BillCycle, CustomIntervalUnit, AutomationRule, AutomationType, AutomationCycle, SalaryHistoryRecord } from '../types';
 
 export const DEFAULT_USER_ID = 'demo_user_artha';
 
@@ -366,6 +366,95 @@ export async function deleteAccount(userId: string = DEFAULT_USER_ID, accountId:
   }
 }
 
+/**
+ * Sub-Kantong Alokasi Akun (Konsep Kantong Bank Jago)
+ */
+export async function addPocketToAccount(
+  userId: string = DEFAULT_USER_ID,
+  accountId: string,
+  pocketData: Omit<AccountPocket, 'id' | 'createdAt'>
+): Promise<Account> {
+  const localList = getLocalAccounts();
+  const idx = localList.findIndex(a => a.id === accountId);
+  if (idx === -1) throw new Error('Akun induk tidak ditemukan.');
+
+  const newPocket: AccountPocket = {
+    id: `pocket_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    ...pocketData,
+    balance: Math.max(0, pocketData.balance || 0),
+    createdAt: Date.now()
+  };
+
+  const account = { ...localList[idx] };
+  const pockets = [...(account.pockets || []), newPocket];
+  account.pockets = pockets;
+  localList[idx] = account;
+  saveLocalAccounts(localList);
+
+  try {
+    const docRef = doc(db, 'users', userId, 'accounts', accountId);
+    await updateDoc(docRef, { pockets, updatedAt: serverTimestamp() });
+  } catch (err) {
+    console.warn('Firestore addPocket offline fallback:', err);
+  }
+
+  return account;
+}
+
+export async function updatePocketInAccount(
+  userId: string = DEFAULT_USER_ID,
+  accountId: string,
+  pocketId: string,
+  updates: Partial<Omit<AccountPocket, 'id' | 'createdAt'>>
+): Promise<Account> {
+  const localList = getLocalAccounts();
+  const idx = localList.findIndex(a => a.id === accountId);
+  if (idx === -1) throw new Error('Akun induk tidak ditemukan.');
+
+  const account = { ...localList[idx] };
+  const pockets = [...(account.pockets || [])];
+  const pIdx = pockets.findIndex(p => p.id === pocketId);
+  if (pIdx === -1) throw new Error('Kantong tidak ditemukan.');
+
+  pockets[pIdx] = { ...pockets[pIdx], ...updates };
+  account.pockets = pockets;
+  localList[idx] = account;
+  saveLocalAccounts(localList);
+
+  try {
+    const docRef = doc(db, 'users', userId, 'accounts', accountId);
+    await updateDoc(docRef, { pockets, updatedAt: serverTimestamp() });
+  } catch (err) {
+    console.warn('Firestore updatePocket offline fallback:', err);
+  }
+
+  return account;
+}
+
+export async function deletePocketFromAccount(
+  userId: string = DEFAULT_USER_ID,
+  accountId: string,
+  pocketId: string
+): Promise<Account> {
+  const localList = getLocalAccounts();
+  const idx = localList.findIndex(a => a.id === accountId);
+  if (idx === -1) throw new Error('Akun induk tidak ditemukan.');
+
+  const account = { ...localList[idx] };
+  account.pockets = (account.pockets || []).filter(p => p.id !== pocketId);
+  localList[idx] = account;
+  saveLocalAccounts(localList);
+
+  try {
+    const docRef = doc(db, 'users', userId, 'accounts', accountId);
+    await updateDoc(docRef, { pockets: account.pockets, updatedAt: serverTimestamp() });
+  } catch (err) {
+    console.warn('Firestore deletePocket offline fallback:', err);
+  }
+
+  return account;
+}
+
 export function calculateNetWorthAccounts(accounts: Account[]): {
   totalAssets: number;
   totalCreditDebt: number;
@@ -597,6 +686,9 @@ export async function fetchTransactionsByLedger(
       const list: Transaction[] = [];
       snapshot.forEach(d => list.push({ id: d.id, ...d.data() } as Transaction));
       list.sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
+      // Sinkronkan ke cache lokal agar tidak pernah hilang saat operasi hapus/edit
+      const otherTxs = getLocalTransactions().filter(t => t.ledgerId !== ledgerId);
+      saveLocalTransactions([...otherTxs, ...list]);
       return list;
     }
   } catch (err) {
@@ -922,8 +1014,30 @@ export async function executeAccountTransfer(
 
 export async function deleteTransaction(userId: string = DEFAULT_USER_ID, txId: string): Promise<void> {
   const currentTxs = getLocalTransactions();
-  const targetTx = currentTxs.find(t => t.id === txId);
-  if (!targetTx) return;
+  let targetTx = currentTxs.find(t => t.id === txId);
+
+  // Jika tidak ditemukan di cache lokal, coba ambil dari Firestore untuk mendapatkan metadata rollback
+  if (!targetTx) {
+    try {
+      const snap = await getDoc(doc(db, 'users', userId, 'transactions', txId));
+      if (snap.exists()) {
+        targetTx = { id: snap.id, ...snap.data() } as Transaction;
+      }
+    } catch (e) {
+      console.warn('Gagal membaca transaksi dari Firestore untuk dihapus:', e);
+    }
+  }
+
+  // Jika tetap tidak ditemukan sama sekali, pastikan tetap hapus dari Firestore & cache
+  if (!targetTx) {
+    saveLocalTransactions(currentTxs.filter(t => t.id !== txId));
+    try {
+      await deleteDoc(doc(db, 'users', userId, 'transactions', txId));
+    } catch (e) {
+      console.warn('Fallback deleteDoc:', e);
+    }
+    return;
+  }
 
   // 1. Pengecekan Relasi & Rollback Saldo Akun (Kas / Bank / Dompet)
   const currentAccounts = getLocalAccounts();

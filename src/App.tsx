@@ -114,7 +114,10 @@ import {
   toggleAutomationActive,
   deleteAutomation,
   executeSingleAutomation,
-  checkAndRunAutomations
+  checkAndRunAutomations,
+  addPocketToAccount,
+  updatePocketInAccount,
+  deletePocketFromAccount
 } from './services/cashManagementService';
 import { evaluateMathExpression, formatRupiah } from './utils/calculator';
 import { useUI } from './context/UIContext';
@@ -134,8 +137,9 @@ import type { ModuleId } from './components/layout/navConfig';
 import { AddTransactionView } from './components/AddTransactionView';
 import { TransactionHistoryView } from './components/TransactionHistoryView';
 import { InvestmentPortfolioView } from './components/InvestmentPortfolioView';
+import { AccountDetailModal } from './components/AccountDetailModal';
 import { fetchInvestmentsByLedger } from './services/investmentService';
-import type { InvestmentAsset } from './types';
+import type { InvestmentAsset, AccountPocket } from './types';
 
 export default function App() {
   // =========================================================================
@@ -475,8 +479,9 @@ export default function App() {
   const [editTxDate, setEditTxDate] = useState('');
   const [editCalcNotice, setEditCalcNotice] = useState<string | null>(null);
 
-  // State Modal Konfirmasi Hapus
+  // State Modal Konfirmasi Hapus & Detail Akun
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
+  const [selectedAccountForDetail, setSelectedAccountForDetail] = useState<Account | null>(null);
   const [txToDelete, setTxToDelete] = useState<Transaction | null>(null);
 
   // Form Input Transaksi Baru
@@ -825,6 +830,46 @@ export default function App() {
     showToast(`Akun "${accName}" berhasil dihapus.`, 'info');
   }
 
+  // Handler Sub-Kantong Alokasi Akun (Konsep Bank Jago)
+  async function handleAddPocketToAccount(accountId: string, pocketData: Omit<AccountPocket, 'id' | 'createdAt'>) {
+    try {
+      const updated = await addPocketToAccount(undefined, accountId, pocketData);
+      setAccounts(prev => prev.map(a => a.id === accountId ? updated : a));
+      if (selectedAccountForDetail?.id === accountId) {
+        setSelectedAccountForDetail(updated);
+      }
+      showToast('Kantong baru berhasil dibuat!', 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'Gagal membuat kantong', 'error');
+    }
+  }
+
+  async function handleUpdatePocketInAccount(accountId: string, pocketId: string, updates: Partial<AccountPocket>) {
+    try {
+      const updated = await updatePocketInAccount(undefined, accountId, pocketId, updates);
+      setAccounts(prev => prev.map(a => a.id === accountId ? updated : a));
+      if (selectedAccountForDetail?.id === accountId) {
+        setSelectedAccountForDetail(updated);
+      }
+      showToast('Kantong berhasil diperbarui!', 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'Gagal memperbarui kantong', 'error');
+    }
+  }
+
+  async function handleDeletePocketFromAccount(accountId: string, pocketId: string) {
+    try {
+      const updated = await deletePocketFromAccount(undefined, accountId, pocketId);
+      setAccounts(prev => prev.map(a => a.id === accountId ? updated : a));
+      if (selectedAccountForDetail?.id === accountId) {
+        setSelectedAccountForDetail(updated);
+      }
+      showToast('Kantong berhasil dihapus.', 'info');
+    } catch (err: any) {
+      showToast(err?.message || 'Gagal menghapus kantong', 'error');
+    }
+  }
+
   // =========================================================================
   // CRUD TRANSAKSI TERIKAT KE BUKU KAS AKTIF
   // =========================================================================
@@ -941,7 +986,18 @@ export default function App() {
     if (!txToDelete) return;
     const tx = txToDelete;
 
-    await deleteTransaction(undefined, tx.id);
+    // Optimistic UI update: langsung tutup modal dan hapus dari state list
+    setTxToDelete(null);
+    setTransactions(prev => prev.filter(t => t.id !== tx.id));
+
+    try {
+      await deleteTransaction(undefined, tx.id);
+      showToast('Transaksi berhasil dihapus & saldo berhasil dipulihkan!', 'success');
+    } catch (err) {
+      console.error('Error saat menghapus transaksi:', err);
+      showToast('Gagal menghapus transaksi dari database', 'error');
+    }
+
     const [refreshedAccs, refreshedTxs, refreshedGoals, refreshedBills, refreshedDebts] = await Promise.all([
       fetchAccountsByLedger(undefined, activeLedgerIdState),
       fetchTransactionsByLedger(undefined, activeLedgerIdState),
@@ -2215,6 +2271,7 @@ export default function App() {
         <div id="container-dashboard" className={activeModule === 'dashboard' ? 'space-y-7' : 'hidden'}>
           <DashboardPage
             ledgerName={currentLedger.name}
+            currentLedger={currentLedger}
             accounts={accounts}
             transactions={transactions}
             goals={goals}
@@ -2377,7 +2434,8 @@ export default function App() {
                 return (
                   <div 
                     key={acc.id}
-                    className="brutal-card p-4 space-y-3 bg-[var(--bg-surface)] group"
+                    onClick={() => setSelectedAccountForDetail(acc)}
+                    className="brutal-card p-4 space-y-3 bg-[var(--bg-surface)] group cursor-pointer hover:-translate-y-1 hover:shadow-[6px_6px_0px_#000] transition-all"
                     style={{ borderTopColor: acc.colorAccent || 'var(--border-color)', borderTopWidth: '5px' }}
                   >
                     <div className="flex items-start justify-between">
@@ -2389,12 +2447,12 @@ export default function App() {
                           {getAccountIcon(acc.type)}
                         </div>
                         <div>
-                          <p className="font-heading font-bold text-sm text-white truncate max-w-[110px]">{acc.name}</p>
+                          <p className="font-heading font-bold text-sm text-white truncate max-w-[110px] group-hover:text-[var(--accent-sand)] transition-colors">{acc.name}</p>
                           <p className="text-[10px] font-mono uppercase text-[var(--text-muted)]">{acc.type}</p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
                         <button 
                           onClick={() => openEditAccountModal(acc)}
                           className="p-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
@@ -2413,12 +2471,24 @@ export default function App() {
                     </div>
 
                     <div>
-                      <p className="text-[10px] font-heading uppercase text-[var(--text-secondary)]">
-                        {isCredit ? 'Tagihan Berjalan' : 'Saldo Tersedia'}
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-heading uppercase text-[var(--text-secondary)]">
+                          {isCredit ? 'Tagihan Berjalan' : 'Saldo Tersedia'}
+                        </p>
+                        {acc.pockets && acc.pockets.length > 0 && (
+                          <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                            {acc.pockets.length} Kantong
+                          </span>
+                        )}
+                      </div>
                       <p className={`text-xl font-mono font-bold tracking-tight ${isCredit ? 'text-[var(--accent-terracotta-light)]' : 'text-white'}`}>
                         {formatRupiah(acc.balance)}
                       </p>
+                    </div>
+
+                    <div className="pt-1 border-t border-[var(--border-subtle)] flex items-center justify-between text-[10px] font-mono text-[var(--text-muted)] group-hover:text-[var(--accent-sand)] transition-colors">
+                      <span>Mutasi & Kantong</span>
+                      <span>Lihat Detail →</span>
                     </div>
                   </div>
                 );
@@ -5198,6 +5268,31 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* =================================================================== */}
+      {/* MODAL: DETAIL AKUN, MUTASI TRANSAKSI & KANTONG (BANK JAGO MODEL)   */}
+      {/* =================================================================== */}
+      <AccountDetailModal
+        isOpen={Boolean(selectedAccountForDetail)}
+        onClose={() => setSelectedAccountForDetail(null)}
+        account={selectedAccountForDetail}
+        transactions={transactions}
+        accounts={accounts}
+        onAddPocket={handleAddPocketToAccount}
+        onUpdatePocket={handleUpdatePocketInAccount}
+        onDeletePocket={handleDeletePocketFromAccount}
+        onSelectForTransaction={(accId) => {
+          setTxAccountId(accId);
+          setActiveModule('add_transaction');
+        }}
+        onSelectForTransfer={(accId) => {
+          setTransferSource(accId);
+          setActiveModule('add_transaction');
+        }}
+        onEditAccount={(acc) => openEditAccountModal(acc)}
+        onDeleteTransaction={(tx) => setTxToDelete(tx)}
+        onEditTransaction={(tx) => openEditTransactionModal(tx)}
+      />
 
       {/* =================================================================== */}
       {/* MODAL 8: DETAIL & RIWAYAT ALOKASI TARGET (NEO-BRUTALISM)            */}

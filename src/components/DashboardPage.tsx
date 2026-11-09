@@ -16,15 +16,17 @@ import {
   Receipt,
   type LucideIcon 
 } from 'lucide-react';
-import type { Account, Bill, Debt, Goal, Transaction, InvestmentAsset } from '../types';
+import type { Account, Bill, Debt, Goal, Transaction, InvestmentAsset, Ledger } from '../types';
 import { calculateNetWorthAccounts, getBillDueStatus } from '../services/cashManagementService';
 import { calculateInvestmentSummary } from '../services/investmentService';
 import { formatRupiah } from '../utils/calculator';
 import { Money, NeoCard } from './ui/Neo';
 import type { ModuleId } from './layout/navConfig';
+import { AiInsightCard } from './AiInsightCard';
 
 interface Props {
   ledgerName: string;
+  currentLedger?: Ledger;
   accounts: Account[];
   transactions: Transaction[];
   goals: Goal[];
@@ -67,7 +69,7 @@ function Metric({ icon: Icon, label, children, hint }: { icon: LucideIcon; label
   );
 }
 
-export function DashboardPage({ ledgerName, accounts, transactions, goals, bills, debts, investments = [], onNavigate }: Props) {
+export function DashboardPage({ ledgerName, currentLedger, accounts, transactions, goals, bills, debts, investments = [], onNavigate }: Props) {
   const [windowDays, setWindowDays] = useState<number>(7);
   const now = new Date();
   const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -188,6 +190,16 @@ export function DashboardPage({ ledgerName, accounts, transactions, goals, bills
           </button>
         </div>
       </div>
+
+      {/* AI INSIGHT CARD (SEPERTI REFERENSI MOCKUP GAMBAR) */}
+      <AiInsightCard
+        currentLedger={currentLedger || { id: 'active', name: ledgerName, createdAt: Date.now() }}
+        transactions={transactions}
+        goals={goals}
+        bills={bills}
+        debts={debts}
+        accounts={accounts}
+      />
 
       {/* 6 SCORECARD METRIK UTAMA */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
