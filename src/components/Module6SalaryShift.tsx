@@ -3,17 +3,15 @@ import {
   Calendar as CalendarIcon, 
   Clock, 
   Utensils, 
-  Check, 
   Plus, 
-  Minus, 
   Zap, 
   ShieldCheck, 
   FileText, 
   Info, 
-  ArrowRight, 
   CalendarCheck, 
   Sparkles, 
   RotateCcw, 
+  RefreshCw,
   Briefcase, 
   ChevronLeft, 
   ChevronRight,
@@ -40,18 +38,19 @@ import {
 import { evaluateMathExpression } from '../utils/calculator';
 import { 
   generateShiftCalendar,
+  refreshShiftLogsMetadata,
   getDayType,
   calculateOvertimeIndex,
   calculateDailyOvertimeAmount,
   calculateSalaryBreakdown, 
   getStoredShiftLogs, 
   saveStoredShiftLogs,
-  getCustomShiftPattern,
-  saveCustomShiftPattern,
-  getAutoOTForPeriod,
-  AGC_ANCHOR_DATE,
-  AGC_GROUP_C_CYCLE,
-  OVERTIME_BASE_RATE,
+  getMergedHolidays,
+  getStoredCustomHolidays,
+  saveStoredCustomHolidays,
+  getStoredSyncedHolidays,
+  saveStoredSyncedHolidays,
+  DEFAULT_AUTO_OT_HOURS_PER_SUNDAY_SHIFT_3,
   BASIC_SALARY,
   HOUSING_ALLOWANCE,
   SHIFT_ALLOWANCE,
@@ -111,6 +110,18 @@ export function saveStoredSalaryAddOns(ledgerId: string, monthKey: string, addOn
   }
 }
 
+function getInitialCutoffPeriod() {
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = today.getMonth();
+  const d = today.getDate();
+  if (d >= 21) {
+    if (m === 11) return { year: y + 1, monthIndex: 0 };
+    return { year: y, monthIndex: m + 1 };
+  }
+  return { year: y, monthIndex: m };
+}
+
 export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   activeLedger,
   accounts,
@@ -120,21 +131,20 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   onNavigateToTab,
   onAutomationUpdated
 }) => {
-  // Periode Gaji Aktif (Bulan dan Tahun)
-  const now = new Date();
-  const [currentYear, setCurrentYear] = useState<number>(now.getFullYear());
-  const [currentMonthIndex, setCurrentMonthIndex] = useState<number>(now.getMonth()); // 0-11
+  // Periode Gaji Aktif (Otomatis mengikuti tanggal cut-off 21 - 20)
+  const initialPeriod = useMemo(() => getInitialCutoffPeriod(), []);
+  const [currentYear, setCurrentYear] = useState<number>(initialPeriod.year);
+  const [currentMonthIndex, setCurrentMonthIndex] = useState<number>(initialPeriod.monthIndex); // 0-11
 
-  // Grup Shift: Default Group C
+  // Grup Shift: Default Group C (4 Regu: A, B, C, D)
   const [selectedGroup, setSelectedGroup] = useState<ShiftGroup>('C');
 
-  // Konfigurasi Pola Shift & Tanggal Referensi Anchor (Default: Group C 28-Hari)
-  const [customPattern, setCustomPattern] = useState<string[]>(() => getCustomShiftPattern().pattern);
-  const [anchorDate, setAnchorDate] = useState<string>(() => getCustomShiftPattern().anchorDate);
-
-  // Status Pengaturan Khusus Modul Gaji (PTKP, Harga Makan, Komponen Gaji)
+  // Status Pengaturan Khusus Modul Gaji (PTKP, Harga Makan, Komponen Gaji, Auto OT)
   const [ptkpStatus, setPtkpStatus] = useState<PTKPStatus>('TK/0');
   const [mealRate, setMealRate] = useState<number>(DEFAULT_MEAL_RATE);
+  const [isAutoOTEnabled, setIsAutoOTEnabled] = useState<boolean>(true);
+  const [autoOTPerSunday, setAutoOTPerSunday] = useState<number>(DEFAULT_AUTO_OT_HOURS_PER_SUNDAY_SHIFT_3);
+
   const [customSalarySettings, setCustomSalarySettings] = useState<CustomSalarySettings>({
     ptkpStatus: 'TK/0',
     mealRate: DEFAULT_MEAL_RATE,
@@ -157,23 +167,62 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
     return bankAcc?.id || accounts[0]?.id || '';
   });
 
-  // Unique Month Key untuk penyimpanan lokal per Buku Kas
+  // Unique Month Key untuk penyimpanan lokal per Buku Kas & Grup Shift
   const monthKey = `${currentYear}-${String(currentMonthIndex + 1).padStart(2, '0')}`;
   const periodStorageKey = `${monthKey}_grp_${selectedGroup}`;
 
-  // Jam Lembur Otomatis untuk Periode Ini
-  const autoOTHours = useMemo(() => {
-    return getAutoOTForPeriod(currentMonthIndex, currentYear, selectedGroup);
-  }, [currentMonthIndex, currentYear, selectedGroup]);
+  // Manajemen Tanggal Merah (Built-in + API Synced + Custom Manual)
+  const [customHolidays, setCustomHolidays] = useState<Record<string, string>>(() => getStoredCustomHolidays());
+  const [syncedHolidays, setSyncedHolidays] = useState<Record<string, string>>(() => getStoredSyncedHolidays());
+  const mergedHolidays = useMemo(
+    () => getMergedHolidays(customHolidays, syncedHolidays),
+    [customHolidays, syncedHolidays]
+  );
+
+  const [isSyncingHolidays, setIsSyncingHolidays] = useState<boolean>(false);
+  const [newHolidayDate, setNewHolidayDate] = useState<string>('');
+  const [newHolidayName, setNewHolidayName] = useState<string>('');
+
+  // Hitung tarif dasar lembur per jam secara dinamis dari pengaturan Gaji Pokok + Tunjangan Perumahan
+  const otBaseRate = useMemo(() => {
+    const basic = customSalarySettings.basicSalary || BASIC_SALARY;
+    const housing = customSalarySettings.housingAllowance || HOUSING_ALLOWANCE;
+    return (basic + housing) / 173;
+  }, [customSalarySettings.basicSalary, customSalarySettings.housingAllowance]);
 
   // State Daftar Hari Shift Kalender
   const [shiftDays, setShiftDays] = useState<ShiftDayLog[]>(() => {
     if (activeLedger) {
       const stored = getStoredShiftLogs(activeLedger.id, periodStorageKey);
-      if (stored && stored.length > 0) return stored;
+      if (stored && stored.length > 0) {
+        return refreshShiftLogsMetadata(
+          stored,
+          selectedGroup,
+          mergedHolidays,
+          autoOTPerSunday,
+          isAutoOTEnabled,
+          otBaseRate
+        );
+      }
     }
-    return generateShiftCalendar(currentMonthIndex, currentYear, customPattern, anchorDate, selectedGroup);
+    return generateShiftCalendar(
+      currentMonthIndex,
+      currentYear,
+      selectedGroup,
+      mergedHolidays,
+      autoOTPerSunday,
+      isAutoOTEnabled
+    );
   });
+
+  // Jam Lembur Otomatis (Auto O/T) untuk Periode Ini (Minggu Shift III = 8.25j per Minggu)
+  const autoOTHours = useMemo(() => {
+    if (!isAutoOTEnabled) return 0;
+    return shiftDays.reduce(
+      (sum, day) => sum + (day.hasAutoOT ? (day.autoOTHours || autoOTPerSunday) : 0),
+      0
+    );
+  }, [shiftDays, isAutoOTEnabled, autoOTPerSunday]);
 
   // State Komponen Tambahan Gaji (Add-On / Bonus / THR / Rapelan)
   const [addOns, setAddOns] = useState<SalaryAddOn[]>(() => {
@@ -211,6 +260,14 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(false);
   const [deletingHistoryId, setDeletingHistoryId] = useState<string | null>(null);
 
+  // Toast Notification Helper
+  const showToast = (text: string, type: 'success' | 'info' | 'error' = 'success') => {
+    setToastMessage({ text, type });
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 4500);
+  };
+
   // Muat daftar arsip riwayat gaji saat ledger aktif berubah
   const loadSalaryHistories = async () => {
     if (!activeLedger) return;
@@ -232,20 +289,33 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   // Muat Pengaturan Gaji dari Firestore / LocalStorage
   useEffect(() => {
     if (!activeLedger) return;
+    const applyLoadedSettings = (settings: any) => {
+      setCustomSalarySettings(settings);
+      if (settings.ptkpStatus) setPtkpStatus(settings.ptkpStatus);
+      if (settings.mealRate !== undefined) setMealRate(settings.mealRate);
+      if (settings.medicalAllowanceBik !== undefined) {
+        setMedicalBikAmount(settings.medicalAllowanceBik);
+        setMedicalBikInput(String(settings.medicalAllowanceBik));
+      }
+      if (settings.isMedicalBikActive !== undefined) {
+        setIsMedicalBikEnabled(settings.isMedicalBikActive);
+      }
+      if (settings.defaultGroup) {
+        setSelectedGroup(settings.defaultGroup);
+      }
+      if (settings.autoOTHoursPerSundayShift3 !== undefined) {
+        setAutoOTPerSunday(settings.autoOTHoursPerSundayShift3);
+      }
+      if (settings.isAutoOTEnabled !== undefined) {
+        setIsAutoOTEnabled(settings.isAutoOTEnabled);
+      }
+    };
+
     const loadSettings = async () => {
       try {
         const remote = await fetchSalarySettingsFromFirestore(undefined, activeLedger.id);
         if (remote) {
-          setCustomSalarySettings(remote);
-          setPtkpStatus(remote.ptkpStatus);
-          setMealRate(remote.mealRate);
-          if (remote.medicalAllowanceBik !== undefined) {
-            setMedicalBikAmount(remote.medicalAllowanceBik);
-            setMedicalBikInput(String(remote.medicalAllowanceBik));
-          }
-          if (remote.isMedicalBikActive !== undefined) {
-            setIsMedicalBikEnabled(remote.isMedicalBikActive);
-          }
+          applyLoadedSettings(remote);
           return;
         }
       } catch (e) {
@@ -256,16 +326,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
         const raw = localStorage.getItem(`${STORAGE_KEY_CUSTOM_SALARY}${activeLedger.id}`);
         if (raw) {
           const parsed = JSON.parse(raw);
-          setCustomSalarySettings(parsed);
-          if (parsed.ptkpStatus) setPtkpStatus(parsed.ptkpStatus);
-          if (parsed.mealRate) setMealRate(parsed.mealRate);
-          if (parsed.medicalAllowanceBik !== undefined) {
-            setMedicalBikAmount(parsed.medicalAllowanceBik);
-            setMedicalBikInput(String(parsed.medicalAllowanceBik));
-          }
-          if (parsed.isMedicalBikActive !== undefined) {
-            setIsMedicalBikEnabled(parsed.isMedicalBikActive);
-          }
+          applyLoadedSettings(parsed);
         }
       } catch (e) {
         console.error('Gagal membaca custom salary settings:', e);
@@ -296,7 +357,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
     return () => window.removeEventListener('open-salary-addon-modal', handleOpenModalFromHeader);
   }, []);
 
-  // Muat ulang shift logs (Firestore -> LocalStorage -> Generated)
+  // Muat ulang shift logs (Firestore -> LocalStorage -> Generated) & segarkan metadata Auto OT + Tanggal Merah
   useEffect(() => {
     if (!activeLedger) return;
 
@@ -307,8 +368,16 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
       try {
         const remote = await fetchShiftScheduleFromFirestore(undefined, activeLedger.id, storageKey);
         if (remote && remote.length > 0 && isMounted) {
-          setShiftDays(remote);
-          saveStoredShiftLogs(activeLedger.id, storageKey, remote);
+          const refreshed = refreshShiftLogsMetadata(
+            remote,
+            selectedGroup,
+            mergedHolidays,
+            autoOTPerSunday,
+            isAutoOTEnabled,
+            otBaseRate
+          );
+          setShiftDays(refreshed);
+          saveStoredShiftLogs(activeLedger.id, storageKey, refreshed);
           return;
         }
       } catch (e) {
@@ -317,9 +386,25 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
 
       const stored = getStoredShiftLogs(activeLedger.id, storageKey);
       if (stored && stored.length > 0 && isMounted) {
-        setShiftDays(stored);
+        const refreshed = refreshShiftLogsMetadata(
+          stored,
+          selectedGroup,
+          mergedHolidays,
+          autoOTPerSunday,
+          isAutoOTEnabled,
+          otBaseRate
+        );
+        setShiftDays(refreshed);
+        saveStoredShiftLogs(activeLedger.id, storageKey, refreshed);
       } else if (isMounted) {
-        const fresh = generateShiftCalendar(currentMonthIndex, currentYear, customPattern, anchorDate, selectedGroup);
+        const fresh = generateShiftCalendar(
+          currentMonthIndex,
+          currentYear,
+          selectedGroup,
+          mergedHolidays,
+          autoOTPerSunday,
+          isAutoOTEnabled
+        );
         setShiftDays(fresh);
         saveStoredShiftLogs(activeLedger.id, storageKey, fresh);
       }
@@ -327,7 +412,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
 
     loadSchedule();
     return () => { isMounted = false; };
-  }, [currentYear, currentMonthIndex, activeLedger?.id, selectedGroup, customPattern, anchorDate]);
+  }, [currentYear, currentMonthIndex, activeLedger?.id, selectedGroup, mergedHolidays, autoOTPerSunday, isAutoOTEnabled, otBaseRate]);
 
   // Simpan perubahan shiftDays ke LocalStorage & Sync ke Firestore
   const handleUpdateShiftDays = (newDays: ShiftDayLog[]) => {
@@ -339,6 +424,100 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
         console.warn('Gagal sinkron shift schedule ke Firestore:', err);
       });
     }
+  };
+
+  // Sinkronisasi Tanggal Merah dari API Online (Mendukung Lintas Tahun untuk Periode Des-Jan)
+  const handleSyncHolidays = async () => {
+    setIsSyncingHolidays(true);
+    try {
+      const yearsToFetch = currentMonthIndex === 0 ? [currentYear - 1, currentYear] : [currentYear];
+      const nextSynced = { ...syncedHolidays };
+      let syncedCount = 0;
+
+      for (const y of yearsToFetch) {
+        const response = await fetch(`https://dayoffapi.vercel.app/api?year=${y}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data)) {
+            data.forEach((item: any) => {
+              if (item.tanggal && item.keterangan) {
+                nextSynced[item.tanggal] = item.keterangan;
+                syncedCount++;
+              }
+            });
+          }
+        }
+      }
+
+      setSyncedHolidays(nextSynced);
+      saveStoredSyncedHolidays(nextSynced);
+
+      const nextMerged = getMergedHolidays(customHolidays, nextSynced);
+      const refreshedDays = refreshShiftLogsMetadata(
+        shiftDays,
+        selectedGroup,
+        nextMerged,
+        autoOTPerSunday,
+        isAutoOTEnabled,
+        otBaseRate
+      );
+      handleUpdateShiftDays(refreshedDays);
+
+      if (syncedCount > 0) {
+        showToast(`Berhasil menyinkronkan ${syncedCount} tanggal merah dari API online!`, 'success');
+      } else {
+        showToast(`Menggunakan database tanggal merah resmi ${currentYear} (siap offline).`, 'info');
+      }
+    } catch (err) {
+      showToast(`Menggunakan database tanggal merah resmi ${currentYear} (mode offline).`, 'info');
+    } finally {
+      setIsSyncingHolidays(false);
+    }
+  };
+
+  // Tambah Tanggal Merah / Cuti Bersama / Libur Pabrik Manual
+  const handleAddCustomHoliday = () => {
+    if (!newHolidayDate || !newHolidayName.trim()) {
+      showToast('Pilih tanggal dan masukkan nama hari libur!', 'error');
+      return;
+    }
+    const label = newHolidayName.trim();
+    const nextCustom = { ...customHolidays, [newHolidayDate]: label };
+    setCustomHolidays(nextCustom);
+    saveStoredCustomHolidays(nextCustom);
+    setNewHolidayName('');
+
+    const nextMerged = getMergedHolidays(nextCustom, syncedHolidays);
+    const refreshedDays = refreshShiftLogsMetadata(
+      shiftDays,
+      selectedGroup,
+      nextMerged,
+      autoOTPerSunday,
+      isAutoOTEnabled,
+      otBaseRate
+    );
+    handleUpdateShiftDays(refreshedDays);
+    showToast(`Tanggal merah "${label}" (${newHolidayDate}) berhasil ditambahkan!`, 'success');
+  };
+
+  // Hapus Tanggal Merah Manual
+  const handleDeleteCustomHoliday = (dateStr: string) => {
+    const nextCustom = { ...customHolidays };
+    delete nextCustom[dateStr];
+    setCustomHolidays(nextCustom);
+    saveStoredCustomHolidays(nextCustom);
+
+    const nextMerged = getMergedHolidays(nextCustom, syncedHolidays);
+    const refreshedDays = refreshShiftLogsMetadata(
+      shiftDays,
+      selectedGroup,
+      nextMerged,
+      autoOTPerSunday,
+      isAutoOTEnabled,
+      otBaseRate
+    );
+    handleUpdateShiftDays(refreshedDays);
+    showToast(`Tanggal merah manual pada ${dateStr} dihapus.`, 'info');
   };
 
   // Kosongkan Semua Ceklis Makan Periode Ini (0x Makan)
@@ -371,12 +550,12 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   };
 
   const handleResetToCurrentPeriod = () => {
-    const today = new Date();
-    setCurrentYear(today.getFullYear());
-    setCurrentMonthIndex(today.getMonth());
+    const cur = getInitialCutoffPeriod();
+    setCurrentYear(cur.year);
+    setCurrentMonthIndex(cur.monthIndex);
   };
 
-  // Hitung Kalkulasi Lengkap dengan Auto OT & Add-Ons & Medical BIK
+  // Hitung Kalkulasi Lengkap dengan Auto OT, Add-Ons, Medical BIK, & Override Komponen Gaji
   const salary: SalaryBreakdown = useMemo(() => {
     return calculateSalaryBreakdown(
       shiftDays, 
@@ -386,13 +565,30 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
       currentMonthIndex,
       autoOTHours,
       addOns,
-      isMedicalBikEnabled ? medicalBikAmount : 0
+      isMedicalBikEnabled ? medicalBikAmount : 0,
+      {
+        basicSalary: customSalarySettings.basicSalary || BASIC_SALARY,
+        housingAllowance: customSalarySettings.housingAllowance || HOUSING_ALLOWANCE,
+        shiftAllowance: customSalarySettings.shiftAllowance || SHIFT_ALLOWANCE,
+        housingDeduction: customSalarySettings.housingDeduction || HOUSING_DEDUCTION
+      }
     );
-  }, [shiftDays, ptkpStatus, mealRate, currentYear, currentMonthIndex, autoOTHours, addOns, isMedicalBikEnabled, medicalBikAmount]);
+  }, [
+    shiftDays,
+    ptkpStatus,
+    mealRate,
+    currentYear,
+    currentMonthIndex,
+    autoOTHours,
+    addOns,
+    isMedicalBikEnabled,
+    medicalBikAmount,
+    customSalarySettings
+  ]);
 
   // Hitung Nilai Pengali (Index) Lembur Tambahan Aktual
   const additionalOTIndex = useMemo(() => {
-    return Math.max(0, Math.round((salary.totalOTIndex - (salary.autoOTIndex || 0)) * 10) / 10);
+    return Math.max(0, Math.round((salary.totalOTIndex - (salary.autoOTIndex || 0)) * 100) / 100);
   }, [salary.totalOTIndex, salary.autoOTIndex]);
 
   // Handler CRUD Komponen Tambahan Gaji (Add-On / Bonus / THR)
@@ -509,6 +705,12 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
     return `21 ${mStartName} – 20 ${mEndName}`;
   }, [currentYear, currentMonthIndex]);
 
+  // Daftar Tanggal Auto OT pada Periode Ini
+  const autoOTDatesLabel = useMemo(() => {
+    const list = shiftDays.filter(d => d.hasAutoOT).map(d => `${d.dayNumber} ${d.dayName}`);
+    return list.length > 0 ? list.join(' & ') : 'Tidak ada Minggu Shift III';
+  }, [shiftDays]);
+
   // Buka Modal Edit Detail Hari (Pengguna mengeklik kartu tanggal)
   const openEditDayModal = (day: ShiftDayLog) => {
     setEditingDay(day);
@@ -528,9 +730,20 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
 
     const updated = shiftDays.map(day => {
       if (day.date === editingDay.date) {
-        const nextIsWork = editDayType.toLowerCase() !== 'off' && editDayIsWork;
-        const { dayType, isPublicHoliday, holidayName } = getDayType(day.date, editDayType);
-        const { index, amount } = calculateDailyOvertimeAmount(parsedOT, dayType, OVERTIME_BASE_RATE);
+        const shiftCode: 'I' | 'II' | 'III' | 'O' =
+          editDayType.includes('Shift 1') || editDayType.includes('Malam') ? 'I' :
+          editDayType.includes('Shift 2') || editDayType.includes('Pagi') ? 'II' :
+          editDayType.includes('Shift 3') || editDayType.includes('Sore') ? 'III' : 'O';
+
+        const nextIsWork = shiftCode !== 'O' && editDayIsWork;
+        const { dayType, isPublicHoliday, holidayName } = getDayType(day.date, shiftCode, mergedHolidays);
+        const { index, amount } = calculateDailyOvertimeAmount(parsedOT, dayType, otBaseRate);
+
+        const parts = day.date.split('-');
+        const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        const isSunday = dateObj.getDay() === 0;
+        const hasAutoOT = isAutoOTEnabled && isSunday && shiftCode === 'III';
+        const autoOTHoursDay = hasAutoOT ? autoOTPerSunday : 0;
 
         return {
           ...day,
@@ -538,10 +751,14 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
           overtimeIndex: index,
           overtimeAmount: amount,
           shiftType: editDayType,
+          shiftCode,
+          shiftHours: shiftCode === 'I' ? '23:00 - 07:00' : shiftCode === 'II' ? '07:00 - 15:00' : shiftCode === 'III' ? '15:00 - 23:00' : 'Libur',
           isWorkDay: nextIsWork,
           dayType,
           isPublicHoliday,
           holidayName,
+          hasAutoOT,
+          autoOTHours: autoOTHoursDay,
           meals: editDayMeals,
           note: editDayNote.trim()
         };
@@ -554,15 +771,18 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
     showToast(`Data tanggal ${editingDay.dayNumber} ${editingDay.dayName} tersimpan!`, 'success');
   };
 
-  // Reset Rotasi Group C ke Pola Kalender 2026
-  const handleResetGroupCPattern = () => {
-    setSelectedGroup('C');
-    setCustomPattern(AGC_GROUP_C_CYCLE);
-    setAnchorDate(AGC_ANCHOR_DATE);
-    saveCustomShiftPattern(AGC_GROUP_C_CYCLE, AGC_ANCHOR_DATE);
-    const fresh = generateShiftCalendar(currentMonthIndex, currentYear, AGC_GROUP_C_CYCLE, AGC_ANCHOR_DATE, 'C');
+  // Reset Jadwal Periode Aktif ke Siklus Standar 28-Hari AGC
+  const handleResetSchedulePattern = () => {
+    const fresh = generateShiftCalendar(
+      currentMonthIndex,
+      currentYear,
+      selectedGroup,
+      mergedHolidays,
+      autoOTPerSunday,
+      isAutoOTEnabled
+    );
     handleUpdateShiftDays(fresh);
-    showToast('Jadwal Group C berhasil direset sesuai Kalender Shift 2026!', 'info');
+    showToast(`Jadwal Grup ${selectedGroup} berhasil direset sesuai siklus 28-hari resmi AGC!`, 'info');
   };
 
   // Simpan Pengaturan Khusus Gaji & Shift
@@ -571,7 +791,11 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
     if (!activeLedger) return;
 
     try {
-      const payload: CustomSalarySettings = {
+      const payload: CustomSalarySettings & {
+        defaultGroup?: ShiftGroup;
+        autoOTHoursPerSundayShift3?: number;
+        isAutoOTEnabled?: boolean;
+      } = {
         ptkpStatus,
         mealRate,
         basicSalary: customSalarySettings.basicSalary || BASIC_SALARY,
@@ -579,16 +803,32 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
         shiftAllowance: customSalarySettings.shiftAllowance || SHIFT_ALLOWANCE,
         housingDeduction: customSalarySettings.housingDeduction || HOUSING_DEDUCTION,
         medicalAllowanceBik: medicalBikAmount,
-        isMedicalBikActive: isMedicalBikEnabled
+        isMedicalBikActive: isMedicalBikEnabled,
+        defaultGroup: selectedGroup,
+        autoOTHoursPerSundayShift3: autoOTPerSunday,
+        isAutoOTEnabled
       };
       setCustomSalarySettings(payload);
       localStorage.setItem(`${STORAGE_KEY_CUSTOM_SALARY}${activeLedger.id}`, JSON.stringify(payload));
       await saveSalarySettingsToFirestore(undefined, activeLedger.id, payload);
+
+      const newBaseRate = ((payload.basicSalary || BASIC_SALARY) + (payload.housingAllowance || HOUSING_ALLOWANCE)) / 173;
+      const refreshed = refreshShiftLogsMetadata(
+        shiftDays,
+        selectedGroup,
+        mergedHolidays,
+        autoOTPerSunday,
+        isAutoOTEnabled,
+        newBaseRate
+      );
+      handleUpdateShiftDays(refreshed);
+
       setIsSalarySettingsModalOpen(false);
-      showToast('Pengaturan Gaji & Shift berhasil disimpan!', 'success');
+      showToast('Pengaturan Gaji, Auto OT & Tanggal Merah berhasil disimpan!', 'success');
     } catch (err) {
       console.error('Gagal menyimpan pengaturan gaji:', err);
-      showToast('Gagal menyimpan pengaturan ke database.', 'error');
+      showToast('Pengaturan tersimpan secara lokal.', 'info');
+      setIsSalarySettingsModalOpen(false);
     }
   };
 
@@ -646,14 +886,6 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
     } finally {
       setDeletingHistoryId(null);
     }
-  };
-
-  // Toast Notification Helper
-  const showToast = (text: string, type: 'success' | 'info' | 'error' = 'success') => {
-    setToastMessage({ text, type });
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 4500);
   };
 
   // Batch Write ke Firestore (Automations & Salary History)
@@ -717,7 +949,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
     if (calendarFilter === 'work') return shiftDays.filter(d => d.isWorkDay && !d.isPublicHoliday);
     if (calendarFilter === 'off') return shiftDays.filter(d => !d.isWorkDay && !d.isPublicHoliday);
     if (calendarFilter === 'holiday') return shiftDays.filter(d => d.isPublicHoliday);
-    if (calendarFilter === 'overtime') return shiftDays.filter(d => d.overtimeHours > 0);
+    if (calendarFilter === 'overtime') return shiftDays.filter(d => d.overtimeHours > 0 || d.hasAutoOT);
     return shiftDays;
   }, [shiftDays, calendarFilter]);
 
@@ -725,7 +957,15 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   const workDaysCount = shiftDays.filter(d => d.isWorkDay && !d.isPublicHoliday).length;
   const offDaysCount = shiftDays.filter(d => !d.isWorkDay && !d.isPublicHoliday).length;
   const holidaysCount = shiftDays.filter(d => d.isPublicHoliday).length;
-  const otDaysCount = shiftDays.filter(d => d.overtimeHours > 0).length;
+  const otDaysCount = shiftDays.filter(d => d.overtimeHours > 0 || d.hasAutoOT).length;
+
+  // Daftar hari libur untuk tahun aktif (ditampilkan di modal pengaturan)
+  const activeYearHolidays = useMemo(() => {
+    const prefix = `${currentYear}-`;
+    return Object.entries(mergedHolidays)
+      .filter(([dateStr]) => dateStr.startsWith(prefix))
+      .sort(([a], [b]) => a.localeCompare(b));
+  }, [mergedHolidays, currentYear]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -747,7 +987,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
       )}
 
       {/* ===================================================================== */}
-      {/* 1. TOP HEADER & KONTROL NAVIGASI (KANAN-SEJAJAR, SESUAI GAMBAR 2 & 3)  */}
+      {/* 1. TOP HEADER & KONTROL NAVIGASI                                       */}
       {/* ===================================================================== */}
       <section className="brutal-card p-4 sm:p-5 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] shadow-[var(--shadow-md)] flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         
@@ -759,7 +999,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
               Prediksi Gaji & Kalender Shift (Group {selectedGroup})
             </h2>
             <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded-[var(--radius-sm)] bg-[var(--accent-sand-dark)] text-[var(--accent-sand-light)] border border-[var(--accent-sand)]">
-              Kalender Shift 2026
+              4 Regu 3 Shift (28-Hari)
             </span>
           </div>
           <p className="text-xs text-[var(--text-secondary)] font-mono flex items-center gap-2 flex-wrap">
@@ -769,7 +1009,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
           </p>
         </div>
 
-        {/* Kontrol Grup Shift & Navigasi Periode (Atas-Bawah, Rata Kanan) */}
+        {/* Kontrol Grup Shift & Navigasi Periode */}
         <div className="flex flex-col items-start sm:items-end gap-2 sm:gap-2.5 w-full lg:w-auto">
           
           {/* Baris Atas: Segmented Group Selector */}
@@ -811,7 +1051,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                 type="button"
                 onClick={handleResetToCurrentPeriod}
                 className="px-3 py-1 bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded transition-colors hover:bg-[var(--bg-muted)]"
-                title="Kembali ke Periode Cut-Off Bulan Ini"
+                title="Kembali ke Periode Cut-Off Aktif Hari Ini"
               >
                 Bulan Ini
               </button>
@@ -829,9 +1069,9 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
             {/* Reset Jadwal */}
             <button
               type="button"
-              onClick={handleResetGroupCPattern}
+              onClick={handleResetSchedulePattern}
               className="p-1.5 sm:p-2 bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[var(--shadow-sm)] transition-colors"
-              title="Reset ke Jadwal Standar Kalender Shift 2026"
+              title="Reset ke Jadwal Standar Siklus 28-Hari AGC"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -841,7 +1081,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
               type="button"
               onClick={() => setIsSalarySettingsModalOpen(true)}
               className="p-1.5 px-3 bg-[var(--accent-sand)] hover:opacity-90 text-black font-bold border-2 border-black rounded-[var(--radius-sm)] shadow-[var(--shadow-sm)] flex items-center gap-1.5 text-xs font-mono transition-transform active:translate-y-0.5"
-              title="Buka Pengaturan Tarif Makan, PTKP & Gaji"
+              title="Buka Pengaturan Gaji, Auto OT & Tanggal Merah"
             >
               <Settings className="w-4 h-4" />
               <span className="hidden sm:inline">Pengaturan</span>
@@ -857,7 +1097,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
         {/* ------------------------------------------------------------------- */}
-        {/* KOLOM KIRI (7 SPAN): KALENDER SHIFT & READ-ONLY POP-UP EDIT HARI     */}
+        {/* KOLOM KIRI (7 SPAN): KALENDER SHIFT & POP-UP EDIT HARI               */}
         {/* ------------------------------------------------------------------- */}
         <div className="lg:col-span-7 space-y-4">
           
@@ -910,19 +1150,17 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                 >
                   Off ({offDaysCount})
                 </button>
-                {holidaysCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setCalendarFilter('holiday')}
-                    className={`px-2 py-1 rounded-[var(--radius-sm)] border font-bold ${
-                      calendarFilter === 'holiday'
-                        ? 'bg-[var(--accent-terracotta)] text-black border-black shadow-[1px_1px_0px_#000]'
-                        : 'bg-[var(--bg-elevated)] text-[var(--accent-terracotta-light)] border-[var(--border-subtle)]'
-                    }`}
-                  >
-                    Libur Nas ({holidaysCount})
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setCalendarFilter('holiday')}
+                  className={`px-2 py-1 rounded-[var(--radius-sm)] border font-bold ${
+                    calendarFilter === 'holiday'
+                      ? 'bg-[var(--accent-terracotta)] text-black border-black shadow-[1px_1px_0px_#000]'
+                      : 'bg-[var(--bg-elevated)] text-[var(--accent-terracotta-light)] border-[var(--border-subtle)]'
+                  }`}
+                >
+                  Tanggal Merah ({holidaysCount})
+                </button>
                 <button
                   type="button"
                   onClick={() => setCalendarFilter('overtime')}
@@ -946,24 +1184,24 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
               </div>
             </div>
 
-            {/* Scorecards Kalender (SESUAI GAMBAR 2 & 3) */}
+            {/* Scorecards Kalender */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center font-mono text-xs">
               <div className="p-2.5 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] space-y-0.5">
-                <span className="text-[10px] text-[var(--text-muted)] block">Kerja / Off</span>
+                <span className="text-[10px] text-[var(--text-muted)] block">Kerja / Off / Libur</span>
                 <span className="font-bold text-[var(--text-primary)] text-xs">
-                  <span className="text-[var(--accent-sage-light)]">{workDaysCount}</span> / <span className="text-[var(--accent-terracotta-light)]">{offDaysCount}</span>
+                  <span className="text-[var(--accent-sage-light)]">{workDaysCount}</span> / <span className="text-[var(--accent-terracotta-light)]">{offDaysCount}</span> / <span className="text-[var(--accent-sand-light)]">{holidaysCount}</span>
                 </span>
               </div>
-              <div className="p-2.5 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] space-y-0.5">
+              <div className="p-2.5 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] space-y-0.5" title={`Hari Auto OT: ${autoOTDatesLabel}`}>
                 <span className="text-[10px] text-[var(--text-muted)] block">⚡ Auto OT Terjadwal</span>
                 <span className="font-bold text-[var(--accent-sand-light)] text-xs">
-                  {autoOTHours} Jam
+                  {salary.autoOTIndex}x <span className="text-[10px] font-normal">({autoOTHours} Jam)</span>
                 </span>
               </div>
               <div className="p-2.5 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] space-y-0.5">
-                <span className="text-[10px] text-[var(--text-muted)] block">Lembur Aktual Ekstra</span>
+                <span className="text-[10px] text-[var(--text-muted)] block">Lembur Additional</span>
                 <span className="font-bold text-[var(--text-primary)] text-xs">
-                  {salary.actualAdditionalOTHours} Jam <span className="text-[10px] text-[var(--accent-sand-light)] font-normal">({additionalOTIndex}x Eqiv)</span>
+                  {additionalOTIndex}x <span className="text-[10px] text-[var(--accent-sand-light)] font-normal">({salary.actualAdditionalOTHours} Jam)</span>
                 </span>
               </div>
               <div className="p-2.5 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] space-y-0.5">
@@ -974,23 +1212,25 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
               </div>
             </div>
 
-            {/* Grid Kalender Kotak Hari (Read-Only di Muka, Klik untuk Pop-Up Edit) */}
+            {/* Grid Kalender Kotak Hari */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-[660px] overflow-y-auto pr-1">
               {filteredDays.map((day) => {
                 const dayMealCount = (day.meals.breakfast ? 1 : 0) + (day.meals.lunch ? 1 : 0) + (day.meals.dinner ? 1 : 0);
                 const isHoliday = day.isPublicHoliday;
                 const otIndex = day.overtimeIndex || calculateOvertimeIndex(day.overtimeHours, day.dayType);
-                const otAmount = day.overtimeAmount || calculateDailyOvertimeAmount(day.overtimeHours, day.dayType, OVERTIME_BASE_RATE).amount;
+                const otAmount = day.overtimeAmount || calculateDailyOvertimeAmount(day.overtimeHours, day.dayType, otBaseRate).amount;
 
                 // Shift Info
                 const isShiftI = day.shiftCode === 'I' || day.shiftType.includes('Shift 1') || day.shiftType.includes('Malam');
                 const isShiftII = day.shiftCode === 'II' || day.shiftType.includes('Shift 2') || day.shiftType.includes('Pagi');
                 const isShiftIII = day.shiftCode === 'III' || day.shiftType.includes('Shift 3') || day.shiftType.includes('Sore');
 
-                // Styling Kotak Hari Adaptif (Bekerja sempurna di Light & Dark Mode)
+                // Styling Kotak Hari Adaptif
                 let cardStyle = 'bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] text-[var(--text-primary)]';
                 if (isHoliday) {
                   cardStyle = 'bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)]';
+                } else if (day.hasAutoOT) {
+                  cardStyle = 'bg-[var(--bg-elevated)] border-2 border-[var(--accent-sage)] text-[var(--text-primary)]';
                 } else if (!day.isWorkDay) {
                   cardStyle = day.overtimeHours > 0
                     ? 'bg-[var(--bg-surface)] border-2 border-[var(--accent-sand)] text-[var(--text-primary)]'
@@ -1004,21 +1244,21 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                     key={day.date}
                     onClick={() => openEditDayModal(day)}
                     className={`p-3 rounded-[var(--radius-sm)] transition-all cursor-pointer select-none flex flex-col justify-between space-y-2 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] shadow-[var(--shadow-sm)] ${cardStyle}`}
-                    title="Klik tanggal untuk mengisi lembur ekstra, ceklis makan, atau ubah shift"
+                    title={`Klik tanggal ${day.date} untuk mengisi lembur ekstra, ceklis makan, atau ubah shift`}
                   >
                     {/* Header Kotak Hari */}
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
                         <div className="font-heading font-extrabold flex items-center gap-1.5 text-[var(--text-primary)]">
                           <span className="font-mono text-base">{day.dayNumber}</span>
-                          <span className="text-[10px] font-mono text-[var(--text-muted)]">{day.dayName}</span>
+                          <span className={`text-[10px] font-mono ${day.dayName === 'Min' || isHoliday ? 'text-[var(--accent-terracotta-light)] font-bold' : 'text-[var(--text-muted)]'}`}>
+                            {day.dayName}
+                          </span>
                         </div>
 
-                        {/* Shift Badge (Sesuai Referensi Gambar 2 & 3) */}
+                        {/* Shift Badge */}
                         <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-[var(--radius-sm)] border shadow-[1px_1px_0px_#000] ${
-                          isHoliday
-                            ? 'bg-[var(--accent-terracotta)] text-black border-black font-extrabold'
-                            : !day.isWorkDay
+                          !day.isWorkDay
                             ? 'bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)] border-[var(--accent-terracotta)]'
                             : isShiftI
                             ? 'bg-[var(--accent-lavender-dark)] text-[var(--accent-lavender-light)] border-[var(--accent-lavender)]'
@@ -1026,17 +1266,15 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                             ? 'bg-[var(--accent-blue-dark)] text-[var(--accent-blue-light)] border-[var(--accent-blue)]'
                             : 'bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] border-[var(--accent-sage)]'
                         }`}>
-                          {isHoliday 
-                            ? 'LIBUR NAS' 
-                            : !day.isWorkDay 
+                          {!day.isWorkDay 
                             ? 'OFF' 
                             : isShiftI ? 'I Malam' : isShiftII ? 'II Pagi' : 'III Sore'}
                         </span>
                       </div>
 
-                      {/* Libur Nasional Name */}
+                      {/* Libur Nasional Badge & Nama */}
                       {isHoliday && day.holidayName && (
-                        <div className="text-[9px] font-mono text-[var(--accent-terracotta-light)] font-bold truncate flex items-center gap-1">
+                        <div className="text-[9px] font-mono text-[var(--accent-terracotta-light)] font-bold truncate flex items-center gap-1" title={day.holidayName}>
                           <span>🎉</span>
                           <span className="truncate">{day.holidayName}</span>
                         </div>
@@ -1050,11 +1288,14 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                       )}
                     </div>
 
-                    {/* Auto OT Badge Marker */}
+                    {/* Auto OT Badge Marker (Minggu Shift III) */}
                     {day.hasAutoOT && (
-                      <div className="px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-sand-dark)] text-[var(--accent-sand-light)] border border-[var(--accent-sand)] text-[9px] font-mono font-bold flex items-center gap-1">
-                        <Zap className="w-2.5 h-2.5 text-[var(--accent-sand)] fill-[var(--accent-sand)]" />
-                        <span>Auto OT (+{day.autoOTHours || 8.25}j)</span>
+                      <div className="px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] border border-[var(--accent-sage)] text-[9px] font-mono font-bold flex items-center justify-between">
+                        <span className="flex items-center gap-1">
+                          <Zap className="w-2.5 h-2.5 text-[var(--accent-sand)] fill-[var(--accent-sand)]" />
+                          <span>Auto OT</span>
+                        </span>
+                        <span>+{day.autoOTHours || autoOTPerSunday}j</span>
                       </div>
                     )}
 
@@ -1063,7 +1304,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                       <div className="bg-[var(--bg-surface)] p-1.5 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] text-[10px] font-mono space-y-0.5">
                         <div className="flex items-center justify-between text-[var(--accent-sand-light)] font-bold">
                           <span>⏱️ +{day.overtimeHours}j</span>
-                          <span>{otIndex}x Eqiv</span>
+                          <span>{otIndex}x</span>
                         </div>
                         <div className="text-right text-[9px] font-bold text-[var(--accent-sage-light)]">
                           +{formatRupiah(otAmount)}
@@ -1093,13 +1334,13 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
 
             {/* Catatan Panduan Sistem Shift */}
             <div className="p-3 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs font-mono space-y-1.5 text-[var(--text-secondary)]">
-              <div className="font-bold text-[var(--text-primary)] flex items-center justify-between">
+              <div className="font-bold text-[var(--text-primary)] flex items-center justify-between flex-wrap gap-1">
                 <span className="flex items-center gap-1.5">
                   <Info className="w-3.5 h-3.5 text-[var(--accent-sand)]" />
-                  <span>Sistem Kerja Shift Group {selectedGroup} (4 Group 3 Shift):</span>
+                  <span>Sistem Kerja Shift Group {selectedGroup} (4 Regu 3 Shift - Siklus 28 Hari):</span>
                 </span>
                 <span className="text-[10px] text-[var(--accent-sand-light)] font-bold">
-                  Auto OT Periode Ini: {autoOTHours} Jam
+                  Auto OT ({autoOTDatesLabel}): {autoOTHours} Jam
                 </span>
               </div>
               <ul className="list-disc pl-4 space-y-0.5 text-[10px] leading-relaxed">
@@ -1107,7 +1348,10 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                   <strong>Shift I (Malam):</strong> 23:00 – 07:00 • <strong>Shift II (Pagi):</strong> 07:00 – 15:00 • <strong>Shift III (Sore):</strong> 15:00 – 23:00.
                 </li>
                 <li>
-                  <strong>Auto OT:</strong> Dihitung otomatis secara matematis berdasarkan siklus kerja 28-hari resmi ({autoOTHours} Jam). Ditandai dengan badge <strong>⚡ Auto OT</strong> pada kartu tanggal.
+                  <strong>Auto OT Resmi AGC:</strong> Setiap <strong>Shift III (Sore) pada hari Minggu</strong> bernilai <strong>{autoOTPerSunday} Jam</strong> Auto O/T (1x Minggu Shift III = 8,25j; 2x Minggu Shift III = 16,50j).
+                </li>
+                <li>
+                  <strong>Tanggal Merah & Lembur Hari Libur:</strong> Lembur pada hari Off atau Tanggal Merah otomatis dihitung dengan tarif indeks hari libur (2x untuk 8 jam pertama, 3x jam ke-9, 4x jam ke-10 dst).
                 </li>
               </ul>
             </div>
@@ -1117,7 +1361,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
         </div>
 
         {/* ------------------------------------------------------------------- */}
-        {/* KOLOM KANAN (5 SPAN): SLIP GAJI & ACTION (SESUAI GAMBAR 2 & 4)       */}
+        {/* KOLOM KANAN (5 SPAN): SLIP GAJI & ACTION                             */}
         {/* ------------------------------------------------------------------- */}
         <div className="lg:col-span-5 space-y-4">
           
@@ -1162,9 +1406,8 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                   <span className="text-[var(--text-primary)] font-bold">{formatRupiah(salary.shiftAllowance)}</span>
                 </div>
 
-                {/* Medical Allowance BIK (Gross) dengan Teks di Atas dan Input di Bawah saat Aktif */}
+                {/* Medical Allowance BIK (Gross) */}
                 <div className="p-2.5 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] space-y-2 transition-colors">
-                  {/* Baris Atas: Toggle & Label Lengkap */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2">
                       <button
@@ -1210,7 +1453,6 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                     )}
                   </div>
 
-                  {/* Baris Bawah: Input Nominal Fleksibel saat Aktif (Teks di Atas, Input di Bawah) */}
                   {isMedicalBikEnabled && (
                     <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
                       <span className="text-[10px] font-mono text-[var(--text-secondary)]">Nominal BIK:</span>
@@ -1259,22 +1501,22 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                   <div className="space-y-1 text-[10px]">
                     <div className="flex items-center justify-between text-[var(--text-secondary)]">
                       <span className="flex items-center gap-1 text-[var(--accent-sand-light)] font-bold">
-                        <span>⚡ Auto OT Terjadwal:</span>
+                        <span>⚡ Auto OT Terjadwal ({autoOTDatesLabel}):</span>
                       </span>
                       <span className="font-bold text-[var(--text-primary)]">
-                        {salary.autoOTHours} Jam (+{formatRupiah(salary.autoOTAmount)})
+                        {salary.autoOTIndex} Jam (+{formatRupiah(salary.autoOTAmount)})
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-[var(--text-muted)]">
-                      <span>• Lembur Tambahan Aktual:</span>
+                      <span>• Lembur Tambahan Equivalent:</span>
                       <span>
-                        {salary.actualAdditionalOTHours} Jam (+{formatRupiah(salary.totalOTAmount - salary.autoOTAmount)})
+                        {additionalOTIndex} Jam (+{formatRupiah(salary.totalOTAmount - salary.autoOTAmount)})
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Komponen Tambahan (Bonus / THR) Manis & Rapi */}
+                {/* Komponen Tambahan (Bonus / THR) */}
                 <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--accent-sand)]/60 rounded-[var(--radius-sm)] space-y-2 shadow-[var(--shadow-sm)]">
                   <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-1.5">
                     <span className="font-heading font-bold text-xs text-[var(--accent-sand-light)] flex items-center gap-1.5">
@@ -1296,7 +1538,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                   <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
                     <button
                       type="button"
-                      onClick={() => handleQuickAddPredefined('THR Keagamaan (1x Gaji Pokok)', 9345000, 'Tunjangan Hari Raya')}
+                      onClick={() => handleQuickAddPredefined('THR Keagamaan (1x Gaji Pokok)', salary.basicSalary, 'Tunjangan Hari Raya')}
                       className="px-2 py-0.5 text-[9px] font-mono font-bold rounded-[var(--radius-sm)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] text-[var(--accent-sage-light)] border border-[var(--accent-sage)] transition-colors"
                     >
                       + THR (1x Basic)
@@ -1448,7 +1690,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
               </div>
             </div>
 
-            {/* 3. TAKE HOME PAY (KOLOM LEBIH KOMPAK & PROPORSIONAL DENGAN WARNA TETAP) */}
+            {/* 3. TAKE HOME PAY */}
             <div className="brutal-card p-3 sm:p-3.5 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] shadow-[var(--shadow-sm)] text-center rounded-[var(--radius-sm)] space-y-1">
               <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-wider text-[var(--accent-sage-light)] font-bold block">
                 ESTIMASI PENDAPATAN BERSIH (TAKE HOME PAY)
@@ -1457,7 +1699,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                 {formatRupiah(salary.netSalary)}
               </div>
               <p className="text-[10px] text-[var(--text-muted)] font-mono leading-tight">
-                Penerimaan Kotor ({formatRupiah(salary.grossIncome)}) dikurangi Total Potongan ({formatRupiah(salary.totalDeductions)})
+                Penerimaan Kas ({formatRupiah(salary.cashIncome)}) dikurangi Total Potongan ({formatRupiah(salary.totalDeductions)})
               </p>
             </div>
 
@@ -1715,10 +1957,11 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                   Edit Data Tanggal {editingDay.dayNumber} {editingDay.dayName}
                 </span>
                 <h3 className="font-heading font-extrabold text-base text-[var(--text-primary)]">
-                  {editingDay.date}
+                  {editingDay.date} {editingDay.holidayName ? `• 🎉 ${editingDay.holidayName}` : ''}
                 </h3>
               </div>
               <button 
+                type="button"
                 onClick={() => setEditingDay(null)}
                 className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
@@ -1763,7 +2006,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                 <label className="brutal-label text-xs flex items-center justify-between">
                   <span>Jam Lembur Tambahan Aktual (Jam)</span>
                   <span className="text-[10px] text-[var(--accent-sand-light)] font-mono">
-                    Indeks: {calculateDailyOvertimeAmount(parseFloat(editDayOT) || 0, getDayType(editingDay.date, editDayType).dayType, OVERTIME_BASE_RATE).index}x
+                    Indeks: {calculateDailyOvertimeAmount(parseFloat(editDayOT) || 0, getDayType(editingDay.date, editDayType, mergedHolidays).dayType, otBaseRate).index}x
                   </span>
                 </label>
                 <div className="flex items-center gap-2">
@@ -1778,7 +2021,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                     placeholder="0"
                   />
                   <div className="flex gap-1">
-                    {[1, 2, 4].map(add => (
+                    {[1, 2, 4, 8].map(add => (
                       <button
                         key={add}
                         type="button"
@@ -1878,7 +2121,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
       )}
 
       {/* ===================================================================== */}
-      {/* 5. MODAL PENGATURAN KHUSUS MODUL GAJI & SHIFT                         */}
+      {/* 5. MODAL PENGATURAN KHUSUS MODUL GAJI, AUTO OT & TANGGAL MERAH        */}
       {/* ===================================================================== */}
       {isSalarySettingsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
@@ -1888,10 +2131,11 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
               <div className="flex items-center gap-2">
                 <Settings className="w-5 h-5 text-[var(--accent-sand)]" />
                 <h3 className="font-heading font-bold text-base text-[var(--text-primary)]">
-                  Pengaturan Gaji & Shift
+                  Pengaturan Gaji, Auto OT & Tanggal Merah
                 </h3>
               </div>
               <button 
+                type="button"
                 onClick={() => setIsSalarySettingsModalOpen(false)}
                 className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
@@ -1901,9 +2145,38 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
 
             <form onSubmit={handleSaveSalarySettings} className="space-y-4">
               
+              {/* Regu / Grup Shift Default & Status PTKP */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="brutal-label text-xs">Regu / Grup Shift Aktif</label>
+                  <select
+                    value={selectedGroup}
+                    onChange={(e) => setSelectedGroup(e.target.value as ShiftGroup)}
+                    className="brutal-select text-xs py-2 w-full bg-[var(--bg-surface)] border-2 border-[var(--border-color)] text-[var(--text-primary)]"
+                  >
+                    <option value="A">Grup A (Offset 0 Hari)</option>
+                    <option value="B">Grup B (Offset 7 Hari)</option>
+                    <option value="C">Grup C (Offset 14 Hari)</option>
+                    <option value="D">Grup D (Offset 21 Hari)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="brutal-label text-xs">Tarif per Ceklis Makan (Rp)</label>
+                  <input
+                    type="number"
+                    step="100"
+                    value={mealRate}
+                    onChange={(e) => setMealRate(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                    className="brutal-input text-xs py-2 font-mono bg-[var(--bg-surface)] border-2 border-[var(--border-color)] text-[var(--text-primary)]"
+                    placeholder="9800"
+                  />
+                </div>
+              </div>
+
               {/* Status PTKP */}
               <div className="space-y-1">
-                <label className="brutal-label text-xs">Status PTKP (Pajak TER)</label>
+                <label className="brutal-label text-xs">Status PTKP (Pajak TER PPh 21)</label>
                 <select
                   value={ptkpStatus}
                   onChange={(e) => setPtkpStatus(e.target.value as PTKPStatus)}
@@ -1920,27 +2193,11 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                 </p>
               </div>
 
-              {/* Tarif per Ceklis Makan */}
-              <div className="space-y-1">
-                <label className="brutal-label text-xs">Tarif per Ceklis Makan (Rp)</label>
-                <input
-                  type="number"
-                  step="500"
-                  value={mealRate}
-                  onChange={(e) => setMealRate(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                  className="brutal-input text-xs font-mono bg-[var(--bg-surface)] border-2 border-[var(--border-color)] text-[var(--text-primary)]"
-                  placeholder="9800"
-                />
-                <p className="text-[10px] text-[var(--text-muted)] font-mono">
-                  Standar default: Rp 9.800 per kali makan yang diceklis.
-                </p>
-              </div>
-
               {/* Gaji Pokok & Tunjangan Tetap */}
               <div className="space-y-2 p-3 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs font-mono">
                 <span className="font-bold text-[var(--text-primary)] block">Komponen Gaji Pokok & Tunjangan</span>
                 
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
                     <label className="text-[10px] text-[var(--text-secondary)] block">Gaji Pokok (Rp):</label>
                     <input
@@ -1977,6 +2234,128 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                       className="brutal-input text-xs py-1 bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-color)]"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Pengaturan Otomatisasi Auto O/T (Minggu Shift III) */}
+              <div className="space-y-2 p-3 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs font-mono">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-[var(--accent-sand)]" />
+                    <span>Otomatisasi Auto O/T (Minggu Shift III)</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsAutoOTEnabled(!isAutoOTEnabled)}
+                    className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    title="Aktifkan/Nonaktifkan Auto OT Otomatis"
+                  >
+                    {isAutoOTEnabled ? (
+                      <ToggleRight className="w-5 h-5 text-[var(--accent-sage-light)]" />
+                    ) : (
+                      <ToggleLeft className="w-5 h-5 text-[var(--text-muted)]" />
+                    )}
+                  </button>
+                </div>
+                <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
+                  Sesuai kalender shift AGC 4 Regu 3 Shift: setiap Shift III (Sore) pada hari Minggu otomatis dihitung sebagai Auto O/T (1x Minggu = 8,25 jam; 2x Minggu = 16,50 jam).
+                </p>
+                {isAutoOTEnabled && (
+                  <div className="pt-1 flex items-center justify-between gap-2">
+                    <label className="text-[10px] text-[var(--text-secondary)]">Jam Auto O/T per Minggu Shift III:</label>
+                    <input
+                      type="number"
+                      step="0.25"
+                      min="0"
+                      max="24"
+                      value={autoOTPerSunday}
+                      onChange={(e) => setAutoOTPerSunday(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="brutal-input text-xs py-1 px-2 w-24 text-right bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-color)]"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Pengaturan & Sinkronisasi Tanggal Merah Nasional / Pabrik */}
+              <div className="space-y-3 p-3 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs font-mono">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-[var(--text-primary)]">Kalender Tanggal Merah & Libur Pabrik</span>
+                  <span className="text-[10px] text-[var(--accent-terracotta-light)] font-bold">
+                    {activeYearHolidays.length} Libur ({currentYear})
+                  </span>
+                </div>
+
+                <button 
+                  type="button" 
+                  onClick={handleSyncHolidays} 
+                  disabled={isSyncingHolidays} 
+                  className="brutal-btn brutal-btn-sand w-full flex items-center justify-center gap-2 py-2 text-xs font-bold shadow-[2px_2px_0px_#000]"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingHolidays ? 'animate-spin' : ''}`} />
+                  <span>{isSyncingHolidays ? 'Menyinkronkan API...' : `Sinkronkan API Tanggal Merah Tahun ${currentYear}`}</span>
+                </button>
+
+                {/* Form Tambah Tanggal Merah / Cuti Bersama Manual */}
+                <div className="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+                  <span className="text-[10px] font-bold text-[var(--text-secondary)] block">
+                    + Tambah Tanggal Merah / Libur Pabrik (ASC/AGC) Manual:
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                    <input
+                      type="date"
+                      value={newHolidayDate}
+                      onChange={(e) => setNewHolidayDate(e.target.value)}
+                      className="sm:col-span-5 brutal-input text-xs py-1 px-2 bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-color)]"
+                    />
+                    <input
+                      type="text"
+                      value={newHolidayName}
+                      onChange={(e) => setNewHolidayName(e.target.value)}
+                      placeholder="Misal: Libur ASC / Cuti Bersama"
+                      className="sm:col-span-5 brutal-input text-xs py-1 px-2 bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-color)]"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddCustomHoliday}
+                      className="sm:col-span-2 brutal-btn brutal-btn-sage text-xs py-1 px-2 font-bold flex items-center justify-center shadow-[1px_1px_0px_#000]"
+                      title="Tambahkan Tanggal Merah"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Daftar Tanggal Merah Tahun Aktif */}
+                <div className="pt-2 border-t border-[var(--border-subtle)] space-y-1 max-h-36 overflow-y-auto pr-1">
+                  <span className="text-[10px] text-[var(--text-muted)] block">
+                    Daftar Tanggal Merah Terdaftar ({currentYear}):
+                  </span>
+                  {activeYearHolidays.map(([dateStr, desc]) => {
+                    const isCustom = Boolean(customHolidays[dateStr]);
+                    return (
+                      <div key={dateStr} className="flex items-center justify-between p-1.5 bg-[var(--bg-surface)] rounded border border-[var(--border-subtle)] text-[10px]">
+                        <div className="truncate pr-2">
+                          <strong className="text-[var(--text-primary)]">{dateStr}</strong>:{' '}
+                          <span className="text-[var(--accent-terracotta-light)]">{desc}</span>
+                          {isCustom && (
+                            <span className="ml-1.5 px-1 py-0.2 bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] rounded text-[8px]">
+                              Manual
+                            </span>
+                          )}
+                        </div>
+                        {isCustom && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCustomHoliday(dateStr)}
+                            className="text-[var(--accent-terracotta-light)] hover:opacity-80 p-0.5 shrink-0"
+                            title="Hapus tanggal merah manual ini"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -2018,6 +2397,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                 </h3>
               </div>
               <button 
+                type="button"
                 onClick={() => setIsAddOnModalOpen(false)}
                 className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
