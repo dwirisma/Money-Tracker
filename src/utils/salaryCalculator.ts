@@ -622,7 +622,7 @@ export function calculateSalaryBreakdown(
   mealRate: number = DEFAULT_MEAL_RATE,
   year: number = new Date().getFullYear(),
   monthIndex: number = new Date().getMonth(),
-  manualAutoOTHours?: number,
+  _ignoredAutoOTHours?: number, // Parameter dinonaktifkan agar dihitung presisi harian
   addOns?: SalaryAddOn[],
   medicalBik: number = 0,
   customOverrides?: SalaryCalculationCustomOverrides
@@ -636,25 +636,22 @@ export function calculateSalaryBreakdown(
   const bpjsBase = basicSalary + housingAllowance;
   const otBaseRatePerHour = bpjsBase / 173;
 
-  // Hitung Auto OT dari hari-hari yang memiliki flag hasAutoOT (Minggu Shift III)
-  const autoOTHours = manualAutoOTHours !== undefined 
-    ? manualAutoOTHours 
-    : shiftLogs.reduce((sum, day) => sum + (day.hasAutoOT ? (day.autoOTHours || DEFAULT_AUTO_OT_HOURS_PER_SUNDAY_SHIFT_3) : 0), 0);
-
-  const autoOTIndex = calculateOvertimeIndex(autoOTHours, 'NORMAL_WORKDAY');
-  const autoOTAmount = Math.round(autoOTIndex * otBaseRatePerHour);
-
   let actualWorkDayOTHours = 0;
   let actualOffDayOTHours = 0;
   let actualOTAmount = 0;
   let actualOTIndex = 0;
   let totalMealCount = 0;
+  
+  let calculatedAutoOTHours = 0;
+  let calculatedAutoOTIndex = 0;
 
   shiftLogs.forEach(day => {
+    // 1. Hitung Ceklis Makan
     if (day.meals.breakfast) totalMealCount++;
     if (day.meals.lunch) totalMealCount++;
     if (day.meals.dinner) totalMealCount++;
 
+    // 2. Hitung Lembur Aktual (Tambahan)
     if (day.overtimeHours > 0) {
       if (day.dayType === 'NORMAL_WORKDAY') actualWorkDayOTHours += day.overtimeHours;
       else actualOffDayOTHours += day.overtimeHours;
@@ -663,7 +660,20 @@ export function calculateSalaryBreakdown(
       actualOTIndex += index;
       actualOTAmount += amount;
     }
+    
+    // 3. Hitung Auto O/T per hari dengan Multiplier Libur (OFF_OR_HOLIDAY)
+    if (day.hasAutoOT) {
+      const dailyAutoOT = day.autoOTHours || DEFAULT_AUTO_OT_HOURS_PER_SUNDAY_SHIFT_3;
+      calculatedAutoOTHours += dailyAutoOT;
+      
+      // Auto OT Minggu dihitung sebagai hari libur sesuai PP 35/2021 (7 jam pertama x2, jam 8 x3, jam 9 dst x4)
+      calculatedAutoOTIndex += calculateOvertimeIndex(dailyAutoOT, 'OFF_OR_HOLIDAY'); 
+    }
   });
+
+  const autoOTHours = calculatedAutoOTHours;
+  const autoOTIndex = calculatedAutoOTIndex;
+  const autoOTAmount = Math.round(autoOTIndex * otBaseRatePerHour);
 
   const actualAdditionalOTHours = Math.round((actualWorkDayOTHours + actualOffDayOTHours) * 100) / 100;
   const totalOTHours = Math.round((autoOTHours + actualAdditionalOTHours) * 100) / 100;

@@ -2012,7 +2012,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
-                    step="0.5"
+                    step="0.01"
                     min="0"
                     max="24"
                     value={editDayOT}
