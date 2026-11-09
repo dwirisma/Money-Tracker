@@ -10,9 +10,12 @@ interface UIState {
   theme: Theme;
   privacy: boolean;
   sidebarCollapsed: boolean;
+  mobileDrawerOpen: boolean;
   toggleTheme: () => void;
   togglePrivacy: () => void;
   toggleSidebar: () => void;
+  toggleMobileDrawer: () => void;
+  setMobileDrawerOpen: (open: boolean) => void;
 }
 
 const UIContext = createContext<UIState | null>(null);
@@ -28,6 +31,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => (read(KEY_THEME) === 'light' ? 'light' : 'dark'));
   const [privacy, setPrivacy] = useState<boolean>(() => read(KEY_PRIVACY) === 'true');
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => read(KEY_SIDEBAR) === 'true');
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
 
   // Sinkronkan ke <html>, meta theme-color, dan formatter global
   useEffect(() => {
@@ -50,10 +54,21 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const toggleTheme = useCallback(() => setTheme(t => (t === 'dark' ? 'light' : 'dark')), []);
   const togglePrivacy = useCallback(() => setPrivacy(p => !p), []);
   const toggleSidebar = useCallback(() => setSidebarCollapsed(c => !c), []);
+  const toggleMobileDrawer = useCallback(() => setMobileDrawerOpen(o => !o), []);
 
   const value = useMemo(
-    () => ({ theme, privacy, sidebarCollapsed, toggleTheme, togglePrivacy, toggleSidebar }),
-    [theme, privacy, sidebarCollapsed, toggleTheme, togglePrivacy, toggleSidebar]
+    () => ({ 
+      theme, 
+      privacy, 
+      sidebarCollapsed, 
+      mobileDrawerOpen, 
+      toggleTheme, 
+      togglePrivacy, 
+      toggleSidebar, 
+      toggleMobileDrawer, 
+      setMobileDrawerOpen 
+    }),
+    [theme, privacy, sidebarCollapsed, mobileDrawerOpen, toggleTheme, togglePrivacy, toggleSidebar, toggleMobileDrawer]
   );
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
 }

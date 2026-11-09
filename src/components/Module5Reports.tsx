@@ -434,6 +434,48 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       .slice(0, 5);
   }, [filteredTransactions]);
 
+  // Alokasi Anggaran Cerdas (Aturan Emas 50/30/20)
+  const allocation503020 = useMemo(() => {
+    let needs = 0;
+    let wants = 0;
+
+    filteredTransactions.forEach(t => {
+      if (t.type === 'expense') {
+        const cat = (t.category || '').toLowerCase();
+        const isNeed = Boolean(
+          t.billId || 
+          t.debtId || 
+          cat.includes('makan') || 
+          cat.includes('transport') || 
+          cat.includes('tagihan') || 
+          cat.includes('utilitas') || 
+          cat.includes('kesehatan') || 
+          cat.includes('bulanan') ||
+          cat.includes('sewa') ||
+          cat.includes('pendidikan') ||
+          cat.includes('cicilan') ||
+          cat.includes('utang')
+        );
+        if (isNeed) {
+          needs += t.amount;
+        } else {
+          wants += t.amount;
+        }
+      }
+    });
+
+    const income = metrics.totalIncome || 0;
+    const totalExp = needs + wants;
+    const savings = Math.max(0, income - totalExp);
+    const base = income > 0 ? income : (totalExp > 0 ? totalExp : 1);
+
+    const needsPct = Math.round((needs / base) * 100);
+    const wantsPct = Math.round((wants / base) * 100);
+    const savingsPct = Math.round((savings / base) * 100);
+
+    return { needs, wants, savings, needsPct, wantsPct, savingsPct, base };
+  }, [filteredTransactions, metrics.totalIncome]);
+
   // Ekspor Data Transaksi ke File Excel / CSV
   const handleExportData = () => {
     try {
@@ -1120,6 +1162,105 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
           </div>
         </div>
 
+      </section>
+
+      {/* ===================================================================== */}
+      {/* 3B. ANALISIS ALOKASI DANA KATEGORI (ATURAN 50/30/20 EXPERT)          */}
+      {/* ===================================================================== */}
+      <section className="brutal-card p-5 bg-[var(--bg-surface)] space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b-2 border-[var(--border-subtle)] pb-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-[var(--accent-sand)]" />
+            <div>
+              <h3 className="font-heading font-bold text-base text-white">
+                Analisis Alokasi Dana Kategori (Metode 50 / 30 / 20)
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] font-mono">
+                Evaluasi proporsi pengeluaran terhadap standar kesehatan finansial
+              </p>
+            </div>
+          </div>
+          <span className="brutal-badge text-[10px] bg-[var(--accent-sand)] text-[#111] font-bold">
+            Aturan Emas Budgeting
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* 1. Kebutuhan Pokok (Needs) */}
+          <div className="p-4 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-heading font-bold text-white flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-blue)]" />
+                Kebutuhan Pokok (Needs)
+              </span>
+              <span className={`font-mono font-bold text-xs ${allocation503020.needsPct > 55 ? 'text-[var(--accent-terracotta-light)]' : 'text-[var(--accent-sage-light)]'}`}>
+                {allocation503020.needsPct}% / Target 50%
+              </span>
+            </div>
+            <p className="font-mono font-bold text-lg text-white">
+              {formatRupiah(allocation503020.needs)}
+            </p>
+            <div className="h-2.5 w-full bg-[var(--bg-muted)] border border-black rounded-[2px] overflow-hidden">
+              <div 
+                className="h-full bg-[var(--accent-blue)] transition-all duration-300"
+                style={{ width: `${Math.min(100, allocation503020.needsPct)}%` }}
+              />
+            </div>
+            <p className="text-[10px] font-mono text-[var(--text-muted)]">
+              Tagihan, makanan pokok, transport & cicilan utang
+            </p>
+          </div>
+
+          {/* 2. Keinginan & Gaya Hidup (Wants) */}
+          <div className="p-4 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-heading font-bold text-white flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-terracotta)]" />
+                Gaya Hidup (Wants)
+              </span>
+              <span className={`font-mono font-bold text-xs ${allocation503020.wantsPct > 35 ? 'text-[var(--accent-terracotta-light)]' : 'text-[var(--accent-sage-light)]'}`}>
+                {allocation503020.wantsPct}% / Target 30%
+              </span>
+            </div>
+            <p className="font-mono font-bold text-lg text-white">
+              {formatRupiah(allocation503020.wants)}
+            </p>
+            <div className="h-2.5 w-full bg-[var(--bg-muted)] border border-black rounded-[2px] overflow-hidden">
+              <div 
+                className="h-full bg-[var(--accent-terracotta)] transition-all duration-300"
+                style={{ width: `${Math.min(100, allocation503020.wantsPct)}%` }}
+              />
+            </div>
+            <p className="text-[10px] font-mono text-[var(--text-muted)]">
+              Hiburan, makan luar, hobi, belanja fleksibel
+            </p>
+          </div>
+
+          {/* 3. Tabungan & Investasi (Savings) */}
+          <div className="p-4 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-heading font-bold text-white flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-sage)]" />
+                Tabungan & Investasi
+              </span>
+              <span className="font-mono font-bold text-xs text-[var(--accent-sage-light)]">
+                {allocation503020.savingsPct}% / Target 20%
+              </span>
+            </div>
+            <p className="font-mono font-bold text-lg text-[var(--accent-sage-light)]">
+              {formatRupiah(allocation503020.savings)}
+            </p>
+            <div className="h-2.5 w-full bg-[var(--bg-muted)] border border-black rounded-[2px] overflow-hidden">
+              <div 
+                className="h-full bg-[var(--accent-sage)] transition-all duration-300"
+                style={{ width: `${Math.min(100, allocation503020.savingsPct)}%` }}
+              />
+            </div>
+            <p className="text-[10px] font-mono text-[var(--text-muted)]">
+              Alokasi Sinking Funds, portofolio & dana darurat
+            </p>
+          </div>
+        </div>
       </section>
 
       {/* ===================================================================== */}

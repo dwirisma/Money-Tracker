@@ -345,7 +345,7 @@ export async function updateAccountData(
 
   try {
     const docRef = doc(db, 'users', userId, 'accounts', accountId);
-    const cleanData = JSON.parse(JSON.stringify(updated)); // Sesuaikan dengan nama variabel objekmu (updated/updatedBill)
+    const cleanData = JSON.parse(JSON.stringify(updatedAccount));
     await updateDoc(docRef, { ...cleanData, updatedAt: serverTimestamp() });
   } catch (err) {
     console.warn('Firestore updateDoc offline fallback:', err);

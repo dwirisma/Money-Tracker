@@ -289,3 +289,22 @@ export interface SalaryHistoryRecord {
   createdAt: any; // serverTimestamp() atau timestamp number / string
 }
 
+export type InvestmentAssetType = 'stock' | 'mutual_fund' | 'crypto' | 'gold' | 'bond' | 'deposit' | 'p2p' | 'other';
+
+export interface InvestmentAsset {
+  id: string;
+  ledgerId: string; // Relasi ke buku kas
+  name: string;
+  symbolOrTicker?: string;
+  type: InvestmentAssetType;
+  platform?: string; // e.g. Stockbit, Bibit, Ajaib, Pluang, Indodax, BCA
+  initialCapital: number; // Modal pembelian (cost basis)
+  currentValue: number; // Nilai pasar saat ini
+  units?: number; // Jumlah unit / lembar / koin / gram
+  buyPricePerUnit?: number;
+  currentPricePerUnit?: number;
+  colorAccent?: string;
+  notes?: string;
+  lastUpdated?: string; // YYYY-MM-DD
+  createdAt: number | string;
+}
