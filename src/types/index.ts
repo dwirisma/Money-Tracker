@@ -233,6 +233,8 @@ export interface ShiftDayLog {
     lunch: boolean; // Siang
     dinner: boolean; // Malam
   };
+  hasAutoOT?: boolean; // Tanda apakah hari ini mendapatkan Auto OT
+  autoOTHours?: number; // Jam Auto OT (misal 8.25 jam)
   note?: string;
 }
 

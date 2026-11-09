@@ -260,6 +260,7 @@ export function getShiftForDate(
     date: dateStr,
     group,
     code,
+    cycleIndex,
     name: info.name,
     short: info.short,
     hours: info.hours,
@@ -341,6 +342,10 @@ export function generateShiftCalendar(
     const shiftInfo = getShiftForDate(current, group, anchorDateStr);
     const dayOfWeek = current.getDay();
 
+    // Logic Auto OT: Terjadwal pada hari kerja yang jatuh di hari libur nasional atau rotasi siklus lembur terjadwal (cycle index 0 atau 14)
+    const hasAutoOT = shiftInfo.isWorkDay && (shiftInfo.isPublicHoliday || shiftInfo.cycleIndex === 0 || shiftInfo.cycleIndex === 14);
+    const autoOTHours = hasAutoOT ? 8.25 : 0;
+
     days.push({
       date: shiftInfo.date,
       dayName: dayNamesShort[dayOfWeek],
@@ -352,6 +357,8 @@ export function generateShiftCalendar(
       dayType: shiftInfo.dayType,
       isPublicHoliday: shiftInfo.isPublicHoliday,
       holidayName: shiftInfo.holidayName,
+      hasAutoOT,
+      autoOTHours,
       overtimeHours: 0,
       overtimeIndex: 0,
       overtimeAmount: 0,

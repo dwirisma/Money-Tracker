@@ -1,14 +1,15 @@
 /**
  * Firebase Initialization & Offline-First Persistence Configuration
  */
-import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getFirestore, 
   initializeFirestore, 
   persistentLocalCache, 
-  persistentMultipleTabManager 
+  persistentMultipleTabManager,
+  Firestore
 } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { getAuth, Auth } from 'firebase/auth';
 
 // Mengambil konfigurasi dari window global atau environment variables
 declare global {
@@ -17,20 +18,23 @@ declare global {
   }
 }
 
+const rawApiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+const isValidApiKey = typeof rawApiKey === 'string' && rawApiKey.trim().length > 10;
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  apiKey: isValidApiKey ? rawApiKey : 'AIzaSyArthaOfflineDefaultKey12345678901',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'artha-finance-app.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'artha-finance-app',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'artha-finance-app.appspot.com',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '1029384756',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:1029384756:web:artha1234567890'
 };
 
 // Inisialisasi Firebase App (Cegah inisialisasi ganda)
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
 // Inisialisasi Firestore dengan offline-first IndexedDB persistence
-let db: ReturnType<typeof getFirestore>;
+let db: Firestore;
 
 try {
   db = initializeFirestore(app, {
@@ -43,5 +47,16 @@ try {
   db = getFirestore(app);
 }
 
-export const auth = getAuth(app);
-export { app, db };
+// Inisialisasi Auth secara aman dengan fallback proteksi jika API Key belum diisi
+let auth: Auth;
+try {
+  auth = getAuth(app);
+} catch (err) {
+  console.warn('Firebase Auth offline fallback active:', err);
+  auth = {
+    currentUser: null,
+    onAuthStateChanged: () => () => {}
+  } as unknown as Auth;
+}
+
+export { app, db, auth };

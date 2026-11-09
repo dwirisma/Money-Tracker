@@ -13,8 +13,7 @@ import {
   Landmark, 
   Layers, 
   History,
-  Check,
-  Percent
+  Check
 } from 'lucide-react';
 import type { Account, AccountPocket, Transaction } from '../types';
 import { formatRupiah } from '../utils/calculator';
@@ -42,7 +41,7 @@ export function AccountDetailModal({
   transactions,
   accounts,
   onAddPocket,
-  onUpdatePocket: _onUpdatePocket,
+  onUpdatePocket,
   onDeletePocket,
   onSelectForTransaction,
   onSelectForTransfer,
@@ -54,14 +53,18 @@ export function AccountDetailModal({
   const [txSearch, setTxSearch] = useState('');
   const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'income' | 'expense' | 'transfer'>('all');
 
-  // Form tambah kantong state
+  // Form Tambah / Edit Kantong
   const [isAddingPocket, setIsAddingPocket] = useState(false);
+  const [editingPocketId, setEditingPocketId] = useState<string | null>(null);
   const [pocketName, setPocketName] = useState('');
-  const [pocketEmoji, setPocketEmoji] = useState('🎯');
+  const [pocketEmoji, setPocketEmoji] = useState('🍔');
   const [pocketBalance, setPocketBalance] = useState('');
-  const [pocketTarget, setPocketTarget] = useState('');
-  const [pocketType, setPocketType] = useState<'spending' | 'saving' | 'locked' | 'bills'>('saving');
-  const [isSubmittingPocket, setIsSubmittingPocket] = useState(false);
+
+  // Transfer Antar Kantong
+  const [isTransferringPocket, setIsTransferringPocket] = useState(false);
+  const [pocketTransferSource, setPocketTransferSource] = useState<'free' | string>('free');
+  const [pocketTransferDest, setPocketTransferDest] = useState<string>('');
+  const [pocketTransferAmount, setPocketTransferAmount] = useState('');
 
   if (!isOpen || !account) return null;
 
@@ -71,13 +74,11 @@ export function AccountDetailModal({
   });
 
   const filteredMutations = accountMutations.filter(t => {
-    // Type filter
     if (txTypeFilter !== 'all') {
       if (txTypeFilter === 'transfer' && t.type !== 'transfer') return false;
       if (txTypeFilter === 'income' && (t.type !== 'income' || t.accountId !== account.id)) return false;
       if (txTypeFilter === 'expense' && (t.type !== 'expense' || t.accountId !== account.id)) return false;
     }
-    // Search query
     if (txSearch) {
       const q = txSearch.toLowerCase();
       const matchCat = (t.category || '').toLowerCase().includes(q);
@@ -88,38 +89,95 @@ export function AccountDetailModal({
     return true;
   });
 
-  // Hitung total alokasi di kantong
   const pockets = account.pockets || [];
   const totalInPockets = pockets.reduce((sum, p) => sum + (p.balance || 0), 0);
   const unallocatedBalance = Math.max(0, account.balance - totalInPockets);
 
-  async function handleCreatePocket(e: React.FormEvent) {
+  function openCreatePocket() {
+    setEditingPocketId(null);
+    setPocketName('');
+    setPocketEmoji('🍔');
+    setPocketBalance('');
+    setIsAddingPocket(true);
+  }
+
+  function openEditPocket(p: AccountPocket) {
+    setEditingPocketId(p.id);
+    setPocketName(p.name);
+    setPocketEmoji(p.emoji || '🎯');
+    setPocketBalance(String(p.balance || '0'));
+    setIsAddingPocket(true);
+  }
+
+  async function handleSavePocket(e: React.FormEvent) {
     e.preventDefault();
     if (!pocketName.trim() || !account) return;
 
-    setIsSubmittingPocket(true);
-    try {
-      const initBal = parseFloat(pocketBalance.replace(/\D/g, '')) || 0;
-      const targetBal = parseFloat(pocketTarget.replace(/\D/g, '')) || undefined;
+    const numBalance = parseFloat(pocketBalance.replace(/\D/g, '')) || 0;
 
+    if (editingPocketId) {
+      await onUpdatePocket(account.id, editingPocketId, {
+        name: pocketName.trim(),
+        emoji: pocketEmoji,
+        balance: numBalance
+      });
+    } else {
       await onAddPocket(account.id, {
         name: pocketName.trim(),
-        balance: initBal,
-        targetAmount: targetBal,
-        emoji: pocketEmoji || '🎯',
-        type: pocketType,
+        balance: numBalance,
+        emoji: pocketEmoji,
         colorAccent: account.colorAccent || '#7a9eb3'
       });
-
-      setPocketName('');
-      setPocketBalance('');
-      setPocketTarget('');
-      setIsAddingPocket(false);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSubmittingPocket(false);
     }
+
+    setIsAddingPocket(false);
+    setEditingPocketId(null);
+  }
+
+  async function handleExecutePocketTransfer(e: React.FormEvent) {
+    e.preventDefault();
+    if (!account) return;
+    const amount = parseFloat(pocketTransferAmount.replace(/\D/g, '')) || 0;
+    if (amount <= 0 || !pocketTransferDest) return;
+
+    if (pocketTransferSource === pocketTransferDest) {
+      return;
+    }
+
+    // Kasus 1: Dari Saldo Bebas ke Kantong
+    if (pocketTransferSource === 'free') {
+      const destP = pockets.find(p => p.id === pocketTransferDest);
+      if (destP) {
+        await onUpdatePocket(account.id, destP.id, {
+          balance: (destP.balance || 0) + amount
+        });
+      }
+    } 
+    // Kasus 2: Dari Kantong ke Saldo Bebas
+    else if (pocketTransferDest === 'free') {
+      const srcP = pockets.find(p => p.id === pocketTransferSource);
+      if (srcP) {
+        await onUpdatePocket(account.id, srcP.id, {
+          balance: Math.max(0, (srcP.balance || 0) - amount)
+        });
+      }
+    } 
+    // Kasus 3: Antar Kantong (Kantong A -> Kantong B)
+    else {
+      const srcP = pockets.find(p => p.id === pocketTransferSource);
+      const destP = pockets.find(p => p.id === pocketTransferDest);
+      if (srcP && destP) {
+        await onUpdatePocket(account.id, srcP.id, {
+          balance: Math.max(0, (srcP.balance || 0) - amount)
+        });
+        await onUpdatePocket(account.id, destP.id, {
+          balance: (destP.balance || 0) + amount
+        });
+      }
+    }
+
+    setIsTransferringPocket(false);
+    setPocketTransferAmount('');
   }
 
   return (
@@ -148,7 +206,7 @@ export function AccountDetailModal({
                 </span>
               </div>
               <p className="text-xs font-mono text-[var(--text-secondary)]">
-                Detail Akun & Mutasi Transaksi
+                Detail Akun, Mutasi & Pos Kantong
               </p>
             </div>
           </div>
@@ -166,14 +224,14 @@ export function AccountDetailModal({
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 p-4 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-xl">
           <div className="sm:col-span-7 space-y-1">
             <span className="text-[11px] font-mono uppercase tracking-wider text-[var(--text-secondary)]">
-              {account.type === 'credit_card' ? 'Tagihan Berjalan Saat Ini' : 'Saldo Akun Utama'}
+              {account.type === 'credit_card' ? 'Tagihan Berjalan Saat Ini' : 'Total Saldo Rekening'}
             </span>
             <div className="font-heading font-black text-2xl sm:text-3xl text-[var(--text-primary)]">
               {formatRupiah(account.balance)}
             </div>
             {account.type !== 'credit_card' && pockets.length > 0 && (
               <p className="text-xs font-mono text-[var(--accent-sand)]">
-                Terbagi: {formatRupiah(totalInPockets)} di {pockets.length} Kantong • Sisa Bebas: {formatRupiah(unallocatedBalance)}
+                Terbagi: {formatRupiah(totalInPockets)} ({pockets.length} Kantong) • Saldo Bebas: {formatRupiah(unallocatedBalance)}
               </p>
             )}
             {account.creditLimit && (
@@ -248,17 +306,13 @@ export function AccountDetailModal({
             }`}
           >
             <Layers className="w-4 h-4" />
-            <span>Kantong / Pockets ({pockets.length})</span>
-            {pockets.length > 0 && (
-              <span className="w-2 h-2 rounded-full bg-[var(--accent-sage)] animate-pulse" />
-            )}
+            <span>Kantong / Pos Anggaran ({pockets.length})</span>
           </button>
         </div>
 
         {/* TAB 1: MUTASI TRANSAKSI */}
         {activeTab === 'mutations' && (
           <div className="space-y-3">
-            {/* Filter & Search Bar */}
             <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
@@ -285,7 +339,6 @@ export function AccountDetailModal({
               </div>
             </div>
 
-            {/* List Mutasi */}
             <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
               {filteredMutations.length === 0 ? (
                 <div className="p-8 text-center text-xs font-mono text-[var(--text-muted)] bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)]">
@@ -294,8 +347,6 @@ export function AccountDetailModal({
               ) : (
                 filteredMutations.map(tx => {
                   const isIncome = tx.type === 'income' || (tx.type === 'transfer' && tx.toAccountId === account.id);
-                  const isTransferOut = tx.type === 'transfer' && tx.accountId === account.id;
-
                   const otherAccName = tx.type === 'transfer'
                     ? accounts.find(a => a.id === (isIncome ? tx.accountId : tx.toAccountId))?.name || 'Akun Lain'
                     : null;
@@ -371,40 +422,58 @@ export function AccountDetailModal({
           </div>
         )}
 
-        {/* TAB 2: KANTONG / POCKETS (BANK JAGO CONCEPT) */}
+        {/* TAB 2: KANTONG POS ANGGARAN (PEMISAH SALDO) */}
         {activeTab === 'pockets' && (
           <div className="space-y-4">
-            {/* Header info */}
-            <div className="flex items-start justify-between bg-amber-500/10 border border-amber-500/30 p-3 rounded-xl text-xs">
+            {/* Action Bar Kantong */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] p-3 rounded-xl text-xs">
               <div className="space-y-0.5">
-                <p className="font-bold text-amber-300">💡 Konsep Kantong (Bank Pockets):</p>
-                <p className="text-slate-300 text-[11px] leading-relaxed">
-                  Bagi saldo rekening ini ke beberapa pos alokasi (misal: Belanja Harian, Nabung, Tagihan) tanpa harus membuka rekening baru dan kena biaya admin ganda.
+                <p className="font-bold text-[var(--accent-sand)]">Pos Anggaran / Pemisah Saldo:</p>
+                <p className="text-[var(--text-muted)] text-[11px]">
+                  Bagi saldo rekening ini ke pos belanja/operasional tanpa target agar tidak tercampur.
                 </p>
               </div>
 
-              {!isAddingPocket && (
-                <button
-                  type="button"
-                  onClick={() => setIsAddingPocket(true)}
-                  className="brutal-btn brutal-btn-sand text-xs py-1.5 px-3 shrink-0 flex items-center gap-1 font-bold shadow-[2px_2px_0px_#000]"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Buat Kantong</span>
-                </button>
-              )}
+              <div className="flex items-center gap-2 shrink-0">
+                {pockets.length > 0 && !isTransferringPocket && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPocketTransferDest(pockets[0].id);
+                      setIsTransferringPocket(true);
+                      setIsAddingPocket(false);
+                    }}
+                    className="brutal-btn brutal-btn-ghost text-xs py-1.5 px-3 flex items-center gap-1 font-bold"
+                  >
+                    <ArrowRightLeft className="w-3.5 h-3.5" />
+                    <span>Pindah Saldo</span>
+                  </button>
+                )}
+
+                {!isAddingPocket && (
+                  <button
+                    type="button"
+                    onClick={openCreatePocket}
+                    className="brutal-btn brutal-btn-sand text-xs py-1.5 px-3 flex items-center gap-1 font-bold shadow-[2px_2px_0px_#000]"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Buat Kantong</span>
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Form Tambah Kantong */}
-            {isAddingPocket && (
-              <form onSubmit={handleCreatePocket} className="p-4 bg-[var(--bg-elevated)] border-2 border-black dark:border-white/20 rounded-xl space-y-3">
+            {/* FORM TRANSFER SALDO ANTAR KANTONG / SALDO BEBAS */}
+            {isTransferringPocket && (
+              <form onSubmit={handleExecutePocketTransfer} className="p-4 bg-[var(--bg-elevated)] border-2 border-black dark:border-white/20 rounded-xl space-y-3">
                 <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
-                  <h4 className="font-heading font-bold text-xs text-[var(--text-primary)]">
-                    + Tambah Kantong di {account.name}
+                  <h4 className="font-heading font-bold text-xs text-[var(--text-primary)] flex items-center gap-1.5">
+                    <ArrowRightLeft className="w-3.5 h-3.5 text-[var(--accent-sand)]" />
+                    <span>Pindah Saldo Antar Pos / Kantong</span>
                   </h4>
                   <button 
                     type="button" 
-                    onClick={() => setIsAddingPocket(false)}
+                    onClick={() => setIsTransferringPocket(false)}
                     className="text-xs text-[var(--text-muted)] hover:text-white"
                   >
                     Batal
@@ -413,11 +482,96 @@ export function AccountDetailModal({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Nama Kantong</label>
+                    <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Dari Sumber:</label>
+                    <select
+                      value={pocketTransferSource}
+                      onChange={e => setPocketTransferSource(e.target.value)}
+                      className="brutal-select text-xs py-1.5 w-full mt-1"
+                    >
+                      <option value="free">Saldo Bebas Rekening ({formatRupiah(unallocatedBalance)})</option>
+                      {pockets.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.emoji || '🎯'} {p.name} ({formatRupiah(p.balance)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Ke Tujuan:</label>
+                    <select
+                      value={pocketTransferDest}
+                      onChange={e => setPocketTransferDest(e.target.value)}
+                      className="brutal-select text-xs py-1.5 w-full mt-1"
+                    >
+                      <option value="free">Saldo Bebas Rekening ({formatRupiah(unallocatedBalance)})</option>
+                      {pockets.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.emoji || '🎯'} {p.name} ({formatRupiah(p.balance)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Nominal Dipindahkan (Rp)</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      placeholder="e.g. 500000"
+                      value={pocketTransferAmount}
+                      onChange={e => setPocketTransferAmount(e.target.value)}
+                      className="brutal-input text-xs py-1.5 w-full mt-1 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                  <button
+                    type="button"
+                    onClick={() => setIsTransferringPocket(false)}
+                    className="brutal-btn brutal-btn-ghost text-xs py-1 px-3"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="brutal-btn brutal-btn-sage text-xs py-1 px-3 flex items-center gap-1 font-bold shadow-[2px_2px_0px_#000]"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Pindahkan Sekarang</span>
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* FORM TAMBAH / EDIT KANTONG */}
+            {isAddingPocket && (
+              <form onSubmit={handleSavePocket} className="p-4 bg-[var(--bg-elevated)] border-2 border-black dark:border-white/20 rounded-xl space-y-3">
+                <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
+                  <h4 className="font-heading font-bold text-xs text-[var(--text-primary)]">
+                    {editingPocketId ? 'Edit Pos Kantong' : `+ Tambah Pos Kantong di ${account.name}`}
+                  </h4>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setIsAddingPocket(false);
+                      setEditingPocketId(null);
+                    }}
+                    className="text-xs text-[var(--text-muted)] hover:text-white"
+                  >
+                    Batal
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Nama Pos Kantong</label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Kantong Jajan, Nabung Gadget"
+                      placeholder="e.g. Belanja Mingguan, Transportasi"
                       value={pocketName}
                       onChange={e => setPocketName(e.target.value)}
                       className="brutal-input text-xs py-1.5 w-full mt-1"
@@ -425,9 +579,9 @@ export function AccountDetailModal({
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Emoji / Ikon</label>
-                    <div className="flex gap-1.5 mt-1">
-                      {['🎯', '🍔', '✈️', '🎮', '🚗', '💊', '📚', '🏠'].map(em => (
+                    <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Emoji</label>
+                    <div className="flex gap-1 mt-1 flex-wrap">
+                      {['🍔', '☕', '🚗', '💊', '🎮', '🏠', '🛒', '⚡'].map(em => (
                         <button
                           key={em}
                           type="button"
@@ -442,8 +596,8 @@ export function AccountDetailModal({
                     </div>
                   </div>
 
-                  <div>
-                    <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Saldo Alokasi Awal (Rp)</label>
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Saldo Alokasi Pos Ini (Rp)</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -452,52 +606,38 @@ export function AccountDetailModal({
                       className="brutal-input text-xs py-1.5 w-full mt-1 font-mono"
                     />
                   </div>
-
-                  <div>
-                    <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Target Nominal (Opsional)</label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 5000000"
-                      value={pocketTarget}
-                      onChange={e => setPocketTarget(e.target.value)}
-                      className="brutal-input text-xs py-1.5 w-full mt-1 font-mono"
-                    />
-                  </div>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
                   <button
                     type="button"
-                    onClick={() => setIsAddingPocket(false)}
+                    onClick={() => {
+                      setIsAddingPocket(false);
+                      setEditingPocketId(null);
+                    }}
                     className="brutal-btn brutal-btn-ghost text-xs py-1 px-3"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
-                    disabled={isSubmittingPocket || !pocketName.trim()}
                     className="brutal-btn brutal-btn-sage text-xs py-1 px-3 flex items-center gap-1 font-bold shadow-[2px_2px_0px_#000]"
                   >
                     <Check className="w-3.5 h-3.5" />
-                    <span>Simpan Kantong</span>
+                    <span>{editingPocketId ? 'Simpan Perubahan' : 'Buat Kantong'}</span>
                   </button>
                 </div>
               </form>
             )}
 
-            {/* List Kantong */}
+            {/* List Kantong Pos Anggaran */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
               {pockets.length === 0 ? (
                 <div className="col-span-2 p-8 text-center text-xs font-mono text-[var(--text-muted)] bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)]">
-                  Belum ada kantong dibuat di akun ini. Buat kantong untuk mengalokasikan saldo secara rapi!
+                  Belum ada pos kantong di akun ini. Buat kantong pemisah saldo seperti "Belanja Harian", "Transport", atau "Tagihan" agar dana tidak bocor halus.
                 </div>
               ) : (
                 pockets.map(pocket => {
-                  const hasTarget = pocket.targetAmount && pocket.targetAmount > 0;
-                  const pct = hasTarget 
-                    ? Math.min(100, Math.round(((pocket.balance || 0) / pocket.targetAmount!) * 100))
-                    : 0;
-
                   return (
                     <div
                       key={pocket.id}
@@ -505,46 +645,42 @@ export function AccountDetailModal({
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="text-xl">{pocket.emoji || '🎯'}</span>
+                          <span className="text-xl">{pocket.emoji || '🍔'}</span>
                           <div>
                             <p className="font-heading font-bold text-xs text-[var(--text-primary)]">
                               {pocket.name}
                             </p>
                             <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase">
-                              {pocket.type || 'saving'}
+                              Pos Anggaran
                             </span>
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => onDeletePocket(account.id, pocket.id)}
-                          className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-terracotta)]"
-                          title="Hapus Kantong"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openEditPocket(pocket)}
+                            className="p-1 text-[var(--text-muted)] hover:text-white"
+                            title="Edit Kantong"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDeletePocket(account.id, pocket.id)}
+                            className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-terracotta)]"
+                            title="Hapus Kantong"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
 
                       <div className="pt-1">
-                        <div className="text-sm font-mono font-bold text-white">
+                        <span className="text-[10px] font-mono text-[var(--text-secondary)] block">Saldo Alokasi:</span>
+                        <div className="text-base font-mono font-bold text-white">
                           {formatRupiah(pocket.balance || 0)}
                         </div>
-
-                        {hasTarget && (
-                          <div className="space-y-1 mt-1.5">
-                            <div className="flex justify-between text-[10px] font-mono text-[var(--text-muted)]">
-                              <span>Target: {formatRupiah(pocket.targetAmount!)}</span>
-                              <span>{pct}%</span>
-                            </div>
-                            <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700">
-                              <div
-                                className="h-full bg-[var(--accent-sage)] rounded-full transition-all"
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </div>
                   );

@@ -18,7 +18,7 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { Ledger, Account, AccountPocket, Transaction, Goal, Bill, Debt, BillCycle, CustomIntervalUnit, AutomationRule, AutomationType, AutomationCycle, SalaryHistoryRecord } from '../types';
+import { Ledger, Account, AccountPocket, Transaction, Goal, Bill, Debt, BillCycle, CustomIntervalUnit, AutomationRule, AutomationType, AutomationCycle, SalaryHistoryRecord, ShiftDayLog, PTKPStatus } from '../types';
 
 export const DEFAULT_USER_ID = 'demo_user_artha';
 
@@ -3126,6 +3126,124 @@ export async function batchSaveSalaryAndAutomation(
   }
 
   return { historyRecord, automationRule };
+}
+
+export interface CustomSalarySettings {
+  ptkpStatus: PTKPStatus;
+  mealRate: number;
+  basicSalary: number;
+  housingAllowance: number;
+  shiftAllowance: number;
+  housingDeduction: number;
+  medicalAllowanceBik?: number;
+  isMedicalBikActive?: boolean;
+}
+
+export const STORAGE_KEY_SHIFT_LOGS = 'artha_shift_calendar_logs_';
+export const STORAGE_KEY_SALARY_SETTINGS = 'artha_custom_salary_settings_';
+
+export async function saveShiftScheduleToFirestore(
+  userId: string = DEFAULT_USER_ID,
+  ledgerId: string,
+  periodKey: string,
+  days: ShiftDayLog[]
+): Promise<void> {
+  // 1. Simpan ke local storage
+  try {
+    localStorage.setItem(`${STORAGE_KEY_SHIFT_LOGS}${ledgerId}_${periodKey}`, JSON.stringify(days));
+  } catch (e) {
+    console.error('Gagal simpan shift logs lokal:', e);
+  }
+
+  // 2. Simpan ke Firestore
+  try {
+    const docId = `shift_${ledgerId}_${periodKey.replace('-', '_')}`;
+    const scheduleRef = doc(db, 'users', userId, 'shift_schedules', docId);
+    await setDoc(scheduleRef, {
+      ledgerId,
+      periodKey,
+      days: JSON.parse(JSON.stringify(days)),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  } catch (err) {
+    console.warn('Firestore saveShiftSchedule offline fallback:', err);
+  }
+}
+
+export async function fetchShiftScheduleFromFirestore(
+  userId: string = DEFAULT_USER_ID,
+  ledgerId: string,
+  periodKey: string
+): Promise<ShiftDayLog[] | null> {
+  try {
+    const docId = `shift_${ledgerId}_${periodKey.replace('-', '_')}`;
+    const scheduleRef = doc(db, 'users', userId, 'shift_schedules', docId);
+    const snap = await getDoc(scheduleRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (Array.isArray(data.days) && data.days.length > 0) {
+        localStorage.setItem(`${STORAGE_KEY_SHIFT_LOGS}${ledgerId}_${periodKey}`, JSON.stringify(data.days));
+        return data.days as ShiftDayLog[];
+      }
+    }
+  } catch (err) {
+    console.warn('Firestore fetchShiftSchedule offline fallback:', err);
+  }
+
+  try {
+    const raw = localStorage.getItem(`${STORAGE_KEY_SHIFT_LOGS}${ledgerId}_${periodKey}`);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.error('Gagal membaca shift logs lokal:', e);
+  }
+  return null;
+}
+
+export async function saveSalarySettingsToFirestore(
+  userId: string = DEFAULT_USER_ID,
+  ledgerId: string,
+  settings: CustomSalarySettings
+): Promise<void> {
+  try {
+    localStorage.setItem(`${STORAGE_KEY_SALARY_SETTINGS}${ledgerId}`, JSON.stringify(settings));
+  } catch (e) {
+    console.error('Gagal simpan salary settings lokal:', e);
+  }
+
+  try {
+    const settingsRef = doc(db, 'users', userId, 'salary_settings', ledgerId);
+    await setDoc(settingsRef, {
+      ...settings,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  } catch (err) {
+    console.warn('Firestore saveSalarySettings offline fallback:', err);
+  }
+}
+
+export async function fetchSalarySettingsFromFirestore(
+  userId: string = DEFAULT_USER_ID,
+  ledgerId: string
+): Promise<CustomSalarySettings | null> {
+  try {
+    const settingsRef = doc(db, 'users', userId, 'salary_settings', ledgerId);
+    const snap = await getDoc(settingsRef);
+    if (snap.exists()) {
+      const data = snap.data() as CustomSalarySettings;
+      localStorage.setItem(`${STORAGE_KEY_SALARY_SETTINGS}${ledgerId}`, JSON.stringify(data));
+      return data;
+    }
+  } catch (err) {
+    console.warn('Firestore fetchSalarySettings offline fallback:', err);
+  }
+
+  try {
+    const raw = localStorage.getItem(`${STORAGE_KEY_SALARY_SETTINGS}${ledgerId}`);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.error('Gagal membaca salary settings lokal:', e);
+  }
+  return null;
 }
 
 
