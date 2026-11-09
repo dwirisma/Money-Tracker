@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="64" fill="#181b20"/>
+  <rect x="32" y="32" width="448" height="448" rx="40" stroke="#f2f4f8" stroke-width="16" fill="#21252d"/>
+  <rect x="48" y="48" width="416" height="416" rx="28" fill="#121316"/>
+  <!-- Hard shadow box -->
+  <rect x="140" y="140" width="248" height="248" rx="20" fill="#000000"/>
+  <!-- Front brutal box -->
+  <rect x="124" y="124" width="248" height="248" rx="20" fill="#8fa892" stroke="#f2f4f8" stroke-width="12"/>
+  <path d="M210 320V192H302M210 256H286" stroke="#121316" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

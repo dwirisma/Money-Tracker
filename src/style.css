@@ -1,0 +1,452 @@
+/* ==========================================================================
+   ARTHA DESIGN SYSTEM: NEO-BRUTALISME KALEM (DARK MODE CHARCOAL)
+   ========================================================================== */
+
+:root {
+  /* --- BASE PALETTE: DARK MODE CHARCOAL --- */
+  --bg-primary: #121316;        /* Deep Charcoal Body */
+  --bg-surface: #181b20;        /* Card & Container Background */
+  --bg-elevated: #21252d;       /* Input & Higher Elevation Container */
+  --bg-muted: #2b303b;          /* Header, Divider, Subtle Element */
+
+  /* --- BORDERS & SHADOWS (NEO-BRUTALISM RULES) --- */
+  /* Wajib: Border solid tebal (2px - 3px) putih redup / light silver */
+  --border-thick: 2.5px solid rgba(240, 240, 245, 0.78);
+  --border-color: rgba(240, 240, 245, 0.78);
+  --border-subtle: rgba(240, 240, 245, 0.25);
+  --border-strong: #ffffff;
+
+  /* Wajib: Hard drop shadow pekat kaku TANPA BLUR */
+  --shadow-sm: 2px 2px 0px #000000;
+  --shadow-md: 4px 4px 0px #000000;
+  --shadow-lg: 6px 6px 0px #000000;
+  --shadow-xl: 8px 8px 0px #000000;
+
+  /* --- ACCENT PALETTE: KALEM & EARTH TONES (TIDAK MENCOLOK) --- */
+  /* Sage Green Pucat (Pemasukan, Sukses, Saldo Aman) */
+  --accent-sage: #8fa892;
+  --accent-sage-dark: #324335;
+  --accent-sage-light: #b3cbb6;
+
+  /* Dusty Blue (Akun Bank, Transfer, Net Worth) */
+  --accent-blue: #7a9eb3;
+  --accent-blue-dark: #2a3e4c;
+  --accent-blue-light: #a4c4d6;
+
+  /* Terracotta Pudar (Pengeluaran, Utang, Peringatan Jatuh Tempo) */
+  --accent-terracotta: #c88265;
+  --accent-terracotta-dark: #4d2b1e;
+  --accent-terracotta-light: #e09f85;
+
+  /* Warm Sand / Wheat (Wishlist, Sinking Funds, Goals) */
+  --accent-sand: #d4bc82;
+  --accent-sand-dark: #4f4227;
+  --accent-sand-light: #ebd6a4;
+
+  /* Muted Lavender (Langganan/Subscriptions, Otomatisasi) */
+  --accent-lavender: #9d94b8;
+  --accent-lavender-dark: #373145;
+  --accent-lavender-light: #beb7d4;
+
+  /* Muted Slate / Neutral Action */
+  --accent-slate: #828c9b;
+  --accent-slate-dark: #28303b;
+
+  /* --- TYPOGRAPHY TOKENS --- */
+  --text-primary: #f2f4f8;      /* Off-white kontras tinggi */
+  --text-secondary: #a3acba;    /* Muted silver gray */
+  --text-muted: #6e7787;        /* Dim placeholder text */
+  --text-inverted: #121316;     /* Hitam arang untuk teks di atas tombol aksen */
+
+  --font-heading: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Border radius tegas khas Neo-brutalism */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+
+/* ==========================================================================
+   GLOBAL RESET & TYPOGRAPHY
+   ========================================================================== */
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.font-heading {
+  font-family: var(--font-heading);
+}
+
+.font-num, .font-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+/* ==========================================================================
+   NEO-BRUTALISM CARD (WADAH TEGAS + HARD SHADOW PEKAT)
+   ========================================================================== */
+
+.brutal-card {
+  background-color: var(--bg-surface);
+  border: 2.5px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-md);
+  position: relative;
+  transition: transform 0.12s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.12s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.brutal-card-elevated {
+  background-color: var(--bg-elevated);
+  border: 2.5px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-md);
+}
+
+.brutal-card-interactive {
+  cursor: pointer;
+}
+
+.brutal-card-interactive:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-lg);
+  border-color: #ffffff;
+}
+
+.brutal-card-interactive:active {
+  transform: translate(2px, 2px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ==========================================================================
+   NEO-BRUTALISM BUTTONS (TACTILE & SOLID PRESS EFFECT)
+   ========================================================================== */
+
+.brutal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 0.925rem;
+  padding: 0.65rem 1.15rem;
+  border: 2.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  text-decoration: none;
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+  user-select: none;
+  transition: transform 0.08s ease-in-out, box-shadow 0.08s ease-in-out, background-color 0.15s ease;
+}
+
+.brutal-btn:hover {
+  transform: translate(-1.5px, -1.5px);
+  box-shadow: var(--shadow-lg);
+  border-color: #ffffff;
+}
+
+.brutal-btn:active {
+  transform: translate(2.5px, 2.5px);
+  box-shadow: 1px 1px 0px #000000;
+}
+
+.brutal-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* Varian Tombol Pastel Earth-Tones */
+.brutal-btn-sage {
+  background-color: var(--accent-sage);
+  color: var(--text-inverted);
+}
+.brutal-btn-sage:hover {
+  background-color: var(--accent-sage-light);
+}
+
+.brutal-btn-blue {
+  background-color: var(--accent-blue);
+  color: var(--text-inverted);
+}
+.brutal-btn-blue:hover {
+  background-color: var(--accent-blue-light);
+}
+
+.brutal-btn-terracotta {
+  background-color: var(--accent-terracotta);
+  color: var(--text-inverted);
+}
+.brutal-btn-terracotta:hover {
+  background-color: var(--accent-terracotta-light);
+}
+
+.brutal-btn-sand {
+  background-color: var(--accent-sand);
+  color: var(--text-inverted);
+}
+.brutal-btn-sand:hover {
+  background-color: var(--accent-sand-light);
+}
+
+.brutal-btn-lavender {
+  background-color: var(--accent-lavender);
+  color: var(--text-inverted);
+}
+.brutal-btn-lavender:hover {
+  background-color: var(--accent-lavender-light);
+}
+
+.brutal-btn-ghost {
+  background-color: transparent;
+  box-shadow: var(--shadow-sm);
+  border: 2px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+.brutal-btn-ghost:hover {
+  border-color: var(--border-color);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-md);
+}
+
+/* ==========================================================================
+   NEO-BRUTALISM INPUT & FORM CONTROLS
+   ========================================================================== */
+
+.brutal-input, 
+.brutal-select, 
+.brutal-textarea {
+  width: 100%;
+  background-color: var(--bg-elevated);
+  border: 2.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  padding: 0.65rem 0.9rem;
+  outline: none;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+}
+
+.brutal-input:focus, 
+.brutal-select:focus, 
+.brutal-textarea:focus {
+  border-color: var(--accent-sage);
+  box-shadow: 3px 3px 0px var(--accent-sage-dark);
+  background-color: #242933;
+}
+
+.brutal-input::placeholder {
+  color: var(--text-muted);
+}
+
+.brutal-input-num {
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.brutal-label {
+  display: block;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 0.35rem;
+}
+
+/* ==========================================================================
+   NEO-BRUTALISM BADGE & TAGS
+   ========================================================================== */
+
+.brutal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border: 1.8px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: 2px 2px 0px #000000;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.brutal-badge-sage {
+  background-color: var(--accent-sage-dark);
+  color: var(--accent-sage-light);
+  border-color: var(--accent-sage);
+}
+
+.brutal-badge-blue {
+  background-color: var(--accent-blue-dark);
+  color: var(--accent-blue-light);
+  border-color: var(--accent-blue);
+}
+
+.brutal-badge-terracotta {
+  background-color: var(--accent-terracotta-dark);
+  color: var(--accent-terracotta-light);
+  border-color: var(--accent-terracotta);
+}
+
+.brutal-badge-sand {
+  background-color: var(--accent-sand-dark);
+  color: var(--accent-sand-light);
+  border-color: var(--accent-sand);
+}
+
+.brutal-badge-lavender {
+  background-color: var(--accent-lavender-dark);
+  color: var(--accent-lavender-light);
+  border-color: var(--accent-lavender);
+}
+
+/* ==========================================================================
+   PROGRESS BAR NEO-BRUTALISM
+   ========================================================================== */
+
+.brutal-progress-container {
+  width: 100%;
+  height: 14px;
+  background-color: var(--bg-primary);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: 2px 2px 0px #000000;
+  overflow: hidden;
+  position: relative;
+}
+
+.brutal-progress-bar {
+  height: 100%;
+  background-color: var(--accent-sage);
+  border-right: 2px solid #000000;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+   CUSTOM SCROLLBAR
+   ========================================================================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-muted);
+  border: 1.5px solid var(--border-color);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-slate);
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ==========================================================================
+   V2: TEMA TERANG (KRIM + PASTEL) & VARIABEL LAYOUT
+   Gelap = default (:root). Terang aktif lewat <html data-theme="light">.
+   ========================================================================== */
+:root { --sidebar-w: 15rem; color-scheme: dark; }
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg-primary: #fff4dc;
+  --bg-surface: #ffffff;
+  --bg-elevated: #fff9ea;
+  --bg-muted: #f1e6c8;
+
+  --border-thick: 2.5px solid #111111;
+  --border-color: #111111;
+  --border-subtle: rgba(17, 17, 17, 0.25);
+  --border-strong: #111111;
+
+  --shadow-sm: 2px 2px 0px #111111;
+  --shadow-md: 4px 4px 0px #111111;
+  --shadow-lg: 6px 6px 0px #111111;
+  --shadow-xl: 8px 8px 0px #111111;
+
+  /* Aksen: base = pastel; -dark = tint latar badge; -light = teks pekat di atas tint */
+  --accent-sage: #8ccba5;       --accent-sage-dark: #ddf1e4;       --accent-sage-light: #1e6b45;
+  --accent-blue: #8db8d6;       --accent-blue-dark: #dcebf5;       --accent-blue-light: #24566f;
+  --accent-terracotta: #f0a68a; --accent-terracotta-dark: #fbe3d8; --accent-terracotta-light: #9a3f20;
+  --accent-sand: #f2d272;       --accent-sand-dark: #fbf0c9;       --accent-sand-light: #7a5a08;
+  --accent-lavender: #bdaee8;   --accent-lavender-dark: #e9e3f8;   --accent-lavender-light: #4e3f8a;
+  --accent-slate: #8a93a0;      --accent-slate-dark: #e7e9ed;
+
+  --text-primary: #111111;
+  --text-secondary: #4a463c;
+  --text-muted: #7a7467;
+  --text-inverted: #111111;
+}
+
+/* Penyesuaian elemen yang di V1 memakai warna gelap/putih permanen */
+:root[data-theme="light"] .text-white { color: var(--text-primary); }
+:root[data-theme="light"] .brutal-card-interactive:hover,
+:root[data-theme="light"] .brutal-btn:hover { border-color: #111111; }
+:root[data-theme="light"] .brutal-input:focus,
+:root[data-theme="light"] .brutal-select:focus,
+:root[data-theme="light"] .brutal-textarea:focus { background-color: #ffffff; box-shadow: 3px 3px 0px var(--accent-sage); }
+:root[data-theme="light"] ::-webkit-scrollbar-thumb { background: var(--accent-sand); }
+:root[data-theme="light"] .brutal-btn-sage:hover { background-color: var(--accent-sage); filter: brightness(1.07); }
+:root[data-theme="light"] .brutal-btn-blue:hover { background-color: var(--accent-blue); filter: brightness(1.07); }
+:root[data-theme="light"] .brutal-btn-terracotta:hover { background-color: var(--accent-terracotta); filter: brightness(1.07); }
+:root[data-theme="light"] .brutal-btn-sand:hover { background-color: var(--accent-sand); filter: brightness(1.07); }
+:root[data-theme="light"] .brutal-btn-lavender:hover { background-color: var(--accent-lavender); filter: brightness(1.07); }
+
+/* Sidebar & bottom nav */
+.nav-item { display:flex; align-items:center; gap:.75rem; width:100%; padding:.55rem .75rem; border:2px solid transparent; border-radius:var(--radius-md); font-family:var(--font-heading); font-weight:600; font-size:.9rem; color:var(--text-secondary); cursor:pointer; text-align:left; transition: background-color .12s ease, color .12s ease; }
+.nav-item:hover { background:var(--bg-muted); color:var(--text-primary); }
+.nav-item[data-active="true"] { background:var(--text-primary); color:var(--bg-surface); border-color:var(--text-primary); box-shadow:var(--shadow-sm); }
+.nav-group-label { font-family:var(--font-mono); font-size:.68rem; font-weight:700; letter-spacing:.08em; color:var(--text-muted); padding:0 .75rem; margin:1rem 0 .35rem; }
+.bottom-nav-btn { display:flex; flex-direction:column; align-items:center; gap:2px; flex:1; padding:.35rem 0; font-size:.68rem; font-weight:700; font-family:var(--font-heading); color:var(--text-muted); }
+.bottom-nav-btn[data-active="true"] { color:var(--text-primary); }
+.bottom-nav-btn[data-active="true"] svg { background:var(--accent-sand); color:#111; border:2px solid var(--border-color); border-radius:6px; padding:2px; box-sizing:content-box; }
+.privacy-mask { letter-spacing:.1em; }
+
+/* Kontras mode terang: teks aksen pastel dipetakan ke nada pekat (-light) */
+:root[data-theme="light"] [class~="text-[var(--accent-sage)]"] { color: var(--accent-sage-light); }
+:root[data-theme="light"] [class~="text-[var(--accent-blue)]"] { color: var(--accent-blue-light); }
+:root[data-theme="light"] [class~="text-[var(--accent-terracotta)]"] { color: var(--accent-terracotta-light); }
+:root[data-theme="light"] [class~="text-[var(--accent-sand)]"] { color: var(--accent-sand-light); }
+
+/* Cetak / simpan PDF: hanya konten halaman aktif */
+@media print {
+  @page { margin: 12mm; }
+  :root { --sidebar-w: 0px; }
+  aside, nav, header, footer, .no-print { display: none !important; }
+  body { background: #ffffff !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .brutal-card { break-inside: avoid; }
+}
