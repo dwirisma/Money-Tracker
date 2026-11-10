@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="id" data-theme="dark" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Artha - Manajemen Keuangan Pribadi</title>
+    <meta name="description" content="Aplikasi manajemen keuangan pribadi offline-first PWA dengan estetika neo-brutalisme kalem, multi-buku kas, sinking funds, dan analitik." />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    
+    <!-- PWA & Mobile Meta -->
+    <meta name="theme-color" content="#121316" />
+    <script>
+      // Terapkan tema tersimpan sebelum render pertama agar tidak berkedip
+      try {
+        var t = localStorage.getItem('artha_theme') === 'light' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.classList.toggle('dark', t === 'dark');
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'dark' ? '#121316' : '#fff4dc');
+      } catch (e) {}
+    </script>
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Artha" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Open Graph / Social Media -->
+    <meta property="og:title" content="Artha - Manajemen Keuangan Pribadi" />
+    <meta property="og:description" content="Aplikasi manajemen keuangan pribadi offline-first PWA dengan estetika neo-brutalisme kalem, multi-buku kas, sinking funds, dan analitik." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Google Fonts: Space Grotesk (Heading), JetBrains Mono (Numbers/Code), Plus Jakarta Sans (Body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons (CDN fallback & standalone support) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Firebase SDK Config Holder (Modular & Browser Compatibility) -->
+    <script>
+      // Global Firebase config placeholder untuk lingkungan static / browser
+      window.__FIREBASE_CONFIG__ = {
+        apiKey: "AIzaSyArthaLocalDemoKeyPlaceholder123456",
+        authDomain: "artha-finance.firebaseapp.com",
+        projectId: "artha-finance",
+        storageBucket: "artha-finance.appspot.com",
+        messagingSenderId: "1234567890",
+        appId: "1:1234567890:web:abcdef12345678"
+      };
+    </script>
+  </head>
+  <body class="bg-[var(--bg-primary)] text-[var(--text-primary)] antialiased selection:bg-[var(--accent-sage)] selection:text-[#111]">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

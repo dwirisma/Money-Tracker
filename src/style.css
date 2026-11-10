@@ -1,0 +1,263 @@
+/* ==========================================================================
+   ARTHA DESIGN SYSTEM v3 — PLAYFUL NEO-BRUTALISM
+   Garis tinta tebal, bayangan keras tanpa blur, isi warna cerah, sudut membulat.
+   Terang = default (krem + kartu putih). Gelap = varian arang dengan aksen sama.
+   ========================================================================== */
+
+/* ---------- TOKEN: TEMA TERANG (DEFAULT) ---------- */
+:root {
+  color-scheme: light;
+  --sidebar-w: 13.5rem;
+
+  --bg-primary: #fff4dc;     /* krem hangat */
+  --bg-surface: #ffffff;     /* kartu */
+  --bg-elevated: #fff9ec;    /* input, kartu bertingkat */
+  --bg-muted: #f6e6be;       /* hover, pembatas */
+  --sidebar-bg: #c4ebd3;     /* hijau mint */
+
+  --ink: #14141a;
+  --border-thick: 2px solid var(--ink);
+  --border-color: #14141a;
+  --border-subtle: rgba(20, 20, 26, 0.2);
+  --border-strong: #14141a;
+
+  --shadow-sm: 2px 2px 0px #14141a;
+  --shadow-md: 3px 3px 0px #14141a;
+  --shadow-lg: 5px 5px 0px #14141a;
+  --shadow-xl: 7px 7px 0px #14141a;
+
+  /* base = isi vivid | -dark = tint latar badge/kartu | -light = teks pekat di atas putih/tint */
+  --accent-sage: #2dd4a7;       --accent-sage-dark: #d3f6ea;       --accent-sage-light: #05664f;
+  --accent-blue: #6c97ff;       --accent-blue-dark: #dde7ff;       --accent-blue-light: #1c3fa6;
+  --accent-terracotta: #ff7a4d; --accent-terracotta-dark: #ffe0d3; --accent-terracotta-light: #a02e08;
+  --accent-sand: #ffc933;       --accent-sand-dark: #fff0bc;       --accent-sand-light: #6a4a00;
+  --accent-lavender: #e3a8f7;   --accent-lavender-dark: #f6e3fc;   --accent-lavender-light: #7a2a93;
+  --accent-slate: #8e96a6;      --accent-slate-dark: #e7e9ef;
+
+  --text-primary: #14141a;
+  --text-secondary: #3d3a33;
+  --text-muted: #6a655a;
+  --text-inverted: #14141a;
+
+  --font-heading: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
+
+/* ---------- TOKEN: TEMA GELAP ---------- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-primary: #16161c;
+  --bg-surface: #1f1f27;
+  --bg-elevated: #292933;
+  --bg-muted: #363642;
+  --sidebar-bg: #1f1f27;
+
+  --ink: #f4f2ec;
+  --border-thick: 2px solid rgba(244, 242, 236, 0.88);
+  --border-color: rgba(244, 242, 236, 0.88);
+  --border-subtle: rgba(244, 242, 236, 0.22);
+  --border-strong: #ffffff;
+
+  --shadow-sm: 2px 2px 0px #000;
+  --shadow-md: 3px 3px 0px #000;
+  --shadow-lg: 5px 5px 0px #000;
+  --shadow-xl: 7px 7px 0px #000;
+
+  --accent-sage: #2dd4a7;       --accent-sage-dark: #0e3a30;       --accent-sage-light: #7df0ce;
+  --accent-blue: #6c97ff;       --accent-blue-dark: #1b2b5e;       --accent-blue-light: #a9c2ff;
+  --accent-terracotta: #ff7a4d; --accent-terracotta-dark: #4a2212; --accent-terracotta-light: #ffad8f;
+  --accent-sand: #ffc933;       --accent-sand-dark: #473606;       --accent-sand-light: #ffde80;
+  --accent-lavender: #e3a8f7;   --accent-lavender-dark: #3f2250;   --accent-lavender-light: #efc6fb;
+  --accent-slate: #8e96a6;      --accent-slate-dark: #2a303b;
+
+  --text-primary: #f4f2ec;
+  --text-secondary: #b9b6ae;
+  --text-muted: #9f9c92;
+  --text-inverted: #16161c;
+}
+
+/* ---------- BASE ---------- */
+@layer base {
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); font-weight: 800; letter-spacing: -0.02em; }
+  :focus-visible { outline: 3px solid var(--accent-blue); outline-offset: 2px; }
+}
+.font-heading { font-family: var(--font-heading); }
+.font-num, .font-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+.hidden { display: none !important; }
+
+/* ==========================================================================
+   KOMPONEN (di @layer components agar utilitas Tailwind seperti p-2 / text-xs
+   pada elemen yang sama benar-benar berlaku)
+   ========================================================================== */
+@layer components {
+  /* ----- Kartu ----- */
+  .brutal-card {
+    background-color: var(--bg-surface);
+    border: 2px solid var(--border-color);
+    box-shadow: var(--shadow-md);
+    border-radius: var(--radius-md);
+    position: relative;
+    transition: transform .12s cubic-bezier(.2,0,0,1), box-shadow .12s cubic-bezier(.2,0,0,1);
+  }
+  .brutal-card-elevated {
+    background-color: var(--bg-elevated);
+    border: 2px solid var(--border-color);
+    box-shadow: var(--shadow-md);
+    border-radius: var(--radius-md);
+  }
+  .brutal-card-interactive { cursor: pointer; }
+  .brutal-card-interactive:hover { transform: translate(-2px,-2px); box-shadow: var(--shadow-lg); }
+  .brutal-card-interactive:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+
+  /* ----- Tombol ----- */
+  .brutal-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
+    font-family: var(--font-heading); font-weight: 700; font-size: .85rem; line-height: 1.2;
+    padding: .55rem 1rem;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    cursor: pointer; text-decoration: none; user-select: none;
+    background-color: var(--bg-surface); color: var(--text-primary);
+    transition: transform .08s ease-in-out, box-shadow .08s ease-in-out, background-color .15s ease, filter .15s ease;
+  }
+  .brutal-btn:hover { transform: translate(-1px,-1px); box-shadow: var(--shadow-lg); }
+  .brutal-btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+  .brutal-btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; box-shadow: var(--shadow-sm) !important; }
+
+  .brutal-btn-sage { background-color: var(--accent-sage); color: var(--text-inverted); }
+  .brutal-btn-blue { background-color: var(--accent-blue); color: var(--text-inverted); }
+  .brutal-btn-terracotta { background-color: var(--accent-terracotta); color: var(--text-inverted); }
+  .brutal-btn-sand { background-color: var(--accent-sand); color: var(--text-inverted); }
+  .brutal-btn-lavender { background-color: var(--accent-lavender); color: var(--text-inverted); }
+  .brutal-btn-sage:hover, .brutal-btn-blue:hover, .brutal-btn-terracotta:hover,
+  .brutal-btn-sand:hover, .brutal-btn-lavender:hover { filter: brightness(1.06); }
+
+  .brutal-btn-ghost { background-color: transparent; box-shadow: none; border-color: var(--border-subtle); color: var(--text-secondary); }
+  .brutal-btn-ghost:hover { border-color: var(--border-color); color: var(--text-primary); box-shadow: var(--shadow-sm); background-color: var(--bg-surface); }
+
+  /* ----- Input ----- */
+  .brutal-input, .brutal-select, .brutal-textarea {
+    width: 100%;
+    background-color: var(--bg-elevated);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+    color: var(--text-primary);
+    font-family: var(--font-body); font-size: .9rem;
+    padding: .55rem .8rem; outline: none;
+    transition: border-color .12s, box-shadow .12s, background-color .12s;
+  }
+  .brutal-input:focus, .brutal-select:focus, .brutal-textarea:focus {
+    border-color: var(--border-color);
+    box-shadow: 3px 3px 0 var(--accent-blue);
+    background-color: var(--bg-surface);
+  }
+  .brutal-input::placeholder { color: var(--text-muted); }
+  .brutal-input-num { font-family: var(--font-mono); font-size: 1.05rem; font-weight: 600; letter-spacing: -0.02em; }
+  .brutal-label {
+    display: block; font-family: var(--font-heading); font-weight: 700; font-size: .72rem;
+    text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); margin-bottom: .3rem;
+  }
+
+  /* ----- Badge (pil) ----- */
+  .brutal-badge {
+    display: inline-flex; align-items: center; gap: .3rem;
+    font-family: var(--font-mono); font-size: .7rem; font-weight: 700;
+    padding: .12rem .55rem; border: 2px solid var(--border-color); border-radius: 999px;
+    text-transform: uppercase; letter-spacing: .03em;
+    background-color: var(--bg-surface); color: var(--text-primary);
+  }
+  .brutal-badge-sage { background-color: var(--accent-sage-dark); color: var(--accent-sage-light); }
+  .brutal-badge-blue { background-color: var(--accent-blue-dark); color: var(--accent-blue-light); }
+  .brutal-badge-terracotta { background-color: var(--accent-terracotta-dark); color: var(--accent-terracotta-light); }
+  .brutal-badge-sand { background-color: var(--accent-sand-dark); color: var(--accent-sand-light); }
+  .brutal-badge-lavender { background-color: var(--accent-lavender-dark); color: var(--accent-lavender-light); }
+
+  /* ----- Progress ----- */
+  .brutal-progress-container {
+    width: 100%; height: 14px; background-color: var(--bg-elevated);
+    border: 2px solid var(--border-color); border-radius: 999px; overflow: hidden; position: relative;
+  }
+  .brutal-progress-bar {
+    height: 100%; background-color: var(--accent-sage); border-right: 2px solid var(--border-color);
+    border-radius: 999px; transition: width .3s cubic-bezier(.4,0,.2,1);
+  }
+
+  /* ----- Navigasi ----- */
+  .nav-item {
+    display: flex; align-items: center; gap: .65rem; width: 100%;
+    padding: .5rem .7rem; border: 2px solid transparent; border-radius: var(--radius-md);
+    font-family: var(--font-heading); font-weight: 700; font-size: .84rem;
+    color: var(--text-primary); cursor: pointer; text-align: left;
+    transition: background-color .12s ease, transform .08s ease;
+  }
+  .nav-item:hover { background: rgba(255,255,255,.55); border-color: var(--border-subtle); }
+  :root[data-theme="dark"] .nav-item:hover { background: var(--bg-muted); }
+  .nav-item[data-active="true"] {
+    background: var(--ink); color: var(--bg-surface); border-color: var(--ink); box-shadow: var(--shadow-sm);
+  }
+  :root[data-theme="dark"] .nav-item[data-active="true"] { background: var(--accent-sand); color: #14141a; border-color: var(--border-color); }
+  .nav-group-label {
+    font-family: var(--font-mono); font-size: .64rem; font-weight: 700; letter-spacing: .1em;
+    color: var(--text-secondary); padding: 0 .7rem; margin: .9rem 0 .3rem; text-transform: uppercase;
+  }
+  .bottom-nav-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; padding: .35rem 0; font-size: .68rem; font-weight: 700; font-family: var(--font-heading); color: var(--text-muted); }
+  .bottom-nav-btn[data-active="true"] { color: var(--text-primary); }
+  .privacy-mask { letter-spacing: .1em; }
+}
+
+/* ---------- Scrollbar ---------- */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--accent-sand); border: 2px solid var(--border-color); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-slate); }
+
+/* ---------- Penyesuaian tema (harus menang atas utilitas, maka di luar layer) ---------- */
+:root:not([data-theme="dark"]) .text-white { color: var(--text-primary); }
+:root:not([data-theme="dark"]) [class~="text-[var(--accent-sage)]"] { color: var(--accent-sage-light); }
+:root:not([data-theme="dark"]) [class~="text-[var(--accent-blue)]"] { color: var(--accent-blue-light); }
+:root:not([data-theme="dark"]) [class~="text-[var(--accent-terracotta)]"] { color: var(--accent-terracotta-light); }
+:root:not([data-theme="dark"]) [class~="text-[var(--accent-sand)]"] { color: var(--accent-sand-light); }
+:root:not([data-theme="dark"]) [class~="text-[var(--accent-lavender)]"] { color: var(--accent-lavender-light); }
+
+/* ---------- Mobile & layar sentuh ---------- */
+@media (max-width: 767px) {
+  .brutal-input, .brutal-select, .brutal-textarea { font-size: 16px; min-height: 44px; } /* cegah auto-zoom iOS */
+  .brutal-card { box-shadow: var(--shadow-sm); }
+  .brutal-btn { box-shadow: var(--shadow-sm); }
+}
+@media (pointer: coarse) {
+  /* perluas area sentuh tanpa mengubah tata letak */
+  .brutal-btn { position: relative; }
+  .brutal-btn::after { content: ""; position: absolute; inset: -5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* ---------- Cetak / simpan PDF ---------- */
+@media print {
+  @page { margin: 12mm; }
+  :root { --sidebar-w: 0px; }
+  aside, nav, header, footer, .no-print { display: none !important; }
+  body { background: #ffffff !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .brutal-card { break-inside: avoid; }
+}

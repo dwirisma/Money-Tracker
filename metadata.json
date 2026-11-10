@@ -1,0 +1,6 @@
+{
+  "name": "Artha - Manajemen Keuangan Pribadi",
+  "description": "Aplikasi manajemen keuangan pribadi offline-first PWA dengan estetika neo-brutalisme kalem, multi-buku kas, sinking funds, dan analitik.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
