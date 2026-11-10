@@ -382,42 +382,43 @@ h1, h2, h3, h4, h5, h6 {
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg-primary: #fff4dc;
-  --bg-surface: #ffffff;
-  --bg-elevated: #fff9ea;
-  --bg-muted: #f1e6c8;
+  /* Palet Dasar Light Mode: Soft Sand / Krem Pastel Alami & Hangat */
+  --bg-primary: #f5f1e6;        /* Latar utama: Krem pasir lembut (bukan putih polos) */
+  --bg-surface: #faf7ef;        /* Kartu & Container: Warm cream halus & nyaman di mata */
+  --bg-elevated: #ede7d5;       /* Input & Kartu Bertingkat: Soft sand tint */
+  --bg-muted: #e1d8bf;          /* Pembatas & Elemen Sekunder */
 
-  --border-thick: 2.5px solid #111111;
-  --border-color: #111111;
-  --border-subtle: rgba(17, 17, 17, 0.25);
-  --border-strong: #111111;
+  --border-thick: 2px solid #1a1a1c;
+  --border-color: #1a1a1c;
+  --border-subtle: rgba(26, 26, 28, 0.22);
+  --border-strong: #1a1a1c;
 
-  --shadow-sm: 2px 2px 0px #111111;
-  --shadow-md: 4px 4px 0px #111111;
-  --shadow-lg: 6px 6px 0px #111111;
-  --shadow-xl: 8px 8px 0px #111111;
+  --shadow-sm: 2px 2px 0px #1a1a1c;
+  --shadow-md: 4px 4px 0px #1a1a1c;
+  --shadow-lg: 6px 6px 0px #1a1a1c;
+  --shadow-xl: 8px 8px 0px #1a1a1c;
 
   /* Aksen: base = pastel; -dark = tint latar badge; -light = teks pekat di atas tint */
-  --accent-sage: #8ccba5;       --accent-sage-dark: #ddf1e4;       --accent-sage-light: #1e6b45;
-  --accent-blue: #8db8d6;       --accent-blue-dark: #dcebf5;       --accent-blue-light: #24566f;
-  --accent-terracotta: #f0a68a; --accent-terracotta-dark: #fbe3d8; --accent-terracotta-light: #9a3f20;
-  --accent-sand: #f2d272;       --accent-sand-dark: #fbf0c9;       --accent-sand-light: #7a5a08;
-  --accent-lavender: #bdaee8;   --accent-lavender-dark: #e9e3f8;   --accent-lavender-light: #4e3f8a;
-  --accent-slate: #8a93a0;      --accent-slate-dark: #e7e9ed;
+  --accent-sage: #82b998;       --accent-sage-dark: #d8eee1;       --accent-sage-light: #185e3a;
+  --accent-blue: #7faac8;       --accent-blue-dark: #d5e5f1;       --accent-blue-light: #1e4d65;
+  --accent-terracotta: #e5977a; --accent-terracotta-dark: #f8ded3; --accent-terracotta-light: #8e361a;
+  --accent-sand: #e6c565;       --accent-sand-dark: #f6e9bc;       --accent-sand-light: #6e4f04;
+  --accent-lavender: #b1a0dc;   --accent-lavender-dark: #e4ddf4;   --accent-lavender-light: #44357c;
+  --accent-slate: #7f8996;      --accent-slate-dark: #e0e4e9;
 
-  --text-primary: #111111;
-  --text-secondary: #4a463c;
-  --text-muted: #7a7467;
-  --text-inverted: #111111;
+  --text-primary: #1a1a1c;
+  --text-secondary: #45433d;
+  --text-muted: #726e64;
+  --text-inverted: #1a1a1c;
 }
 
 /* Penyesuaian elemen yang di V1 memakai warna gelap/putih permanen */
 :root[data-theme="light"] .text-white { color: var(--text-primary); }
 :root[data-theme="light"] .brutal-card-interactive:hover,
-:root[data-theme="light"] .brutal-btn:hover { border-color: #111111; }
+:root[data-theme="light"] .brutal-btn:hover { border-color: #1a1a1c; }
 :root[data-theme="light"] .brutal-input:focus,
 :root[data-theme="light"] .brutal-select:focus,
-:root[data-theme="light"] .brutal-textarea:focus { background-color: #ffffff; box-shadow: 3px 3px 0px var(--accent-sage); }
+:root[data-theme="light"] .brutal-textarea:focus { background-color: #faf7ef; box-shadow: 3px 3px 0px var(--accent-sage); }
 :root[data-theme="light"] ::-webkit-scrollbar-thumb { background: var(--accent-sand); }
 :root[data-theme="light"] .brutal-btn-sage:hover { background-color: var(--accent-sage); filter: brightness(1.07); }
 :root[data-theme="light"] .brutal-btn-blue:hover { background-color: var(--accent-blue); filter: brightness(1.07); }

@@ -9,6 +9,11 @@ import {
   Check, 
   Plus, 
   Settings2, 
+  Settings,
+  Pencil,
+  RotateCcw,
+  Sliders,
+  PieChart,
   Tag, 
   Trash2, 
   X,
@@ -17,7 +22,8 @@ import {
 } from 'lucide-react';
 import type { Account, Ledger, Transaction } from '../types';
 import { evaluateMathExpression, formatRupiah } from '../utils/calculator';
-import { useCategories } from '../hooks/useCategories';
+import { useCategories, LOCKED_CATEGORY } from '../hooks/useCategories';
+import { getCategoryBudgets, saveCategoryBudgets, type CategoryBudgetMap } from '../services/budgetService';
 import { scanReceipt } from '../services/receiptScanService';
 import { getGeminiKey, getGeminiModel, saveGeminiSettings } from '../services/geminiSettings';
 import type { ModuleId } from './layout/navConfig';
@@ -73,11 +79,37 @@ export function AddTransactionView({
   const [transferDate, setTransferDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [transferCalcNotice, setTransferCalcNotice] = useState<string | null>(null);
 
-  // Category Manager Modal
+  // Category & Budget Manager Modal
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [modalSubTab, setModalSubTab] = useState<'budget' | 'categories'>('budget');
   const [newCatName, setNewCatName] = useState('');
   const [catError, setCatError] = useState<string | null>(null);
+  const [categoryKindInModal, setCategoryKindInModal] = useState<'expense' | 'income'>('expense');
+  const [editingCategory, setEditingCategory] = useState<{ kind: 'expense' | 'income'; oldName: string; newName: string } | null>(null);
   const categories = useCategories();
+
+  // Budget State per Kategori
+  const [categoryBudgets, setCategoryBudgets] = useState<CategoryBudgetMap>(() => getCategoryBudgets(currentLedger.id));
+  const [budgetInputs, setBudgetInputs] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const b = getCategoryBudgets(currentLedger.id);
+    setCategoryBudgets(b);
+    const initialInputs: Record<string, string> = {};
+    categories.lists.expense.forEach(c => {
+      initialInputs[c] = b[c] !== undefined ? String(b[c]) : '';
+    });
+    setBudgetInputs(initialInputs);
+  }, [currentLedger.id, categories.lists.expense]);
+
+  // Event listener untuk tombol 'Pengaturan Tab Transaksi' di header navbar
+  useEffect(() => {
+    const handleOpenSettings = () => {
+      setIsCategoryModalOpen(true);
+    };
+    window.addEventListener('open-tx-tab-settings', handleOpenSettings);
+    return () => window.removeEventListener('open-tx-tab-settings', handleOpenSettings);
+  }, []);
 
   // AI Scan Struk
   const receiptInputRef = useRef<HTMLInputElement>(null);
@@ -252,20 +284,63 @@ export function AddTransactionView({
     setTransferCalcNotice(null);
   }
 
-  // Handle Add Category
+  // Budget and Category Handlers
+  function handleSaveAllBudgets(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    const updated: CategoryBudgetMap = {};
+    categories.lists.expense.forEach(cat => {
+      const raw = budgetInputs[cat] || '';
+      const num = parseInt(raw.replace(/[^\d]/g, ''), 10) || 0;
+      updated[cat] = num;
+    });
+    saveCategoryBudgets(currentLedger.id, updated);
+    setCategoryBudgets(updated);
+    showToast('Alokasi pagu dana bulanan berhasil disimpan!', 'success');
+  }
+
   function handleAddCategory(e: React.FormEvent) {
     e.preventDefault();
     if (!newCatName.trim()) return;
-    const kind = activeTab === 'income' ? 'income' : 'expense';
+    const kind = categoryKindInModal;
     const err = categories.add(kind, newCatName.trim());
     if (err) {
       setCatError(err);
       return;
     }
-    setCategory(newCatName.trim());
+    const added = newCatName.trim();
+    if (kind === 'expense') {
+      setBudgetInputs(prev => ({ ...prev, [added]: '500000' }));
+    }
+    setCategory(added);
     setNewCatName('');
     setCatError(null);
-    showToast(`Kategori "${newCatName.trim()}" berhasil ditambahkan!`, 'success');
+    showToast(`Kategori "${added}" berhasil ditambahkan!`, 'success');
+  }
+
+  function handleRenameCategory() {
+    if (!editingCategory) return;
+    const err = categories.rename(editingCategory.kind, editingCategory.oldName, editingCategory.newName);
+    if (err) {
+      showToast(err, 'error');
+      return;
+    }
+    if (editingCategory.kind === 'expense') {
+      const currentVal = budgetInputs[editingCategory.oldName] || '';
+      setBudgetInputs(prev => {
+        const next = { ...prev };
+        delete next[editingCategory.oldName];
+        next[editingCategory.newName] = currentVal;
+        return next;
+      });
+      const b = { ...categoryBudgets };
+      if (b[editingCategory.oldName] !== undefined) {
+        b[editingCategory.newName] = b[editingCategory.oldName];
+        delete b[editingCategory.oldName];
+        saveCategoryBudgets(currentLedger.id, b);
+      }
+    }
+    setEditingCategory(null);
+    showToast(`Kategori diubah menjadi "${editingCategory.newName}"`, 'success');
   }
 
   return (
@@ -281,14 +356,16 @@ export function AddTransactionView({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onNavigate('history_transaction')}
-          className="brutal-btn brutal-btn-ghost text-xs py-2 px-3 flex items-center gap-1.5 self-start sm:self-auto"
-        >
-          <History className="w-4 h-4 text-[var(--accent-blue)]" />
-          <span>Buka Riwayat Transaksi</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => onNavigate('history_transaction')}
+            className="brutal-btn brutal-btn-ghost text-xs py-2 px-3 flex items-center gap-1.5"
+          >
+            <History className="w-4 h-4 text-[var(--accent-blue)]" />
+            <span>Buka Riwayat Transaksi</span>
+          </button>
+        </div>
       </div>
 
       {/* 3 TAB SELECTOR UTAMA (PENGELUARAN, PEMASUKAN, TRANSFER) */}
@@ -764,7 +841,7 @@ export function AddTransactionView({
       </div>
 
       {/* =================================================================== */}
-      {/* MODAL PENGATURAN KATEGORI INLINE (SESUAI REQUEST PENGGUNA)          */}
+      {/* MODAL PENGATURAN TAB TRANSAKSI: ALOKASI BUDGET & KELOLA KATEGORI    */}
       {/* =================================================================== */}
       {isCategoryModalOpen && (
         <div 
@@ -772,84 +849,286 @@ export function AddTransactionView({
           onClick={() => setIsCategoryModalOpen(false)}
         >
           <div 
-            className="w-full max-w-md bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)] p-5 space-y-4 max-h-[85vh] overflow-y-auto animate-in zoom-in-95 duration-150"
+            className="w-full max-w-lg bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)] p-5 space-y-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150"
             onClick={e => e.stopPropagation()}
           >
+            {/* Modal Header */}
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div className="flex items-center gap-2">
-                <Settings2 className="w-5 h-5 text-[var(--accent-blue)]" />
-                <h3 className="font-heading font-bold text-lg text-[var(--text-primary)]">
-                  Kelola Kategori {activeTab === 'income' ? 'Pemasukan' : 'Pengeluaran'}
-                </h3>
+                <Settings className="w-5 h-5 text-[var(--accent-sand)]" />
+                <div>
+                  <h3 className="font-heading font-bold text-base sm:text-lg text-[var(--text-primary)]">
+                    Pengaturan Tab Transaksi
+                  </h3>
+                  <p className="text-[10px] font-mono text-[var(--text-muted)]">
+                    Buku Kas: {currentLedger.name}
+                  </p>
+                </div>
               </div>
               <button 
                 type="button" 
                 onClick={() => setIsCategoryModalOpen(false)} 
                 className="brutal-btn !p-1.5"
+                title="Tutup"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Form Tambah Kategori Baru */}
-            <form onSubmit={handleAddCategory} className="space-y-2">
-              <label className="brutal-label">Tambah Kategori Baru</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newCatName}
-                  onChange={(e) => { setNewCatName(e.target.value); setCatError(null); }}
-                  placeholder="Nama kategori baru..."
-                  className="brutal-input text-xs flex-1"
-                />
-                <button
-                  type="submit"
-                  className="brutal-btn brutal-btn-sage text-xs py-2 px-3 flex items-center gap-1 font-bold shrink-0"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Tambah</span>
-                </button>
-              </div>
-              {catError && (
-                <p className="text-xs text-[var(--accent-terracotta-light)] font-mono flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" /> {catError}
-                </p>
-              )}
-            </form>
-
-            {/* List Kategori Saat Ini */}
-            <div className="space-y-2 pt-2 border-t border-[var(--border-subtle)]">
-              <span className="text-[10px] font-mono uppercase font-bold text-[var(--text-muted)]">
-                Daftar Kategori Aktif:
-              </span>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                {(activeTab === 'income' ? categories.lists.income : categories.lists.expense).map(c => (
-                  <div key={c} className="flex items-center justify-between p-2 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-xs">
-                    <span className="font-bold text-[var(--text-primary)]">{c}</span>
-                    {c !== 'Lainnya' && (
-                      <button
-                        type="button"
-                        onClick={() => categories.remove(activeTab === 'income' ? 'income' : 'expense', c)}
-                        className="text-[var(--text-muted)] hover:text-[var(--accent-terracotta-light)] p-1"
-                        title="Hapus Kategori"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-[var(--border-subtle)] flex justify-end">
+            {/* Sub-Tab Switcher: Alokasi Budget vs Kelola Kategori */}
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-[var(--radius-sm)]">
               <button
                 type="button"
-                onClick={() => setIsCategoryModalOpen(false)}
-                className="brutal-btn brutal-btn-sand text-xs py-1.5 px-4 font-bold"
+                onClick={() => setModalSubTab('budget')}
+                className={`py-1.5 px-3 rounded text-xs font-heading font-bold flex items-center justify-center gap-1.5 transition-all ${
+                  modalSubTab === 'budget'
+                    ? 'bg-[var(--accent-sand)] text-black border border-black shadow-[1px_1px_0px_#000]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                }`}
               >
-                Selesai
+                <PieChart className="w-3.5 h-3.5" />
+                <span>Alokasi Budget (Bulanan)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModalSubTab('categories')}
+                className={`py-1.5 px-3 rounded text-xs font-heading font-bold flex items-center justify-center gap-1.5 transition-all ${
+                  modalSubTab === 'categories'
+                    ? 'bg-[var(--accent-sand)] text-black border border-black shadow-[1px_1px_0px_#000]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                <Tag className="w-3.5 h-3.5" />
+                <span>Kelola Kategori</span>
               </button>
             </div>
+
+            {/* KONTEN SUB-TAB 1: ALOKASI BUDGET BULANAN */}
+            {modalSubTab === 'budget' && (
+              <div className="space-y-4">
+                <div className="p-3 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] leading-relaxed space-y-1">
+                  <p className="font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                    <Sliders className="w-3.5 h-3.5 text-[var(--accent-sand)]" />
+                    Kontrol Pagu Pengeluaran Bulanan
+                  </p>
+                  <p className="text-[11px] font-mono text-[var(--text-muted)]">
+                    Atur alokasi dana per kategori untuk 1 bulan. Status <b>On Budget</b> atau <b>Over Budget</b> akan tampil di Laporan Keuangan secara otomatis.
+                  </p>
+                </div>
+
+                <form onSubmit={handleSaveAllBudgets} className="space-y-3">
+                  <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                    {categories.lists.expense.map(cat => {
+                      const val = budgetInputs[cat] ?? '';
+                      const numVal = parseInt(val.replace(/[^\d]/g, '') || '0', 10);
+                      return (
+                        <div key={cat} className="p-2.5 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs text-[var(--text-primary)] flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-[var(--accent-terracotta)]" />
+                              {cat}
+                            </span>
+                            <span className="text-[10px] font-mono text-[var(--text-muted)]">
+                              {formatRupiah(numVal)} / bln
+                            </span>
+                          </div>
+                          <div className="relative">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-[var(--text-muted)]">
+                              Rp
+                            </span>
+                            <input
+                              type="text"
+                              value={val}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/[^\d]/g, '');
+                                setBudgetInputs(prev => ({ ...prev, [cat]: raw }));
+                              }}
+                              placeholder="0 (fleksibel/tanpa limit)"
+                              className="brutal-input text-xs py-1.5 pl-8 pr-2 w-full font-mono font-bold"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
+                    <div className="text-[11px] font-mono text-[var(--text-muted)]">
+                      Total Pagu: <strong className="text-[var(--text-primary)] font-bold">
+                        {formatRupiah(
+                          categories.lists.expense.reduce((sum, c) => {
+                            const raw = budgetInputs[c] || '';
+                            return sum + (parseInt(raw.replace(/[^\d]/g, ''), 10) || 0);
+                          }, 0)
+                        )}
+                      </strong>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="brutal-btn brutal-btn-sand text-xs py-2 px-4 font-bold flex items-center gap-1.5 shadow-[2px_2px_0px_#000]"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Simpan Alokasi Budget</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* KONTEN SUB-TAB 2: KELOLA KATEGORI */}
+            {modalSubTab === 'categories' && (
+              <div className="space-y-4">
+                {/* Selector Pengeluaran vs Pemasukan */}
+                <div className="flex gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => { setCategoryKindInModal('expense'); setEditingCategory(null); }}
+                    className={`py-1 px-3 rounded font-bold border transition-all ${
+                      categoryKindInModal === 'expense'
+                        ? 'bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)] border-[var(--accent-terracotta)]'
+                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)]'
+                    }`}
+                  >
+                    Pengeluaran ({categories.lists.expense.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setCategoryKindInModal('income'); setEditingCategory(null); }}
+                    className={`py-1 px-3 rounded font-bold border transition-all ${
+                      categoryKindInModal === 'income'
+                        ? 'bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] border-[var(--accent-sage)]'
+                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)]'
+                    }`}
+                  >
+                    Pemasukan ({categories.lists.income.length})
+                  </button>
+                </div>
+
+                {/* Form Tambah Kategori Baru */}
+                <form onSubmit={handleAddCategory} className="space-y-2">
+                  <label className="brutal-label text-xs">
+                    Tambah Kategori {categoryKindInModal === 'expense' ? 'Pengeluaran' : 'Pemasukan'} Baru
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newCatName}
+                      onChange={(e) => { setNewCatName(e.target.value); setCatError(null); }}
+                      placeholder="Contoh: Langganan SaaS, Servis Motor..."
+                      className="brutal-input text-xs flex-1"
+                    />
+                    <button
+                      type="submit"
+                      className="brutal-btn brutal-btn-sage text-xs py-2 px-3 flex items-center gap-1 font-bold shrink-0 shadow-[2px_2px_0px_#000]"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Tambah</span>
+                    </button>
+                  </div>
+                  {catError && (
+                    <p className="text-xs text-[var(--accent-terracotta-light)] font-mono flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> {catError}
+                    </p>
+                  )}
+                </form>
+
+                {/* Mode Edit/Rename Kategori */}
+                {editingCategory && (
+                  <div className="p-3 rounded bg-[var(--bg-elevated)] border-2 border-[var(--accent-blue)] space-y-2">
+                    <span className="text-xs font-bold text-[var(--accent-blue-light)] flex items-center gap-1">
+                      <Pencil className="w-3 h-3" /> Ubah Nama Kategori:
+                    </span>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={editingCategory.newName}
+                        onChange={(e) => setEditingCategory({ ...editingCategory, newName: e.target.value })}
+                        className="brutal-input text-xs flex-1"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRenameCategory}
+                        className="brutal-btn brutal-btn-sand text-xs py-1.5 px-3 font-bold"
+                      >
+                        Simpan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingCategory(null)}
+                        className="brutal-btn brutal-btn-ghost text-xs py-1.5 px-2"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* List Kategori Saat Ini */}
+                <div className="space-y-2 pt-2 border-t border-[var(--border-subtle)]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono uppercase font-bold text-[var(--text-muted)]">
+                      Daftar Kategori Aktif:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm('Kembalikan daftar kategori ke pengaturan default?')) {
+                          categories.reset();
+                          showToast('Kategori dikembalikan ke default!', 'info');
+                        }
+                      }}
+                      className="text-[10px] font-mono text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-1"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Reset Default</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {categories.lists[categoryKindInModal].map(c => (
+                      <div key={c} className="flex items-center justify-between p-2 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-xs">
+                        <span className="font-bold text-[var(--text-primary)] truncate">{c}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {c !== LOCKED_CATEGORY && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setEditingCategory({ kind: categoryKindInModal, oldName: c, newName: c })}
+                                className="text-[var(--text-muted)] hover:text-[var(--accent-blue-light)] p-1"
+                                title="Ubah Nama"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => categories.remove(categoryKindInModal, c)}
+                                className="text-[var(--text-muted)] hover:text-[var(--accent-terracotta-light)] p-1"
+                                title="Hapus Kategori"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-[var(--border-subtle)] flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsCategoryModalOpen(false)}
+                    className="brutal-btn brutal-btn-sand text-xs py-1.5 px-4 font-bold"
+                  >
+                    Selesai
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

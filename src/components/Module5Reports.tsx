@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   BarChart, 
   Bar, 
@@ -28,10 +28,20 @@ import {
   Sparkles,
   ArrowRight,
   ShieldCheck,
-  Hourglass
+  Hourglass,
+  Heart,
+  ShoppingBag,
+  GraduationCap,
+  RefreshCw,
+  Bus,
+  Utensils,
+  Leaf,
+  Sliders,
+  ListFilter
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Transaction, Ledger, Account, ReportTimeRange, CategoryExpenseSummary, CashFlowTrendPoint, ReportMetrics } from '../types';
+import { getCategoryBudgets, type CategoryBudgetMap } from '../services/budgetService';
 
 interface Module5ReportsProps {
   transactions: Transaction[];
@@ -69,6 +79,21 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // Category Budget State & Realtime Listener
+  const [categoryBudgets, setCategoryBudgets] = useState<CategoryBudgetMap>(() => 
+    getCategoryBudgets(activeLedger?.id || 'default')
+  );
+  const [expenseSourcesTab, setExpenseSourcesTab] = useState<'overview' | 'detail'>('overview');
+
+  useEffect(() => {
+    setCategoryBudgets(getCategoryBudgets(activeLedger?.id || 'default'));
+    const handler = () => {
+      setCategoryBudgets(getCategoryBudgets(activeLedger?.id || 'default'));
+    };
+    window.addEventListener('artha-budgets-updated', handler);
+    return () => window.removeEventListener('artha-budgets-updated', handler);
+  }, [activeLedger?.id]);
 
   // Perhitungan Rentang Tanggal berdasarkan Filter Waktu
   const dateBounds = useMemo(() => {
@@ -362,6 +387,75 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
     // Urutkan dari nominal terbesar ke terkecil
     return result.sort((a, b) => b.amount - a.amount);
   }, [filteredTransactions]);
+
+  // Helper render ikon kategori untuk kartu Expense Sources
+  const renderCategoryIcon = (category: string) => {
+    const lower = category.toLowerCase();
+    if (lower.includes('makan') || lower.includes('minum') || lower.includes('food')) {
+      return <Utensils className="w-4 h-4 text-amber-500" />;
+    }
+    if (lower.includes('trans') || lower.includes('bensin') || lower.includes('kendaraan')) {
+      return <Bus className="w-4 h-4 text-blue-500" />;
+    }
+    if (lower.includes('belanja') || lower.includes('shop') || lower.includes('pasar')) {
+      return <ShoppingBag className="w-4 h-4 text-rose-500" />;
+    }
+    if (lower.includes('sehat') || lower.includes('obat') || lower.includes('dokter') || lower.includes('health')) {
+      return <Heart className="w-4 h-4 text-red-500" />;
+    }
+    if (lower.includes('tagihan') || lower.includes('listrik') || lower.includes('air') || lower.includes('wifi') || lower.includes('pulsa') || lower.includes('utilitas')) {
+      return <RefreshCw className="w-4 h-4 text-emerald-500" />;
+    }
+    if (lower.includes('didik') || lower.includes('kuliah') || lower.includes('sekolah') || lower.includes('buku') || lower.includes('kursus')) {
+      return <GraduationCap className="w-4 h-4 text-indigo-500" />;
+    }
+    return <Leaf className="w-4 h-4 text-emerald-600" />;
+  };
+
+  // Komputasi Alokasi Dana & Status Kategori (Expense Sources Gambar 3)
+  const expenseSourcesData = useMemo(() => {
+    const keys = new Set<string>([
+      ...Object.keys(categoryBudgets),
+      ...categoryBreakdown.map(c => c.category)
+    ]);
+
+    return Array.from(keys).map(category => {
+      const budget = categoryBudgets[category] || 0;
+      const spentEntry = categoryBreakdown.find(c => c.category === category);
+      const spent = spentEntry ? spentEntry.amount : 0;
+      const count = spentEntry ? spentEntry.count : 0;
+      const remaining = Math.max(0, budget - spent);
+      const overspent = Math.max(0, spent - budget);
+      const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0;
+
+      let status: 'ON_BUDGET' | 'LIMIT_REACHED' | 'BUDGET_EXCEEDED' | 'FLEXIBLE';
+      if (budget === 0) {
+        status = 'FLEXIBLE';
+      } else if (spent > budget) {
+        status = 'BUDGET_EXCEEDED';
+      } else if (spent === budget) {
+        status = 'LIMIT_REACHED';
+      } else {
+        status = 'ON_BUDGET';
+      }
+
+      return {
+        category,
+        budget,
+        spent,
+        count,
+        remaining,
+        overspent,
+        pct,
+        status
+      };
+    }).sort((a, b) => {
+      // Prioritaskan kategori yang overbudget atau pengeluaran terbesar
+      if (a.status === 'BUDGET_EXCEEDED' && b.status !== 'BUDGET_EXCEEDED') return -1;
+      if (b.status === 'BUDGET_EXCEEDED' && a.status !== 'BUDGET_EXCEEDED') return 1;
+      return b.spent - a.spent;
+    });
+  }, [categoryBudgets, categoryBreakdown]);
 
   // =========================================================================
   // 3. AGREGASI TREN ARUS KAS (BAR CHART: PEMASUKAN VS PENGELUARAN)
@@ -1261,6 +1355,168 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
             </p>
           </div>
         </div>
+      </section>
+
+      {/* ===================================================================== */}
+      {/* 3C. EXPENSE SOURCES / STATUS ALOKASI BUDGET KATEGORI (GAMBAR 3)       */}
+      {/* ===================================================================== */}
+      <section className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="font-heading font-extrabold text-lg text-[var(--text-primary)]">
+              Expense Sources
+            </h3>
+            <p className="text-xs text-[var(--text-secondary)] font-mono">
+              Monitoring kepatuhan alokasi dana per kategori bulan ini
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1 border-b-2 border-black dark:border-white/20 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setExpenseSourcesTab('overview')}
+              className={`py-1.5 px-3 text-xs font-bold font-heading flex items-center gap-1.5 transition-all ${
+                expenseSourcesTab === 'overview'
+                  ? 'border-b-2 border-black dark:border-white text-[var(--text-primary)] font-extrabold -mb-[2px]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+              }`}
+            >
+              <TrendingDown className="w-3.5 h-3.5" />
+              <span>Overview</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setExpenseSourcesTab('detail')}
+              className={`py-1.5 px-3 text-xs font-bold font-heading flex items-center gap-1.5 transition-all ${
+                expenseSourcesTab === 'detail'
+                  ? 'border-b-2 border-black dark:border-white text-[var(--text-primary)] font-extrabold -mb-[2px]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+              }`}
+            >
+              <ListFilter className="w-3.5 h-3.5" />
+              <span>Detail</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Grid Kartu Expense Sources persis seperti Gambar 3 */}
+        {expenseSourcesData.length === 0 ? (
+          <div className="p-8 text-center border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)]">
+            <p className="text-xs text-[var(--text-secondary)] font-mono">
+              Belum ada kategori pengeluaran atau alokasi budget yang terdaftar.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+            {expenseSourcesData.map((item) => {
+              const isExceeded = item.status === 'BUDGET_EXCEEDED';
+              const isLimit = item.status === 'LIMIT_REACHED';
+              const isOnBudget = item.status === 'ON_BUDGET';
+
+              return (
+                <div 
+                  key={item.category}
+                  className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] space-y-3 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] transition-all flex flex-col justify-between"
+                >
+                  {/* Top Row: Icon + Category Name */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      {renderCategoryIcon(item.category)}
+                      <h4 className="font-heading font-bold text-sm text-[var(--text-primary)] truncate" title={item.category}>
+                        {item.category}
+                      </h4>
+                    </div>
+                    <div className="flex items-center gap-1 text-[11px] font-mono text-[var(--text-muted)]">
+                      <Leaf className="w-3 h-3 text-emerald-500" />
+                      <span className="truncate">{activeLedger?.name || 'Personal'}</span>
+                    </div>
+                  </div>
+
+                  {/* Middle Rows: Monthly Budget & Spent this Month */}
+                  <div className="space-y-2 py-2 border-y border-[var(--border-subtle)] text-xs font-mono">
+                    <div>
+                      <span className="text-[10px] text-[var(--text-muted)] block uppercase font-bold">
+                        Monthly Budget
+                      </span>
+                      <span className="font-bold text-sm text-[var(--text-primary)]">
+                        {item.budget > 0 ? formatRupiah(item.budget) : 'Fleksibel'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-[var(--text-muted)] block uppercase font-bold">
+                        Spent this Month
+                      </span>
+                      <span className="font-bold text-sm text-[var(--text-primary)]">
+                        {formatRupiah(item.spent)}
+                      </span>
+                    </div>
+
+                    {expenseSourcesTab === 'detail' && item.budget > 0 && (
+                      <div className="pt-1 space-y-1">
+                        <div className="h-1.5 w-full bg-[var(--bg-muted)] rounded-full overflow-hidden border border-black/30 dark:border-white/20">
+                          <div 
+                            className={`h-full transition-all duration-300 ${
+                              isExceeded ? 'bg-rose-500' : isLimit ? 'bg-amber-500' : 'bg-emerald-500'
+                            }`}
+                            style={{ width: `${Math.min(100, item.pct)}%` }}
+                          />
+                        </div>
+                        <span className="text-[9px] text-[var(--text-muted)] block">
+                          {item.count} transaksi tercatat
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bottom Row: Status Badge & Percentage Ring */}
+                  <div className="pt-1 flex items-center justify-between">
+                    <div>
+                      {isOnBudget && (
+                        <span className="text-xs font-mono font-bold text-emerald-500">
+                          {formatRupiah(item.remaining)} Remaining
+                        </span>
+                      )}
+                      {isLimit && (
+                        <span className="text-xs font-mono font-bold text-amber-500">
+                          LIMIT REACHED
+                        </span>
+                      )}
+                      {isExceeded && (
+                        <span className="text-xs font-mono font-bold text-rose-500">
+                          BUDGET EXCEEDED
+                        </span>
+                      )}
+                      {item.status === 'FLEXIBLE' && (
+                        <span className="text-xs font-mono font-bold text-[var(--text-muted)]">
+                          ON BUDGET
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Percentage with circle indicator */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-xs font-mono font-bold text-[var(--text-secondary)]">
+                        {item.budget > 0 ? `${item.pct}%` : '0%'}
+                      </span>
+                      <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
+                        isExceeded 
+                          ? 'border-rose-500 bg-rose-500/20' 
+                          : isLimit 
+                          ? 'border-amber-500 bg-amber-500/20' 
+                          : 'border-emerald-500 bg-emerald-500/20'
+                      }`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${
+                          isExceeded ? 'bg-rose-500' : isLimit ? 'bg-amber-500' : 'bg-emerald-500'
+                        }`} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* ===================================================================== */}

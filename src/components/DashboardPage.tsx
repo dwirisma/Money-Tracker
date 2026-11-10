@@ -178,7 +178,7 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
             className="brutal-btn brutal-btn-sand text-xs py-2 px-3 flex items-center gap-1.5 font-bold shadow-[2px_2px_0px_#000]"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Catat Transaksi</span>
+            <span>Catat Transaksi</span>
           </button>
 
           <button
@@ -612,7 +612,7 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
 
         {d.recent.length === 0 ? (
           <p className="text-xs text-[var(--text-secondary)] italic py-2">
-            Belum ada transaksi di buku kas ini. Klik tombol (+ Catat Transaksi) di atas untuk mulai mencatat.
+            Belum ada transaksi di buku kas ini. Klik tombol (Catat Transaksi) di atas untuk mulai mencatat.
           </p>
         ) : (
           <div className="space-y-2">

@@ -186,18 +186,18 @@ Kembalikan jawaban HANYA dalam format JSON valid:
   const currentData = insight || computeLocalInsight();
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border-2 border-black dark:border-slate-700/80 bg-[#fdfaf3] dark:bg-[#121826] text-stone-900 dark:text-white p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-colors">
+    <div className="relative overflow-hidden rounded-2xl border-2 border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] p-5 shadow-[var(--shadow-md)] transition-colors">
       {/* Background subtle glow */}
-      <div className="absolute -top-12 -right-12 w-32 h-32 bg-amber-400/10 dark:bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+      <div className="absolute -top-12 -right-12 w-32 h-32 bg-amber-400/10 dark:bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
 
       {/* Header Card */}
-      <div className="flex items-center justify-between mb-4 pb-3 border-b border-stone-200 dark:border-slate-800">
+      <div className="flex items-center justify-between mb-4 pb-3 border-b border-[var(--border-subtle)]">
         <div className="flex items-center gap-2">
           <span className="text-xl">💡</span>
-          <h3 className="font-heading font-black text-base sm:text-lg tracking-wide text-stone-900 dark:text-white">
+          <h3 className="font-heading font-black text-base sm:text-lg tracking-wide text-[var(--text-primary)]">
             AI Insight
           </h3>
-          <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-400/20 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-400/30">
+          <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-400/15 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-400/30">
             <Sparkles className="w-2.5 h-2.5" />
             Gemini
           </span>
@@ -208,7 +208,7 @@ Kembalikan jawaban HANYA dalam format JSON valid:
           onClick={generateAiInsight}
           disabled={loading}
           title="Perbarui insight"
-          className="p-1.5 rounded-lg border border-stone-300 dark:border-slate-700 bg-stone-100 hover:bg-stone-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-stone-700 dark:text-slate-300 transition-all active:scale-95 disabled:opacity-50"
+          className="p-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all active:scale-95 disabled:opacity-50"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-amber-500' : ''}`} />
         </button>
@@ -218,7 +218,7 @@ Kembalikan jawaban HANYA dalam format JSON valid:
       <div className="space-y-3 text-sm sm:text-base leading-relaxed">
         {currentData.bullets.map((b, idx) => (
           <div key={idx} className="flex items-start gap-2.5">
-            <p className="text-stone-800 dark:text-slate-200 font-medium">
+            <p className="text-[var(--text-primary)] font-medium">
               {b}
             </p>
           </div>
@@ -226,7 +226,7 @@ Kembalikan jawaban HANYA dalam format JSON valid:
 
         {/* Optional smart tip */}
         {currentData.extraTip && (
-          <div className="pt-2 mt-2 border-t border-stone-200 dark:border-slate-800/80 flex items-start gap-2 text-xs text-stone-600 dark:text-slate-400">
+          <div className="pt-2 mt-2 border-t border-[var(--border-subtle)] flex items-start gap-2 text-xs text-[var(--text-secondary)]">
             <span className="text-amber-500 font-bold shrink-0">✦</span>
             <p className="italic">{currentData.extraTip}</p>
           </div>

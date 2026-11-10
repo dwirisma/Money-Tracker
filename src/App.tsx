@@ -50,8 +50,8 @@ import {
   ToggleLeft,
   ToggleRight,
   Sliders,
-  Cpu,
-  BarChart3
+  BarChart3,
+  Settings
 } from 'lucide-react';
 import { Module5Reports } from './components/Module5Reports';
 import { Module6SalaryShift } from './components/Module6SalaryShift';
@@ -2211,15 +2211,16 @@ export default function App() {
                 </button>
               )}
 
-              {/* Saat Tambah Transaksi Aktif: Link cepat ke Riwayat */}
+              {/* Saat Tambah Transaksi Aktif: Tombol Pengaturan Tab Transaksi (Kategori & Budgeting) */}
               {activeModule === 'add_transaction' && (
                 <button
                   type="button"
-                  onClick={() => setActiveModule('history_transaction')}
-                  className="brutal-btn brutal-btn-ghost text-xs py-1.5 px-2 sm:px-3 flex items-center gap-1 font-bold"
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-tx-tab-settings'))}
+                  className="brutal-btn brutal-btn-sand text-xs py-1.5 px-2 sm:px-3 flex items-center gap-1.5 font-bold shadow-[2px_2px_0px_#000]"
+                  title="Buka Pengaturan Tab Transaksi (Kategori & Alokasi Budget)"
                 >
-                  <History className="w-3.5 h-3.5 text-[var(--accent-blue)]" />
-                  <span className="hidden sm:inline">Riwayat</span>
+                  <Settings className="w-3.5 h-3.5 text-black" />
+                  <span className="hidden sm:inline">Pengaturan Tab</span>
                 </button>
               )}
 
@@ -2265,7 +2266,7 @@ export default function App() {
         {/* KONTEN MODUL 1: KAS & TRANSAKSI                                     */}
         {/* =================================================================== */}
         <div id="container-settings" className={activeModule === 'settings' ? 'space-y-7' : 'hidden'}>
-          <SettingsPage categories={categories} />
+          <SettingsPage />
         </div>
 
         <div id="container-dashboard" className={activeModule === 'dashboard' ? 'space-y-7' : 'hidden'}>

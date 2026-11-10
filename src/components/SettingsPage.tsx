@@ -1,12 +1,18 @@
-import { useState } from 'react';
-import { Camera, Check, Eye, EyeOff, Moon, Pencil, Plus, RotateCcw, Sun, Trash2, X } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { 
+  Database, 
+  Download, 
+  Upload, 
+  Eye, 
+  EyeOff, 
+  Moon, 
+  Sun, 
+  CheckCircle2, 
+  AlertCircle,
+  FileJson
+} from 'lucide-react';
 import { useUI } from '../context/UIContext';
-import { LOCKED_CATEGORY, type CategoriesApi, type CategoryKind } from '../hooks/useCategories';
-import { NeoButton, NeoCard, NeoInput } from './ui/Neo';
-import { DEFAULT_GEMINI_MODEL, clearGeminiKey, getGeminiKey, getGeminiModel, saveGeminiSettings } from '../services/geminiSettings';
-import { testGemini } from '../services/receiptScanService';
-
-const KIND_LABEL: Record<CategoryKind, string> = { expense: 'Pengeluaran', income: 'Pemasukan' };
+import { NeoButton, NeoCard } from './ui/Neo';
 
 function Row({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
   return (
@@ -20,139 +26,238 @@ function Row({ title, hint, children }: { title: string; hint: string; children:
   );
 }
 
-export function SettingsPage({ categories }: { categories: CategoriesApi }) {
+export function SettingsPage() {
   const { theme, privacy, toggleTheme, togglePrivacy } = useUI();
-  const [kind, setKind] = useState<CategoryKind>('expense');
-  const [draft, setDraft] = useState('');
-  const [editing, setEditing] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [backupStatus, setBackupStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const list = categories.lists[kind];
+  // Menghitung ringkasan data yang tersimpan di localStorage
+  const dataSummary = React.useMemo(() => {
+    let keyCount = 0;
+    let approxSizeKb = 0;
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('artha_')) {
+          keyCount++;
+          const val = localStorage.getItem(k) || '';
+          approxSizeKb += (k.length + val.length) * 2 / 1024;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return { keyCount, sizeKb: approxSizeKb.toFixed(1) };
+  }, [backupStatus]);
 
-  const submitAdd = (e: React.FormEvent) => {
-    e.preventDefault();
-    const err = categories.add(kind, draft);
-    setError(err);
-    if (!err) setDraft('');
+  // Fungsi Export / Unduh Backup Database JSON
+  const handleExportBackup = () => {
+    try {
+      const backupPayload: Record<string, any> = {
+        meta: {
+          app: 'Artha Wealth Management OS',
+          version: '2.0.0',
+          exportedAt: new Date().toISOString()
+        },
+        data: {}
+      };
+
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('artha_') || key === 'theme' || key === 'privacy')) {
+          try {
+            backupPayload.data[key] = JSON.parse(localStorage.getItem(key) || '""');
+          } catch {
+            backupPayload.data[key] = localStorage.getItem(key);
+          }
+        }
+      }
+
+      const blob = new Blob([JSON.stringify(backupPayload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const nowStr = new Date().toISOString().split('T')[0];
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `artha-database-backup-${nowStr}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setBackupStatus({
+        type: 'success',
+        message: `Cadangan database berhasil diunduh (${Object.keys(backupPayload.data).length} entitas data tersimpan).`
+      });
+    } catch (err) {
+      console.error('Gagal mengekspor data cadangan:', err);
+      setBackupStatus({
+        type: 'error',
+        message: 'Gagal membuat file cadangan JSON. Silakan coba lagi.'
+      });
+    }
   };
-  const submitRename = (from: string) => {
-    const err = categories.rename(kind, from, editDraft);
-    setError(err);
-    if (!err) setEditing(null);
+
+  // Fungsi Impor / Pulihkan Database JSON
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+
+        if (!parsed || typeof parsed !== 'object' || !parsed.data) {
+          throw new Error('Format file cadangan tidak valid (hilang data payload).');
+        }
+
+        const confirmRestore = window.confirm(
+          `Pulihkan data dari cadangan tanggal ${parsed.meta?.exportedAt ? new Date(parsed.meta.exportedAt).toLocaleDateString('id-ID') : 'tidak diketahui'}? Seluruh data yang ada saat ini akan digantikan dengan data cadangan ini.`
+        );
+
+        if (!confirmRestore) {
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          return;
+        }
+
+        // Terapkan data ke localStorage
+        Object.entries(parsed.data).forEach(([key, val]) => {
+          if (typeof val === 'string') {
+            localStorage.setItem(key, val);
+          } else {
+            localStorage.setItem(key, JSON.stringify(val));
+          }
+        });
+
+        setBackupStatus({
+          type: 'success',
+          message: 'Data berhasil dipulihkan! Aplikasi akan dimuat ulang untuk memperbarui tampilan.'
+        });
+
+        setTimeout(() => {
+          window.location.reload();
+        }, 1200);
+      } catch (err) {
+        console.error('Gagal memulihkan database:', err);
+        setBackupStatus({
+          type: 'error',
+          message: 'File cadangan JSON rusak atau tidak valid. Pemulihan dibatalkan.'
+        });
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+
+    reader.readAsText(file);
   };
-  const switchKind = (k: CategoryKind) => { setKind(k); setEditing(null); setError(null); };
 
   return (
     <div className="space-y-6 max-w-3xl">
       <div>
-        <h2 className="font-heading font-bold text-2xl text-[var(--text-primary)]">Pengaturan</h2>
-        <p className="text-sm text-[var(--text-secondary)]">Tampilan aplikasi dan kategori transaksi. Pengaturan disimpan di perangkat ini.</p>
+        <h2 className="font-heading font-bold text-2xl text-[var(--text-primary)]">Pengaturan Umum</h2>
+        <p className="text-sm text-[var(--text-secondary)]">Tampilan antarmuka dan pencadangan database offline.</p>
       </div>
 
+      {/* 1. Pengaturan Tampilan */}
       <NeoCard className="p-4">
         <h3 className="font-heading font-bold mb-1 text-[var(--text-primary)]">Tampilan</h3>
-        <Row title="Tema" hint={theme === 'dark' ? 'Gelap (dark slate)' : 'Terang (krem pastel)'}>
+        <Row title="Tema" hint={theme === 'dark' ? 'Gelap (Dark Charcoal)' : 'Terang (Krem Sand Pastel)'}>
           <NeoButton onClick={toggleTheme} className="flex items-center gap-2 text-xs">
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}{theme === 'dark' ? 'Pakai terang' : 'Pakai gelap'}
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {theme === 'dark' ? 'Pakai Terang' : 'Pakai Gelap'}
           </NeoButton>
         </Row>
-        <Row title="Mode privasi" hint="Menyensor semua nominal menjadi Rp •••••••">
+        <Row title="Mode Privasi" hint="Menyensor semua nominal menjadi Rp •••••••">
           <NeoButton onClick={togglePrivacy} aria-pressed={privacy} className="flex items-center gap-2 text-xs">
-            {privacy ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}{privacy ? 'Tampilkan' : 'Sembunyikan'}
+            {privacy ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            {privacy ? 'Tampilkan' : 'Sembunyikan'}
           </NeoButton>
         </Row>
       </NeoCard>
 
+      {/* 2. Cadangkan & Pulihkan Database (JSON) */}
       <NeoCard className="p-4 space-y-4">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <h3 className="font-heading font-bold text-[var(--text-primary)]">Kategori transaksi</h3>
-          <div className="flex gap-1">
-            {(['expense', 'income'] as CategoryKind[]).map(k => (
-              <button key={k} type="button" onClick={() => switchKind(k)} className="brutal-badge" style={kind === k ? { background: 'var(--accent-sand)', color: '#111' } : undefined}>{KIND_LABEL[k]}</button>
-            ))}
+        <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-2.5">
+          <div className="flex items-center gap-2">
+            <Database className="w-5 h-5 text-[var(--accent-sand)]" />
+            <div>
+              <h3 className="font-heading font-bold text-[var(--text-primary)]">
+                Cadangkan & Pulihkan Database
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] font-mono">
+                Format file cadangan JSON mandiri untuk keamanan data offline Anda
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
+            {dataSummary.keyCount} Tabel ({dataSummary.sizeKb} KB)
+          </span>
+        </div>
+
+        <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+          Simpan seluruh data buku kas, rekening, transaksi, target tabungan, tagihan, serta pengaturan kalender shift ke dalam file <strong>JSON</strong> di perangkat Anda. Anda dapat mengunduh berkas cadangan kapan saja atau memulihkannya ke peramban lain.
+        </p>
+
+        {/* Notifikasi Status Backup / Restore */}
+        {backupStatus && (
+          <div className={`p-3 rounded-[var(--radius-sm)] border-2 text-xs font-mono flex items-center gap-2 ${
+            backupStatus.type === 'success'
+              ? 'bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] border-[var(--accent-sage)]'
+              : 'bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)] border-[var(--accent-terracotta)]'
+          }`}>
+            {backupStatus.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+            <span>{backupStatus.message}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          {/* Tombol Unduh Cadangan JSON */}
+          <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] space-y-2">
+            <div className="flex items-center gap-2 text-xs font-heading font-bold text-[var(--text-primary)]">
+              <Download className="w-4 h-4 text-[var(--accent-sand)]" />
+              <span>Cadangkan Data (Export)</span>
+            </div>
+            <p className="text-[11px] text-[var(--text-secondary)]">
+              Unduh seluruh database ke file JSON lokal sebagai arsip aman.
+            </p>
+            <NeoButton 
+              accent="sand" 
+              onClick={handleExportBackup} 
+              className="w-full text-xs font-bold flex items-center justify-center gap-1.5 py-2 !shadow-[2px_2px_0px_#000]"
+            >
+              <FileJson className="w-3.5 h-3.5 text-black" />
+              <span className="text-black">Unduh Cadangan JSON</span>
+            </NeoButton>
+          </div>
+
+          {/* Tombol Pulihkan Data JSON */}
+          <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] space-y-2">
+            <div className="flex items-center gap-2 text-xs font-heading font-bold text-[var(--text-primary)]">
+              <Upload className="w-4 h-4 text-[var(--accent-blue)]" />
+              <span>Pulihkan Data (Import)</span>
+            </div>
+            <p className="text-[11px] text-[var(--text-secondary)]">
+              Pilih file JSON cadangan untuk memulihkan seluruh data buku kas.
+            </p>
+            <input 
+              ref={fileInputRef} 
+              type="file" 
+              accept=".json,application/json" 
+              className="hidden" 
+              onChange={handleImportBackup} 
+            />
+            <NeoButton 
+              accent="blue" 
+              onClick={() => fileInputRef.current?.click()} 
+              className="w-full text-xs font-bold flex items-center justify-center gap-1.5 py-2 !shadow-[2px_2px_0px_#000]"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Pilih File JSON</span>
+            </NeoButton>
           </div>
         </div>
-
-        <form onSubmit={submitAdd} className="flex gap-2">
-          <NeoInput value={draft} onChange={e => { setDraft(e.target.value); setError(null); }} placeholder={`Kategori ${KIND_LABEL[kind].toLowerCase()} baru`} maxLength={30} aria-label="Nama kategori baru" />
-          <NeoButton type="submit" accent="sage" className="flex items-center gap-1 shrink-0"><Plus className="w-4 h-4" />Tambah</NeoButton>
-        </form>
-        {error && <p role="alert" className="text-xs font-bold text-[#c2334d]">{error}</p>}
-
-        <ul className="space-y-2">
-          {list.map(name => (
-            <li key={name} className="flex items-center justify-between gap-2 border-2 border-[var(--border-color)] rounded-md px-3 py-2 bg-[var(--bg-elevated)]">
-              {editing === name ? (
-                <>
-                  <NeoInput autoFocus value={editDraft} onChange={e => { setEditDraft(e.target.value); setError(null); }} onKeyDown={e => { if (e.key === 'Enter') submitRename(name); if (e.key === 'Escape') setEditing(null); }} maxLength={30} aria-label={`Ubah nama ${name}`} />
-                  <div className="flex gap-1 shrink-0">
-                    <NeoButton onClick={() => submitRename(name)} aria-label="Simpan" className="!p-2"><Check className="w-4 h-4" /></NeoButton>
-                    <NeoButton onClick={() => { setEditing(null); setError(null); }} aria-label="Batal" className="!p-2"><X className="w-4 h-4" /></NeoButton>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <span className="text-sm font-bold text-[var(--text-primary)] truncate">{name}{name === LOCKED_CATEGORY && <span className="ml-2 text-[10px] font-mono text-[var(--text-muted)]">BAWAAN • TERKUNCI</span>}</span>
-                  {name !== LOCKED_CATEGORY && (
-                    <div className="flex gap-1 shrink-0">
-                      <NeoButton onClick={() => { setEditing(name); setEditDraft(name); setError(null); }} aria-label={`Ubah ${name}`} className="!p-2"><Pencil className="w-4 h-4" /></NeoButton>
-                      <NeoButton onClick={() => { if (window.confirm(`Hapus kategori "${name}"? Transaksi lama tetap memakai nama ini.`)) categories.remove(kind, name); }} aria-label={`Hapus ${name}`} className="!p-2"><Trash2 className="w-4 h-4" /></NeoButton>
-                    </div>
-                  )}
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-xs text-[var(--text-secondary)]">Mengubah atau menghapus kategori hanya memengaruhi pilihan di form baru. Transaksi yang sudah tercatat tidak diubah.</p>
-          <NeoButton ghost onClick={() => { if (window.confirm('Kembalikan semua kategori ke daftar bawaan?')) categories.reset(); }} className="flex items-center gap-1 text-xs shrink-0"><RotateCcw className="w-3.5 h-3.5" />Reset</NeoButton>
-        </div>
       </NeoCard>
-      <GeminiSection />
     </div>
-  );
-}
-
-function GeminiSection() {
-  const [key, setKey] = useState(getGeminiKey);
-  const [model, setModel] = useState(getGeminiModel);
-  const [show, setShow] = useState(false);
-  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const save = () => { saveGeminiSettings(key, model); setStatus({ ok: true, text: key.trim() ? 'Tersimpan di perangkat ini.' : 'Kunci kosong, fitur Scan Struk nonaktif.' }); };
-  const test = async () => {
-    setBusy(true); setStatus(null);
-    try { await testGemini({ apiKey: key.trim(), model: model.trim() || DEFAULT_GEMINI_MODEL }); saveGeminiSettings(key, model); setStatus({ ok: true, text: 'Koneksi berhasil. Pengaturan disimpan.' }); }
-    catch (e) { setStatus({ ok: false, text: e instanceof Error ? e.message : 'Gagal menguji koneksi.' }); }
-    finally { setBusy(false); }
-  };
-
-  return (
-    <NeoCard className="p-4 space-y-3">
-      <h3 className="font-heading font-bold flex items-center gap-2 text-[var(--text-primary)]"><Camera className="w-4 h-4" />Scan Struk (AI)</h3>
-      <p className="text-xs text-[var(--text-secondary)]">Pakai kunci API Gemini milikmu sendiri (gratis dari Google AI Studio). Foto struk dikirim langsung dari browser ke Google, tidak lewat server Artha. Kunci hanya disimpan di perangkat ini, jadi jangan isi di komputer bersama.</p>
-      <div>
-        <label className="brutal-label">Kunci API Gemini</label>
-        <div className="flex gap-2">
-          <NeoInput type={show ? 'text' : 'password'} value={key} onChange={e => { setKey(e.target.value); setStatus(null); }} placeholder="AIza…" autoComplete="off" spellCheck={false} aria-label="Kunci API Gemini" />
-          <NeoButton onClick={() => setShow(v => !v)} aria-label={show ? 'Sembunyikan kunci' : 'Tampilkan kunci'} className="!p-2 shrink-0">{show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</NeoButton>
-        </div>
-      </div>
-      <div>
-        <label className="brutal-label">Nama model</label>
-        <NeoInput value={model} onChange={e => { setModel(e.target.value); setStatus(null); }} placeholder={DEFAULT_GEMINI_MODEL} spellCheck={false} aria-label="Nama model Gemini" />
-        <p className="text-[11px] text-[var(--text-muted)] mt-1">Nama model Google sering berganti. Jika muncul error "model tidak ditemukan", ganti di sini lalu uji koneksi.</p>
-      </div>
-      <div className="flex gap-2 flex-wrap items-center">
-        <NeoButton accent="sage" onClick={test} disabled={busy || !key.trim()}>{busy ? 'Menguji…' : 'Uji koneksi'}</NeoButton>
-        <NeoButton onClick={save}>Simpan</NeoButton>
-        <NeoButton ghost onClick={() => { clearGeminiKey(); setKey(''); setStatus({ ok: true, text: 'Kunci dihapus dari perangkat ini.' }); }} disabled={!key}>Hapus kunci</NeoButton>
-      </div>
-      {status && <p role={status.ok ? 'status' : 'alert'} className={`text-xs font-bold ${status.ok ? 'text-[var(--accent-sage-light)]' : 'text-[#c2334d]'}`}>{status.text}</p>}
-    </NeoCard>
   );
 }

@@ -118,15 +118,6 @@ export function TransactionHistoryView({
             Daftar lengkap seluruh arus kas dan mutasi di buku <b>{currentLedger.name}</b>.
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={() => onNavigate('add_transaction')}
-          className="brutal-btn brutal-btn-sand text-xs py-2 px-3.5 flex items-center gap-1.5 self-start sm:self-auto font-bold shadow-[2px_2px_0px_#000]"
-        >
-          <Plus className="w-4 h-4" />
-          <span>+ Tambah Transaksi Baru</span>
-        </button>
       </div>
 
       {/* METRICS SUMMARY KARTU */}
