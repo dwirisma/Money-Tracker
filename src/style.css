@@ -415,7 +415,7 @@ h1, h2, h3, h4, h5, h6 {
 /* Penyesuaian elemen yang di V1 memakai warna gelap/putih permanen */
 :root[data-theme="light"] .text-white { color: var(--text-primary); }
 :root[data-theme="light"] .brutal-card-interactive:hover,
-:root[data-theme="light"] .brutal-btn:hover { border-color: #1a1a1c; }
+:root[data-theme="light"] .brutal-btn:hover { border-color: #1a1a1c; color: var(--text-primary); }
 :root[data-theme="light"] .brutal-input:focus,
 :root[data-theme="light"] .brutal-select:focus,
 :root[data-theme="light"] .brutal-textarea:focus { background-color: #faf7ef; box-shadow: 3px 3px 0px var(--accent-sage); }

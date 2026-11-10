@@ -63,7 +63,7 @@ export function AppNav({ active, onNavigate }: Props) {
         className="max-md:hidden flex fixed inset-y-0 left-0 z-40 flex-col bg-[var(--bg-surface)] border-r-[2.5px] border-[var(--border-color)] overflow-y-auto"
         style={{ width: 'var(--sidebar-w)' }}
       >
-        <div className="flex items-center justify-between px-3 py-4 border-b-2 border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between px-3 py-3.5 border-b-2 border-[var(--border-subtle)]">
           {!sidebarCollapsed && (
             <div>
               <div className="font-heading font-bold text-lg leading-none text-[var(--text-primary)]">Artha</div>
@@ -74,9 +74,12 @@ export function AppNav({ active, onNavigate }: Props) {
             type="button"
             onClick={toggleSidebar}
             aria-label={sidebarCollapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}
-            className="brutal-btn !p-1.5 !shadow-[var(--shadow-sm)] mx-auto"
+            title={sidebarCollapsed ? 'Buka Navigasi Artha' : 'Ciutkan sidebar'}
+            className={`${
+              sidebarCollapsed ? 'w-9 h-9 mx-auto' : 'w-8 h-8'
+            } bg-[var(--accent-sage)] text-[var(--text-inverted)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] flex items-center justify-center font-heading font-bold text-base shrink-0 hover:opacity-90 active:translate-x-0.5 active:translate-y-0.5 cursor-pointer`}
           >
-            {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            A
           </button>
         </div>
 

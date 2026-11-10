@@ -85,18 +85,40 @@ export function AiInsightCard({
       const surplus = totalIncomeThisMonth - totalExpenseThisMonth;
       bullets.push(`📈 Arus kas surplus ${formatRupiah(surplus)}. Pertimbangkan menyisihkan dana ke Sinking Fund atau investasi.`);
     } else {
-      bullets.push('📈 Siapkan alokasi target finansial baru di Modul Goals agar cash flow lebih terarah.');
+      bullets.push('📈 Siapkan alokasi target finansial baru di Modul Goals agar cash flow bulanan lebih terarah.');
     }
 
-    // Bullet 3 / Extra tip: Tagihan & kewajiban terdekat
-    let tip: string | undefined;
+    // Bullet 3: Kewajiban & Tagihan
     const pendingBills = bills.filter(b => b.nextPaymentDate && b.nextPaymentDate.startsWith(ym));
     const pendingDebts = debts.filter(d => !d.isPaidOff);
     if (pendingBills.length > 0) {
-      tip = `Ada ${pendingBills.length} tagihan rutin jatuh tempo bulan ini. Pastikan saldo kas likuid tetap terjaga.`;
+      const totalBillsAmt = pendingBills.reduce((s, b) => s + (b.fixedAmount || b.lastNominal || 0), 0);
+      bullets.push(`⚡ Ada ${pendingBills.length} tagihan rutin jatuh tempo bulan ini (~${formatRupiah(totalBillsAmt)}). Pastikan saldo di akun sumber tetap aman.`);
     } else if (pendingDebts.length > 0) {
-      tip = `Ada ${pendingDebts.length} kewajiban cicilan berjalan. Prioritaskan pelunasan untuk menghemat beban bunga.`;
+      const totalDebtLeft = pendingDebts.reduce((s, d) => s + (d.remainingDebt || 0), 0);
+      bullets.push(`⚡ Pantau ${pendingDebts.length} kewajiban cicilan (${formatRupiah(totalDebtLeft)}). Percepat pelunasan untuk meringankan beban bunga bulanan.`);
+    } else {
+      bullets.push('⚡ Beban kewajiban utang dan tagihan nol atau terkendali penuh. Posisi likuiditas kas sangat sehat!');
     }
+
+    // Bullet 4: Rekomendasi Finansial Taktis
+    if (totalIncomeThisMonth > 0) {
+      const savingsRate = Math.round(((totalIncomeThisMonth - totalExpenseThisMonth) / totalIncomeThisMonth) * 100);
+      if (savingsRate >= 20) {
+        bullets.push(`🎯 Rasio tabunganmu mencapai ${savingsRate}%, melampaui target standar emas 20%. Pertahankan disiplin ini!`);
+      } else if (savingsRate > 0) {
+        bullets.push(`🎯 Rasio tabungan saat ini ${savingsRate}%. Coba alokasikan 5-10% tambahan ke pos dana darurat sebelum akhir bulan.`);
+      } else {
+        bullets.push(`🎯 Pengeluaran melampaui pemasukan bulan ini. Tinjau kembali pos pengeluaran fleksibel di Laporan Analitik.`);
+      }
+    } else {
+      bullets.push('🎯 Catat pemasukan rutin begitu diterima agar evaluasi rasio tabungan otomatis terhitung.');
+    }
+
+    // Extra tip
+    const tip = pendingBills.length > 0
+      ? 'Jadwalkan auto-debit atau otomatisasi pengeluaran agar tidak terkena denda keterlambatan.'
+      : 'Sisihkan minimal 10% pendapatan ke instrumen pasar uang untuk memperkuat dana darurat.';
 
     return {
       bullets,
@@ -137,13 +159,19 @@ Daftar target tabungan aktif: ${activeGoalNames || 'Belum ada'}
 Jumlah tagihan rutin: ${bills.length}, Jumlah cicilan utang: ${debts.length}
 
 TUGAS PENTING:
-Berikan analisa keuangan yang luwes, santai, tajam, dan tidak kaku (jangan pakai template robotik yang berulang-ulang). Berikan 2 poin utama yang benar-benar relevan dengan kondisi data di atas.
+Berikan analisa keuangan yang luwes, santai, tajam, kontekstual, dan tidak kaku (jangan pakai template robotik berulang-ulang). Berikan 3 hingga 4 poin utama yang beragam dan relevan dengan data di atas:
+1. Analisis pola pengeluaran atau kesehatan arus kas
+2. Progres tabungan atau motivasi pencapaian target
+3. Mitigasi kewajiban / tagihan / utang
+4. Rekomendasi aksi taktis minggu ini
 
 Kembalikan jawaban HANYA dalam format JSON valid:
 {
   "bullets": [
-    "💡 [Poin 1: Analisis pengeluaran / kebiasaan belanja / arus kas secara natural]",
-    "📈 [Poin 2: Analisis tabungan / motivasi finansial / saran alokasi secara ramah]"
+    "💡 [Poin 1: Analisis pengeluaran / kebiasaan belanja]",
+    "📈 [Poin 2: Analisis tabungan / motivasi target]",
+    "⚡ [Poin 3: Analisis kewajiban / tagihan / mitigasi]",
+    "🎯 [Poin 4: Saran langkah taktis]"
   ],
   "extraTip": "[Satu kalimat tips cerdas hemat/investasi maksimal 15 kata]"
 }`;

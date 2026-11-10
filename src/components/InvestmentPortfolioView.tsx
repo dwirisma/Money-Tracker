@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -47,6 +47,12 @@ export function InvestmentPortfolioView({
   const [editingAsset, setEditingAsset] = useState<InvestmentAsset | null>(null);
   const [quickUpdateAsset, setQuickUpdateAsset] = useState<InvestmentAsset | null>(null);
   const [assetToDelete, setAssetToDelete] = useState<InvestmentAsset | null>(null);
+
+  useEffect(() => {
+    const handleOpen = () => openAddModal();
+    window.addEventListener('open-add-asset-modal', handleOpen);
+    return () => window.removeEventListener('open-add-asset-modal', handleOpen);
+  }, []);
 
   // Form states for Add / Edit
   const [name, setName] = useState('');
@@ -236,15 +242,6 @@ export function InvestmentPortfolioView({
             Pantau pertumbuhan aset, nilai pasar, return, dan diversifikasi di <b>{currentLedger.name}</b>.
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={openAddModal}
-          className="brutal-btn brutal-btn-sand text-xs py-2 px-3.5 flex items-center gap-1.5 self-start sm:self-auto font-bold shadow-[2px_2px_0px_#000]"
-        >
-          <Plus className="w-4 h-4" />
-          <span>+ Tambah Aset Investasi</span>
-        </button>
       </div>
 
       {/* SCORECARDS PORTOFOLIO UTAMA */}
@@ -436,7 +433,7 @@ export function InvestmentPortfolioView({
                           setQuickUpdateAsset(asset);
                           setQuickValue(String(asset.currentValue));
                         }}
-                        className="p-1.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded shadow-[1px_1px_0px_#000] text-[var(--accent-blue-light)] hover:text-white transition-all"
+                        className="p-1.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded shadow-[1px_1px_0px_#000] text-[var(--accent-blue-light)] hover:text-[var(--text-primary)] transition-all"
                         title="Perbarui Nilai Pasar Terkini"
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
@@ -445,7 +442,7 @@ export function InvestmentPortfolioView({
                       <button
                         type="button"
                         onClick={() => openEditModal(asset)}
-                        className="p-1.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded shadow-[1px_1px_0px_#000] text-[var(--text-secondary)] hover:text-white transition-all"
+                        className="p-1.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded shadow-[1px_1px_0px_#000] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
                         title="Edit Detail Aset"
                       >
                         <Pencil className="w-3.5 h-3.5" />
@@ -515,7 +512,7 @@ export function InvestmentPortfolioView({
                       setQuickUpdateAsset(asset);
                       setQuickValue(String(asset.currentValue));
                     }}
-                    className="underline text-[var(--accent-sand)] hover:text-white"
+                    className="underline text-[var(--accent-sand)] hover:text-[var(--text-primary)]"
                   >
                     Ubah Nilai →
                   </button>

@@ -165,7 +165,7 @@ export function TransactionHistoryView({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari transaksi berdasarkan catatan, nominal, akun..."
-              className="brutal-input text-xs pl-9 w-full"
+              className="brutal-input text-xs !pl-11 w-full"
             />
           </div>
 
@@ -177,7 +177,7 @@ export function TransactionHistoryView({
               className={`px-3 py-1 text-xs font-heading font-bold rounded-[var(--radius-xs)] transition-all ${
                 typeFilter === 'all'
                   ? 'bg-[var(--accent-sand)] text-[#111] shadow-[1px_1px_0px_#000]'
-                  : 'text-[var(--text-secondary)] hover:text-white'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
               Semua
@@ -188,7 +188,7 @@ export function TransactionHistoryView({
               className={`px-3 py-1 text-xs font-heading font-bold rounded-[var(--radius-xs)] transition-all ${
                 typeFilter === 'expense'
                   ? 'bg-[var(--accent-terracotta)] text-white shadow-[1px_1px_0px_#000]'
-                  : 'text-[var(--text-secondary)] hover:text-white'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
               Pengeluaran
@@ -199,7 +199,7 @@ export function TransactionHistoryView({
               className={`px-3 py-1 text-xs font-heading font-bold rounded-[var(--radius-xs)] transition-all ${
                 typeFilter === 'income'
                   ? 'bg-[var(--accent-sage)] text-[#111] shadow-[1px_1px_0px_#000]'
-                  : 'text-[var(--text-secondary)] hover:text-white'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
               Pemasukan
@@ -210,7 +210,7 @@ export function TransactionHistoryView({
               className={`px-3 py-1 text-xs font-heading font-bold rounded-[var(--radius-xs)] transition-all ${
                 typeFilter === 'transfer'
                   ? 'bg-[var(--accent-blue)] text-white shadow-[1px_1px_0px_#000]'
-                  : 'text-[var(--text-secondary)] hover:text-white'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
               Transfer
@@ -367,7 +367,7 @@ export function TransactionHistoryView({
                       <button
                         type="button"
                         onClick={() => onEditTransaction(tx)}
-                        className="p-1.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded shadow-[1px_1px_0px_#000] text-[var(--text-secondary)] hover:text-white transition-all active:translate-x-0.5 active:translate-y-0.5"
+                        className="p-1.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded shadow-[1px_1px_0px_#000] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all active:translate-x-0.5 active:translate-y-0.5"
                         title="Edit Transaksi"
                       >
                         <Pencil className="w-3.5 h-3.5" />

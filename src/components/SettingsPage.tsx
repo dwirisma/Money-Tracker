@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useUI } from '../context/UIContext';
 import { NeoButton, NeoCard } from './ui/Neo';
+import { recordBackupTimestamp } from '../services/notificationService';
 
 function Row({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
   return (
@@ -83,6 +84,7 @@ export function SettingsPage() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+      recordBackupTimestamp();
 
       setBackupStatus({
         type: 'success',

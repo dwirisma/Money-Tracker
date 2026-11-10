@@ -388,6 +388,71 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
     return result.sort((a, b) => b.amount - a.amount);
   }, [filteredTransactions]);
 
+  // =========================================================================
+  // 2B. INDIKATOR ANALISIS KESEHATAN FINANSIAL & RASIO VITAL
+  // =========================================================================
+  const financialHealth = useMemo(() => {
+    let totalDebtPayments = 0;
+    filteredTransactions.forEach(t => {
+      if (t.type === 'expense') {
+        const cat = (t.category || '').toLowerCase();
+        if (t.debtId || cat.includes('utang') || cat.includes('cicilan') || cat.includes('pinjaman') || cat.includes('kredit')) {
+          totalDebtPayments += Number(t.amount) || 0;
+        }
+      }
+    });
+
+    const dtiRatio = metrics.totalIncome > 0 
+      ? Math.round((totalDebtPayments / metrics.totalIncome) * 100) 
+      : (totalDebtPayments > 0 ? 100 : 0);
+
+    // Score calculations
+    let savingsScore = 0;
+    if (metrics.savingsRate >= 30) savingsScore = 35;
+    else if (metrics.savingsRate >= 20) savingsScore = 30;
+    else if (metrics.savingsRate >= 10) savingsScore = 20;
+    else if (metrics.savingsRate > 0) savingsScore = 10;
+    else savingsScore = 0;
+
+    const runwayMonthsVal = typeof metrics.financialRunwayMonths === 'number' 
+      ? metrics.financialRunwayMonths 
+      : (metrics.financialRunwayMonths === '∞' ? 12 : 0);
+
+    let runwayScore = 0;
+    if (runwayMonthsVal >= 6) runwayScore = 35;
+    else if (runwayMonthsVal >= 3) runwayScore = 25;
+    else if (runwayMonthsVal >= 1) runwayScore = 15;
+    else runwayScore = 5;
+
+    let debtScore = 0;
+    if (dtiRatio === 0) debtScore = 30;
+    else if (dtiRatio <= 15) debtScore = 30;
+    else if (dtiRatio <= 30) debtScore = 20;
+    else if (dtiRatio <= 40) debtScore = 10;
+    else debtScore = 0;
+
+    const totalHealthScore = Math.min(100, savingsScore + runwayScore + debtScore);
+
+    let healthGrade = 'Sangat Sehat';
+    let healthBadgeBg = 'bg-emerald-500/20 border-emerald-500 text-emerald-400';
+    if (totalHealthScore < 45) {
+      healthGrade = 'Perlu Perhatian';
+      healthBadgeBg = 'bg-rose-500/20 border-rose-500 text-rose-400';
+    } else if (totalHealthScore < 75) {
+      healthGrade = 'Cukup Sehat';
+      healthBadgeBg = 'bg-amber-500/20 border-amber-500 text-amber-400';
+    }
+
+    return {
+      totalDebtPayments,
+      dtiRatio,
+      totalHealthScore,
+      healthGrade,
+      healthBadgeBg,
+      runwayMonthsVal
+    };
+  }, [filteredTransactions, metrics]);
+
   // Helper render ikon kategori untuk kartu Expense Sources
   const renderCategoryIcon = (category: string) => {
     const lower = category.toLowerCase();
@@ -746,7 +811,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
             className={`px-3 py-1.5 text-xs font-heading font-bold rounded-[var(--radius-sm)] border-2 transition-all ${
               timeRange === 'this_month'
                 ? 'bg-[var(--accent-sand)] text-[var(--text-inverted)] border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-white'
+                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-color)]'
             }`}
           >
             Bulan Ini
@@ -758,7 +823,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
             className={`px-3 py-1.5 text-xs font-heading font-bold rounded-[var(--radius-sm)] border-2 transition-all ${
               timeRange === 'last_month'
                 ? 'bg-[var(--accent-sand)] text-[var(--text-inverted)] border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-white'
+                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-color)]'
             }`}
           >
             Bulan Lalu
@@ -770,7 +835,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
             className={`px-3 py-1.5 text-xs font-heading font-bold rounded-[var(--radius-sm)] border-2 transition-all ${
               timeRange === 'this_year'
                 ? 'bg-[var(--accent-sand)] text-[var(--text-inverted)] border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-white'
+                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-color)]'
             }`}
           >
             Tahun Ini
@@ -782,7 +847,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
             className={`px-3 py-1.5 text-xs font-heading font-bold rounded-[var(--radius-sm)] border-2 transition-all ${
               timeRange === 'all_time'
                 ? 'bg-[var(--accent-sand)] text-[var(--text-inverted)] border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-white'
+                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-color)]'
             }`}
           >
             Semua Waktu
@@ -794,7 +859,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
             className={`px-3 py-1.5 text-xs font-heading font-bold rounded-[var(--radius-sm)] border-2 transition-all flex items-center gap-1 ${
               timeRange === 'custom'
                 ? 'bg-[var(--accent-blue)] text-[var(--text-inverted)] border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-white'
+                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-color)]'
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />
@@ -1016,10 +1081,113 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       </div>
 
       {/* ===================================================================== */}
+      {/* 2B. INDIKATOR ANALISIS KESEHATAN FINANSIAL & RASIO VITAL             */}
+      {/* ===================================================================== */}
+      <section className="brutal-card p-5 bg-[var(--bg-surface)] space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b-2 border-[var(--border-subtle)] pb-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-[var(--accent-sage)]" />
+            <div>
+              <h3 className="font-heading font-bold text-base text-white">
+                Analisis Kesehatan Finansial & Rasio Vital
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] font-mono">
+                Evaluasi komprehensif rasio tabungan, kesiapan dana darurat, dan beban utang
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <span className="text-xs font-mono text-[var(--text-muted)]">Skor Kesehatan:</span>
+            <span className={`px-2.5 py-1 text-xs font-heading font-extrabold rounded-[var(--radius-sm)] border-2 shadow-[2px_2px_0px_#000] flex items-center gap-1.5 ${financialHealth.healthBadgeBg}`}>
+              <span>{financialHealth.totalHealthScore} / 100</span>
+              <span>•</span>
+              <span>{financialHealth.healthGrade}</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* 1. Rasio Tabungan */}
+          <div className="p-4 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-heading font-bold text-white flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 text-[var(--accent-sage)]" />
+                Rasio Tabungan (Savings Rate)
+              </span>
+              <span className={`font-mono font-bold text-xs ${metrics.savingsRate >= 20 ? 'text-[var(--accent-sage-light)]' : metrics.savingsRate >= 10 ? 'text-[var(--accent-sand-light)]' : 'text-[var(--accent-terracotta-light)]'}`}>
+                {metrics.savingsRate}%
+              </span>
+            </div>
+            <div className="h-2 w-full bg-[var(--bg-muted)] border border-black rounded-[2px] overflow-hidden">
+              <div 
+                className="h-full bg-[var(--accent-sage)] transition-all duration-300"
+                style={{ width: `${Math.min(100, Math.max(0, metrics.savingsRate))}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[10px] font-mono text-[var(--text-muted)]">
+              <span>Target: Min. 20% Penghasilan</span>
+              <span className={metrics.savingsRate >= 20 ? 'text-emerald-400 font-bold' : metrics.savingsRate >= 10 ? 'text-amber-400 font-bold' : 'text-rose-400 font-bold'}>
+                {metrics.savingsRate >= 20 ? 'Sangat Baik' : metrics.savingsRate >= 10 ? 'Cukup' : 'Perlu Ditingkatkan'}
+              </span>
+            </div>
+          </div>
+
+          {/* 2. Kesiapan Dana Darurat */}
+          <div className="p-4 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-heading font-bold text-white flex items-center gap-1.5">
+                <Hourglass className="w-4 h-4 text-[var(--accent-blue)]" />
+                Kesiapan Dana Darurat (Runway)
+              </span>
+              <span className={`font-mono font-bold text-xs ${financialHealth.runwayMonthsVal >= 6 ? 'text-[var(--accent-sage-light)]' : financialHealth.runwayMonthsVal >= 3 ? 'text-[var(--accent-sand-light)]' : 'text-[var(--accent-terracotta-light)]'}`}>
+                {metrics.financialRunwayMonths} Bulan
+              </span>
+            </div>
+            <div className="h-2 w-full bg-[var(--bg-muted)] border border-black rounded-[2px] overflow-hidden">
+              <div 
+                className="h-full bg-[var(--accent-blue)] transition-all duration-300"
+                style={{ width: `${Math.min(100, (financialHealth.runwayMonthsVal / 6) * 100)}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[10px] font-mono text-[var(--text-muted)]">
+              <span>Target: 3 - 6 Bulan Pengeluaran</span>
+              <span className={financialHealth.runwayMonthsVal >= 3 ? 'text-blue-400 font-bold' : 'text-rose-400 font-bold'}>
+                {financialHealth.runwayMonthsVal >= 6 ? 'Aman Prima' : financialHealth.runwayMonthsVal >= 3 ? 'Cukup Aman' : 'Waspada Minim'}
+              </span>
+            </div>
+          </div>
+
+          {/* 3. Beban Cicilan & Utang (DTI) */}
+          <div className="p-4 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-heading font-bold text-white flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-[var(--accent-terracotta)]" />
+                Beban Cicilan / Utang (DTI)
+              </span>
+              <span className={`font-mono font-bold text-xs ${financialHealth.dtiRatio <= 20 ? 'text-[var(--accent-sage-light)]' : financialHealth.dtiRatio <= 30 ? 'text-[var(--accent-sand-light)]' : 'text-[var(--accent-terracotta-light)]'}`}>
+                {financialHealth.dtiRatio}%
+              </span>
+            </div>
+            <div className="h-2 w-full bg-[var(--bg-muted)] border border-black rounded-[2px] overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-300 ${financialHealth.dtiRatio > 30 ? 'bg-[var(--accent-terracotta)]' : 'bg-[var(--accent-sand)]'}`}
+                style={{ width: `${Math.min(100, financialHealth.dtiRatio)}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[10px] font-mono text-[var(--text-muted)]">
+              <span>Batas Maksimal: 30% Penghasilan</span>
+              <span className={financialHealth.dtiRatio <= 30 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                {financialHealth.dtiRatio === 0 ? 'Bebas Utang' : financialHealth.dtiRatio <= 20 ? 'Sangat Aman' : financialHealth.dtiRatio <= 30 ? 'Waspada' : 'Berisiko'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===================================================================== */}
       {/* 3. VISUALISASI GRAFIK: BAR CHART & DOUGHNUT PIE CHART                  */}
       {/* ===================================================================== */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
         {/* GRAFIK 1 (BAR CHART): TREN PEMASUKAN VS PENGELUARAN */}
         <div className="brutal-card p-5 bg-[var(--bg-surface)] flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
@@ -1255,7 +1423,6 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
             </span>
           </div>
         </div>
-
       </section>
 
       {/* ===================================================================== */}

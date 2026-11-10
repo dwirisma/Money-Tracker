@@ -376,7 +376,7 @@ export function AddTransactionView({
           className={`py-2.5 px-3 rounded-[var(--radius-sm)] font-heading font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all ${
             activeTab === 'expense'
               ? 'bg-[var(--accent-terracotta)] text-[var(--text-inverted)] border-2 border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-              : 'text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-surface)]'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
           }`}
         >
           <TrendingDown className="w-4 h-4 shrink-0" />
@@ -389,7 +389,7 @@ export function AddTransactionView({
           className={`py-2.5 px-3 rounded-[var(--radius-sm)] font-heading font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all ${
             activeTab === 'income'
               ? 'bg-[var(--accent-sage)] text-[var(--text-inverted)] border-2 border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-              : 'text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-surface)]'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
           }`}
         >
           <TrendingUp className="w-4 h-4 shrink-0" />
@@ -402,7 +402,7 @@ export function AddTransactionView({
           className={`py-2.5 px-3 rounded-[var(--radius-sm)] font-heading font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all ${
             activeTab === 'transfer'
               ? 'bg-[var(--accent-blue)] text-[var(--text-inverted)] border-2 border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-              : 'text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-surface)]'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
           }`}
         >
           <ArrowRightLeft className="w-4 h-4 shrink-0" />
@@ -443,10 +443,11 @@ export function AddTransactionView({
                       type="button" 
                       onClick={() => receiptInputRef.current?.click()} 
                       disabled={isScanning} 
-                      className="brutal-btn brutal-btn-lavender text-xs py-1.5 px-3 flex items-center gap-1.5 !shadow-[2px_2px_0px_#000]"
+                      className="brutal-btn brutal-btn-lavender text-[11px] py-1 px-2.5 flex items-center gap-1 font-bold !shadow-[1.5px_1.5px_0px_#000] shrink-0"
+                      title="Pindai foto struk belanja dengan Gemini AI"
                     >
                       <ScanCamera className="w-3.5 h-3.5" />
-                      <span>{isScanning ? 'Membaca…' : 'Scan Struk (AI)'}</span>
+                      <span>{isScanning ? 'Membaca…' : 'Scan Struk'}</span>
                     </button>
                   </div>
                 )}
@@ -934,7 +935,7 @@ export function AddTransactionView({
                             </span>
                           </div>
                           <div className="relative">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-[var(--text-muted)]">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-[var(--text-muted)] pointer-events-none select-none">
                               Rp
                             </span>
                             <input
@@ -945,7 +946,7 @@ export function AddTransactionView({
                                 setBudgetInputs(prev => ({ ...prev, [cat]: raw }));
                               }}
                               placeholder="0 (fleksibel/tanpa limit)"
-                              className="brutal-input text-xs py-1.5 pl-8 pr-2 w-full font-mono font-bold"
+                              className="brutal-input text-xs py-1.5 !pl-12 pr-2.5 w-full font-mono font-bold"
                             />
                           </div>
                         </div>
@@ -1145,7 +1146,7 @@ export function AddTransactionView({
               <button 
                 type="button" 
                 onClick={() => setShowApiKeyModal(false)} 
-                className="p-1 text-slate-400 hover:text-white"
+                className="p-1 text-slate-400 hover:text-[var(--text-primary)]"
               >
                 <X className="w-4 h-4" />
               </button>

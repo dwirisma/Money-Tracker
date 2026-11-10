@@ -138,6 +138,8 @@ import { AddTransactionView } from './components/AddTransactionView';
 import { TransactionHistoryView } from './components/TransactionHistoryView';
 import { InvestmentPortfolioView } from './components/InvestmentPortfolioView';
 import { AccountDetailModal } from './components/AccountDetailModal';
+import { NotificationCenter } from './components/notifications/NotificationCenter';
+import { recordAutomationEvent } from './services/notificationService';
 import { fetchInvestmentsByLedger } from './services/investmentService';
 import type { InvestmentAsset, AccountPocket } from './types';
 
@@ -208,6 +210,10 @@ export default function App() {
         fetchGoalsByLedger(undefined, ledgerId), fetchBillsByLedger(undefined, ledgerId), fetchDebtsByLedger(undefined, ledgerId),
       ]);
       setAccounts(a); setTransactions(t); setGoals(g); setBills(b); setDebts(d);
+      res.executed.forEach(x => {
+        const acc = a.find(item => item.id === x.rule.sourceAccountId);
+        recordAutomationEvent(x.rule.name, x.rule.amount, acc?.name || 'Rekening');
+      });
       showToast(`Autopilot: ${res.executed.map(x => x.message).join(', ')}`, 'success');
     }
     if (res.failed.length > 0) showToast(`Autopilot: ${res.failed.length} aturan gagal (${res.failed[0].error})`, 'error');
@@ -1968,6 +1974,10 @@ export default function App() {
         setAccounts(freshAccs);
         setTransactions(freshTxs);
         setAutomations(freshAutos);
+        freshAutos.filter(a => a.lastRunDate && (a.executionCount ?? 0) > 0).slice(0, res.executedCount).forEach(rule => {
+          const acc = freshAccs.find(item => item.id === rule.sourceAccountId);
+          recordAutomationEvent(rule.name, rule.amount, acc?.name || 'Rekening');
+        });
       } else {
         showToast('Semua aturan otomatisasi sudah mutakhir (tidak ada yang jatuh tempo hari ini).', 'info');
       }
@@ -2116,7 +2126,7 @@ export default function App() {
                                 <button
                                   type="button"
                                   onClick={(e) => openEditLedgerModal(l, e)}
-                                  className="p-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded text-[var(--text-secondary)] hover:text-white transition-colors"
+                                  className="p-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                                   title={`Edit nama & warna ${l.name}`}
                                 >
                                   <Pencil className="w-3 h-3" />
@@ -2156,58 +2166,77 @@ export default function App() {
             {/* Action Buttons Top Header (Tergantung Modul yang Aktif) */}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <HeaderTools />
+              <NotificationCenter
+                transactions={transactions}
+                bills={bills}
+                debts={debts}
+                goals={goals}
+                accounts={accounts}
+                currentLedgerId={currentLedger.id}
+                currentLedgerName={currentLedger.name}
+                onNavigate={(mod) => setActiveModule(mod as ModuleId)}
+              />
 
-              {/* Saat Modul 2 Aktif: Tampilkan HANYA tombol "Target Baru" */}
+              {/* Saat Modul 2 Aktif: Tampilkan HANYA tombol + Target */}
               {activeModule === 'module2' && (
                 <button
                   id="header-btn-add-goal"
                   type="button"
                   onClick={() => setIsAddGoalOpen(true)}
-                  className="brutal-btn brutal-btn-sand text-xs py-1.5 px-2 sm:px-3 flex items-center gap-1 shadow-[2px_2px_0px_#000] font-bold"
+                  className="brutal-btn brutal-btn-sand !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] flex items-center justify-center font-bold"
+                  title="Tambah Target Baru"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span className="hidden xs:inline">Target Baru</span>
-                  <span className="xs:hidden">Target</span>
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black" />
                 </button>
               )}
 
-              {/* Saat Modul 3 Aktif: Tampilkan HANYA tombol "Tagihan Baru" dan "Catat Utang" */}
+              {/* Saat Modul 3 Aktif: Tampilkan HANYA tombol + Tagihan dan + Utang */}
               {activeModule === 'module3' && (
                 <div id="header-modul-3-actions" className="flex items-center gap-1 sm:gap-2">
                   <button
                     id="header-btn-add-bill"
                     type="button"
                     onClick={() => setIsAddBillOpen(true)}
-                    className="brutal-btn brutal-btn-blue text-xs py-1.5 px-2 sm:px-2.5 flex items-center gap-1 shadow-[2px_2px_0px_#000] font-bold"
+                    className="brutal-btn brutal-btn-blue !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] flex items-center justify-center font-bold text-white"
+                    title="Tambah Tagihan Baru"
                   >
-                    <Plus className="w-3 h-3" />
-                    <span className="hidden xs:inline">Tagihan Baru</span>
-                    <span className="xs:hidden">Tagihan</span>
+                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </button>
                   <button
                     id="header-btn-add-debt"
                     type="button"
                     onClick={() => setIsAddDebtOpen(true)}
-                    className="brutal-btn brutal-btn-terracotta text-xs py-1.5 px-2 sm:px-2.5 flex items-center gap-1 shadow-[2px_2px_0px_#000] font-bold"
+                    className="brutal-btn brutal-btn-terracotta !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] flex items-center justify-center font-bold text-white"
+                    title="Catat Utang Baru"
                   >
-                    <Plus className="w-3 h-3" />
-                    <span className="hidden xs:inline">Catat Utang</span>
-                    <span className="xs:hidden">Utang</span>
+                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </button>
                 </div>
               )}
 
-              {/* Saat Modul 4 Aktif: Tampilkan HANYA tombol "Aturan Baru" */}
+              {/* Saat Modul 4 Aktif: Tampilkan HANYA tombol + Aturan */}
               {activeModule === 'module4' && (
                 <button
                   id="header-btn-add-automation"
                   type="button"
                   onClick={() => setIsAddAutomationOpen(true)}
-                  className="brutal-btn brutal-btn-sand text-xs py-1.5 px-2 sm:px-3 flex items-center gap-1 shadow-[2px_2px_0px_#000] font-bold"
+                  className="brutal-btn brutal-btn-sand !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] flex items-center justify-center font-bold"
+                  title="Tambah Aturan Otomasi Baru"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span className="hidden xs:inline">Aturan Baru</span>
-                  <span className="xs:hidden">Aturan</span>
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black" />
+                </button>
+              )}
+
+              {/* Saat Portofolio Investasi Aktif: Tampilkan tombol + Tambah Aset */}
+              {activeModule === 'investments' && (
+                <button
+                  id="header-btn-add-asset"
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-add-asset-modal'))}
+                  className="brutal-btn brutal-btn-sand !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] flex items-center justify-center font-bold"
+                  title="Tambah Aset Investasi Baru"
+                >
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black" />
                 </button>
               )}
 
@@ -2216,23 +2245,22 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => window.dispatchEvent(new CustomEvent('open-tx-tab-settings'))}
-                  className="brutal-btn brutal-btn-sand text-xs py-1.5 px-2 sm:px-3 flex items-center gap-1.5 font-bold shadow-[2px_2px_0px_#000]"
+                  className="brutal-btn brutal-btn-sand !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] flex items-center justify-center font-bold"
                   title="Buka Pengaturan Tab Transaksi (Kategori & Alokasi Budget)"
                 >
-                  <Settings className="w-3.5 h-3.5 text-black" />
-                  <span className="hidden sm:inline">Pengaturan Tab</span>
+                  <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black" />
                 </button>
               )}
 
-              {/* Saat Riwayat Transaksi Aktif: Link cepat ke Tambah */}
+              {/* Saat Riwayat Transaksi Aktif: Tombol + Catat */}
               {activeModule === 'history_transaction' && (
                 <button
                   type="button"
                   onClick={() => setActiveModule('add_transaction')}
-                  className="brutal-btn brutal-btn-sand text-xs py-1.5 px-2 sm:px-3 flex items-center gap-1 shadow-[2px_2px_0px_#000] font-bold"
+                  className="brutal-btn brutal-btn-sand !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] flex items-center justify-center font-bold"
+                  title="Catat Transaksi Baru"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>+ Catat</span>
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black" />
                 </button>
               )}
 
@@ -2456,7 +2484,7 @@ export default function App() {
                       <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
                         <button 
                           onClick={() => openEditAccountModal(acc)}
-                          className="p-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
+                          className="p-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
                           title="Edit Akun"
                         >
                           <Pencil className="w-3.5 h-3.5" />
@@ -2498,446 +2526,6 @@ export default function App() {
           )}
         </section>
 
-        {/* =================================================================== */}
-        {/* BAGIAN UTAMA: FORM EKSKLUSIF (TRANSAKSI vs TRANSFER) & RIWAYAT      */}
-        {/* =================================================================== */}
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          
-          {/* KOLOM KIRI (5 cols): CONTAINER FORM MUTUALLY EXCLUSIVE */}
-          <div className="lg:col-span-5 space-y-4">
-            
-            {/* CONTAINER 1: FORM INPUT TRANSAKSI MANUAL */}
-            <div 
-              id="container-transaksi" 
-              style={{ display: activeFormMode === 'transaction' ? 'block' : 'none' }}
-              className={`brutal-card p-5 bg-[var(--bg-surface)] space-y-4 ${
-                activeFormMode === 'transaction' ? '' : 'hidden'
-              }`}
-            >
-              <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-                <div className="flex items-center gap-2">
-                  <Tag className="w-4 h-4 text-[var(--accent-sand)]" />
-                  <div>
-                    <h3 className="font-heading font-bold text-base text-white">Input Transaksi</h3>
-                    <p className="text-[10px] font-mono text-[var(--accent-sage-light)]">Buku: {currentLedger.name}</p>
-                  </div>
-                </div>
-
-                <div className="flex p-0.5 bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)]">
-                  <button
-                    type="button"
-                    onClick={() => setTxType('expense')}
-                    className={`px-3 py-1 text-xs font-heading font-bold rounded-[var(--radius-sm)] transition-all ${
-                      txType === 'expense' 
-                        ? 'bg-[var(--accent-terracotta)] text-[var(--text-inverted)] shadow-[2px_2px_0px_#000]' 
-                        : 'text-[var(--text-secondary)]'
-                    }`}
-                  >
-                    Pengeluaran
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTxType('income')}
-                    className={`px-3 py-1 text-xs font-heading font-bold rounded-[var(--radius-sm)] transition-all ${
-                      txType === 'income' 
-                        ? 'bg-[var(--accent-sage)] text-[var(--text-inverted)] shadow-[2px_2px_0px_#000]' 
-                        : 'text-[var(--text-secondary)]'
-                    }`}
-                  >
-                    Pemasukan
-                  </button>
-                </div>
-              </div>
-
-              <form onSubmit={handleSaveTransaction} className="space-y-4">
-                <input ref={receiptInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleReceiptFile} />
-                <button type="button" onClick={() => receiptInputRef.current?.click()} disabled={isScanning} className="brutal-btn brutal-btn-lavender text-xs w-full flex items-center justify-center gap-2">
-                  <ScanCamera className="w-4 h-4" />
-                  {isScanning ? 'Membaca struk…' : 'Scan Struk (AI)'}
-                </button>
-                {/* Field Nominal dengan Segmented Addon (Anti-overlap 'Rp') */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="brutal-label mb-0 flex items-center gap-1.5">
-                      <Calculator className="w-3.5 h-3.5 text-[var(--accent-sand)]" />
-                      Nominal Transaksi
-                    </label>
-                    <span className="text-[10px] font-mono text-[var(--accent-sand)]">
-                      Contoh: 50000+15000
-                    </span>
-                  </div>
-
-                  <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden focus-within:border-[var(--accent-sage)] focus-within:shadow-[3px_3px_0px_var(--accent-sage-dark)] transition-all">
-                    <span className="px-3.5 py-2 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-sm text-[var(--accent-sand)] flex items-center select-none shrink-0">
-                      Rp
-                    </span>
-                    <input 
-                      id="tx-amount-input"
-                      type="text"
-                      value={txAmount}
-                      onChange={(e) => setTxAmount(e.target.value)}
-                      onBlur={handleTxAmountBlur}
-                      placeholder="0 atau hitung ekspresi..."
-                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-base focus:outline-none"
-                      required
-                    />
-                  </div>
-
-                  {calcNotice && (
-                    <div className="mt-1.5 p-2 bg-[var(--bg-elevated)] border border-[var(--accent-sand)] rounded-[var(--radius-sm)] text-xs font-mono text-[var(--accent-sand-light)] flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5" />
-                      {calcNotice}
-                    </div>
-                  )}
-
-                  {/* Quick Chips */}
-                  <div className="flex gap-1.5 mt-2 overflow-x-auto pb-1">
-                    {[10000, 20000, 50000, 100000, 500000].map(amt => (
-                      <button
-                        key={amt}
-                        type="button"
-                        onClick={() => addQuickAmount(amt)}
-                        className="px-2 py-0.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded text-[11px] font-mono text-[var(--text-secondary)] whitespace-nowrap"
-                      >
-                        +{amt >= 1000 ? `${amt / 1000}k` : amt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Akun Sumber */}
-                <div>
-                  <label className="brutal-label">Akun Sumber Dana ({currentLedger.name})</label>
-                  <select 
-                    id="tx-account-select"
-                    value={txAccountId}
-                    onChange={(e) => setTxAccountId(e.target.value)}
-                    className="brutal-select account-select-dropdown"
-                    required
-                  >
-                    {accounts.length === 0 ? (
-                      <option value="">Belum ada akun di buku ini</option>
-                    ) : (
-                      accounts.map(acc => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.name} — {formatRupiah(acc.balance)}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-
-                {/* Kategori & Tanggal */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="brutal-label">Kategori</label>
-                    <select 
-                      value={txCategory}
-                      onChange={(e) => setTxCategory(e.target.value)}
-                      className="brutal-select"
-                    >
-                      {(txType === 'expense' ? categories.lists.expense : categories.lists.income).map(c => <option key={c}>{c}</option>)}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="brutal-label">Tanggal</label>
-                    <input 
-                      type="date"
-                      value={txDate}
-                      onChange={(e) => setTxDate(e.target.value)}
-                      className="brutal-input text-xs"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Catatan */}
-                <div>
-                  <label className="brutal-label">Catatan (Opsional)</label>
-                  <input 
-                    type="text"
-                    value={txNote}
-                    onChange={(e) => setTxNote(e.target.value)}
-                    placeholder="Misal: Makan siang bersama tim"
-                    className="brutal-input text-sm"
-                  />
-                </div>
-
-                {/* Tombol Simpan Transaksi & Link Cepat ke Transfer */}
-                <div className="space-y-2 pt-1">
-                  <button 
-                    type="submit"
-                    disabled={accounts.length === 0}
-                    className={`brutal-btn w-full ${txType === 'income' ? 'brutal-btn-sage' : 'brutal-btn-terracotta'}`}
-                  >
-                    {txType === 'income' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                    <span>Simpan Transaksi {txType === 'income' ? 'Pemasukan' : 'Pengeluaran'}</span>
-                  </button>
-
-                  <button 
-                    type="button"
-                    onClick={() => setActiveFormMode('transfer')}
-                    className="w-full text-center text-xs font-mono text-[var(--accent-blue-light)] hover:underline flex items-center justify-center gap-1.5 pt-1"
-                  >
-                    <ArrowRightLeft className="w-3.5 h-3.5" /> Mau transfer saldo antar akun? Klik di sini
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            {/* CONTAINER 2: FORM TRANSFER ANTAR AKUN (EKSKLUSIF) */}
-            <div 
-              id="container-transfer" 
-              style={{ display: activeFormMode === 'transfer' ? 'block' : 'none' }}
-              className={`brutal-card p-5 bg-[var(--bg-surface)] border-2 border-[var(--accent-blue)] space-y-4 ${
-                activeFormMode === 'transfer' ? '' : 'hidden'
-              }`}
-            >
-              <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-                <div className="flex items-center gap-2">
-                  <ArrowRightLeft className="w-4 h-4 text-[var(--accent-blue)]" />
-                  <div>
-                    <h3 className="font-heading font-bold text-base text-white">Transfer Antar Akun</h3>
-                    <p className="text-[10px] font-mono text-[var(--accent-blue-light)]">Buku: {currentLedger.name}</p>
-                  </div>
-                </div>
-
-                <button 
-                  type="button"
-                  onClick={() => setActiveFormMode('transaction')}
-                  className="brutal-btn brutal-btn-ghost text-xs py-1 px-2.5 flex items-center gap-1"
-                >
-                  <ArrowLeft className="w-3 h-3" />
-                  <span>Kembali</span>
-                </button>
-              </div>
-
-              <form onSubmit={handleExecuteTransfer} className="space-y-4">
-                <div>
-                  <label className="brutal-label">Akun Asal (Pengirim)</label>
-                  <select 
-                    value={transferSource}
-                    onChange={(e) => setTransferSource(e.target.value)}
-                    className="brutal-select"
-                    required
-                  >
-                    {accounts.length === 0 ? (
-                      <option value="">Belum ada akun di buku ini</option>
-                    ) : (
-                      accounts.map(acc => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.name} — {formatRupiah(acc.balance)}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="brutal-label">Akun Tujuan (Penerima)</label>
-                  <select 
-                    value={transferDest}
-                    onChange={(e) => setTransferDest(e.target.value)}
-                    className="brutal-select"
-                    required
-                  >
-                    {accounts.map(acc => (
-                      <option key={acc.id} value={acc.id} disabled={acc.id === transferSource}>
-                        {acc.name} {acc.id === transferSource ? '(Tidak boleh sama)' : `(${formatRupiah(acc.balance)})`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="brutal-label mb-0">Nominal Transfer</label>
-                    <span className="text-[10px] font-mono text-[var(--accent-sand)]">
-                      Kalkulator: misal 100000+25000
-                    </span>
-                  </div>
-
-                  <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden focus-within:border-[var(--accent-blue)] focus-within:shadow-[3px_3px_0px_var(--accent-blue-dark)] transition-all">
-                    <span className="px-3.5 py-2 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-sm text-[var(--accent-sand)] flex items-center select-none shrink-0">
-                      Rp
-                    </span>
-                    <input 
-                      type="text"
-                      value={transferAmount}
-                      onChange={(e) => setTransferAmount(e.target.value)}
-                      onBlur={handleTransferAmountBlur}
-                      placeholder="0"
-                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-base focus:outline-none"
-                      required
-                    />
-                  </div>
-                  {transferNotice && (
-                    <p className="text-xs font-mono text-[var(--accent-sand)] mt-1">{transferNotice}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="brutal-label">Catatan Transfer (Opsional)</label>
-                  <input 
-                    type="text"
-                    value={transferNote}
-                    onChange={(e) => setTransferNote(e.target.value)}
-                    placeholder="Misal: Top up saldo GoPay"
-                    className="brutal-input text-sm"
-                  />
-                </div>
-
-                <div className="p-3 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-[11px] text-[var(--text-secondary)] font-mono">
-                  ℹ️ Dieksekusi secara <strong>atomik (batch write)</strong> di Firestore: saldo asal terdebet dan saldo tujuan terkredit serentak.
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                  <button 
-                    type="button" 
-                    onClick={() => setActiveFormMode('transaction')}
-                    className="brutal-btn brutal-btn-ghost flex-1 text-xs"
-                  >
-                    Batal
-                  </button>
-                  <button 
-                    type="submit" 
-                    disabled={accounts.length < 2}
-                    className="brutal-btn brutal-btn-blue flex-2 text-xs"
-                  >
-                    Eksekusi Transfer
-                  </button>
-                </div>
-              </form>
-            </div>
-
-          </div>
-
-          {/* KOLOM KANAN (7 cols): RIWAYAT TRANSAKSI SESUAI BUKU KAS AKTIF */}
-          <div className="lg:col-span-7 brutal-card p-5 bg-[var(--bg-surface)] space-y-4 flex flex-col">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b-2 border-[var(--border-subtle)] pb-3">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-[var(--accent-blue)]" />
-                <div>
-                  <h3 className="font-heading font-bold text-base text-white">
-                    Riwayat Transaksi
-                  </h3>
-                  <p className="text-[10px] font-mono text-[var(--text-muted)]">Buku: {currentLedger.name}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1">
-                {(['all', 'expense', 'income', 'transfer'] as const).map(tab => (
-                  <button
-                    key={tab}
-                    onClick={() => setTxFilter(tab)}
-                    className={`px-2.5 py-1 text-xs font-mono rounded-[var(--radius-sm)] border border-[var(--border-color)] transition-all ${
-                      txFilter === tab 
-                        ? 'bg-[var(--accent-blue)] text-[var(--text-inverted)] font-bold shadow-[2px_2px_0px_#000]' 
-                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)]'
-                    }`}
-                  >
-                    {tab.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* List Transaksi */}
-            <div id="transactions-list-container" className="flex-1 space-y-2.5 max-h-[520px] overflow-y-auto pr-1">
-              {isLoading ? (
-                <div className="py-12 text-center text-xs font-mono text-[var(--text-muted)] animate-pulse">
-                  Memuat riwayat transaksi...
-                </div>
-              ) : filteredTransactions.length === 0 ? (
-                <div className="py-12 text-center space-y-2">
-                  <p className="font-heading text-sm text-[var(--text-secondary)]">Belum ada transaksi di Buku Kas ini</p>
-                  <p className="text-xs text-[var(--text-muted)] font-mono">Gunakan form di samping untuk mencatat transaksi pertama</p>
-                </div>
-              ) : (
-                filteredTransactions.map(tx => {
-                  const sourceAcc = accounts.find(a => a.id === tx.accountId);
-                  const destAcc = tx.toAccountId ? accounts.find(a => a.id === tx.toAccountId) : null;
-
-                  return (
-                    <div 
-                      key={tx.id}
-                      className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] flex items-center justify-between gap-3 group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-[var(--radius-sm)] border border-[var(--border-color)] flex items-center justify-center shrink-0 ${
-                          tx.type === 'income' 
-                            ? 'bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)]' 
-                            : tx.type === 'expense' 
-                            ? 'bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)]' 
-                            : 'bg-[var(--accent-blue-dark)] text-[var(--accent-blue-light)]'
-                        }`}>
-                          {tx.type === 'income' && <TrendingUp className="w-4 h-4" />}
-                          {tx.type === 'expense' && <TrendingDown className="w-4 h-4" />}
-                          {tx.type === 'transfer' && <ArrowRightLeft className="w-4 h-4" />}
-                        </div>
-
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-heading font-bold text-sm text-white">{tx.category}</span>
-                            <span className="text-[10px] font-mono text-[var(--text-muted)]">{tx.date}</span>
-                          </div>
-
-                          <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                            {tx.type === 'transfer' ? (
-                              <span className="font-mono text-[11px] text-[var(--accent-blue-light)]">
-                                {sourceAcc?.name || 'Akun'} → {destAcc?.name || 'Tujuan'}
-                              </span>
-                            ) : (
-                              <span className="font-mono text-[11px]">
-                                {sourceAcc?.name || 'Akun'}
-                              </span>
-                            )}
-                            {tx.note && <span className="text-[var(--text-muted)] truncate max-w-[130px]">• {tx.note}</span>}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <span className={`font-mono font-bold text-sm sm:text-base ${
-                          tx.type === 'income' 
-                            ? 'text-[var(--accent-sage-light)]' 
-                            : tx.type === 'expense' 
-                            ? 'text-[var(--accent-terracotta-light)]' 
-                            : 'text-[var(--accent-blue-light)]'
-                        }`}>
-                          {tx.type === 'income' && '+'}
-                          {tx.type === 'expense' && '-'}
-                          {formatRupiah(tx.amount)}
-                        </span>
-
-                        {/* Tombol Edit & Hapus Transaksi (Semua tipe termasuk Transfer) */}
-                        <div className="flex items-center gap-1">
-                          <button 
-                            onClick={() => openEditTransactionModal(tx)}
-                            className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
-                            title="Edit Transaksi (Hitung otomatis selisih saldo)"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button 
-                            onClick={() => setTxToDelete(tx)}
-                            className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent-terracotta)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
-                            title="Hapus Transaksi & Kembalikan Saldo"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-        </section>
-
         </div>
         {/* AKHIR KONTEN MODUL 1 */}
 
@@ -2947,42 +2535,42 @@ export default function App() {
         <div id="container-modul-2" className={activeModule === 'module2' ? 'space-y-7' : 'hidden'}>
           
           {/* 1. RINGKASAN METRIK TARGET BUKU KAS AKTIF */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="brutal-card p-5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-sand)] space-y-1">
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-4">
+            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-sand)] space-y-0.5 sm:space-y-1">
               <div className="flex items-center justify-between">
-                <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Total Target Dana</p>
-                <span className="brutal-badge text-[9px]">{currentLedger.name}</span>
+                <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Total Target Dana</p>
+                <span className="brutal-badge text-[8px] sm:text-[9px]">{currentLedger.name}</span>
               </div>
-              <p id="total-goals-target-display" className="text-3xl font-mono font-bold text-white tracking-tight">
+              <p id="total-goals-target-display" className="text-xl sm:text-3xl font-mono font-bold text-white tracking-tight">
                 {formatRupiah(totalGoalsTarget)}
               </p>
-              <p className="text-[11px] font-mono text-[var(--text-muted)] pt-1">
+              <p className="text-[10px] sm:text-[11px] font-mono text-[var(--text-muted)] pt-0.5 sm:pt-1">
                 Dari {goals.length} target di buku kas ini
               </p>
             </div>
 
-            <div className="brutal-card p-5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-sage)] space-y-1">
-              <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Total Dana Terkumpul</p>
-              <p id="total-goals-saved-display" className="text-3xl font-mono font-bold text-[var(--accent-sage-light)] tracking-tight">
+            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-sage)] space-y-0.5 sm:space-y-1">
+              <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Total Dana Terkumpul</p>
+              <p id="total-goals-saved-display" className="text-xl sm:text-3xl font-mono font-bold text-[var(--accent-sage-light)] tracking-tight">
                 {formatRupiah(totalGoalsSaved)}
               </p>
-              <p className="text-[11px] font-mono text-[var(--text-muted)] pt-1">
+              <p className="text-[10px] sm:text-[11px] font-mono text-[var(--text-muted)] pt-0.5 sm:pt-1">
                 {goals.filter(g => g.isCompleted).length} target telah tercapai 100%
               </p>
             </div>
 
-            <div className="brutal-card p-5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-blue)] space-y-1">
+            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-blue)] space-y-0.5 sm:space-y-1">
               <div className="flex items-center justify-between">
-                <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Progres Keseluruhan</p>
-                <span className="font-mono font-bold text-sm text-[var(--accent-blue-light)]">{goalsOverallProgress}%</span>
+                <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Progres Keseluruhan</p>
+                <span className="font-mono font-bold text-xs sm:text-sm text-[var(--accent-blue-light)]">{goalsOverallProgress}%</span>
               </div>
-              <div className="brutal-progress-container mt-2">
+              <div className="brutal-progress-container mt-1.5 sm:mt-2">
                 <div 
                   className="brutal-progress-bar"
                   style={{ width: `${goalsOverallProgress}%`, backgroundColor: 'var(--accent-blue)' }}
                 />
               </div>
-              <p className="text-[11px] font-mono text-[var(--text-muted)] pt-1">
+              <p className="text-[10px] sm:text-[11px] font-mono text-[var(--text-muted)] pt-0.5 sm:pt-1">
                 Rata-rata pencapaian tujuan finansial
               </p>
             </div>
@@ -3018,7 +2606,7 @@ export default function App() {
                     className={`px-2.5 py-1 text-xs font-mono rounded-[var(--radius-sm)] border transition-all whitespace-nowrap flex items-center gap-1.5 ${
                       goalFilter === tab.id
                         ? 'bg-[var(--accent-sand)] text-[var(--text-inverted)] font-bold border-white shadow-[2px_2px_0px_#000]'
-                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-white'
+                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
                     }`}
                   >
                     <span>{tab.label}</span>
@@ -3100,7 +2688,7 @@ export default function App() {
                                 e.stopPropagation();
                                 openEditGoalModal(goal);
                               }}
-                              className="p-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
+                              className="p-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
                               title="Edit Target"
                             >
                               <Pencil className="w-3.5 h-3.5" />
@@ -3216,45 +2804,45 @@ export default function App() {
         <div id="container-modul-3" className={activeModule === 'module3' ? 'space-y-7' : 'hidden'}>
           
           {/* 1. RINGKASAN METRIK MODUL 3 */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="brutal-card p-5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-terracotta)] space-y-1">
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-4">
+            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-terracotta)] space-y-0.5 sm:space-y-1">
               <div className="flex items-center justify-between">
-                <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Total Beban Utang Berjalan</p>
-                <span className="brutal-badge text-[9px]">{currentLedger.name}</span>
+                <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Total Beban Utang Berjalan</p>
+                <span className="brutal-badge text-[8px] sm:text-[9px]">{currentLedger.name}</span>
               </div>
-              <p id="total-debts-remaining-display" className="text-3xl font-mono font-bold text-[var(--accent-terracotta-light)] tracking-tight">
+              <p id="total-debts-remaining-display" className="text-xl sm:text-3xl font-mono font-bold text-[var(--accent-terracotta-light)] tracking-tight">
                 {formatRupiah(totalRemainingDebt)}
               </p>
-              <p className="text-[11px] font-mono text-[var(--text-muted)] pt-1">
-                Dari {debts.filter(d => !d.isPaidOff).length} utang aktif (Total pinjaman: {formatRupiah(totalOriginalDebt)})
+              <p className="text-[10px] sm:text-[11px] font-mono text-[var(--text-muted)] pt-0.5 sm:pt-1">
+                Dari {debts.filter(d => !d.isPaidOff).length} utang aktif (Total: {formatRupiah(totalOriginalDebt)})
               </p>
             </div>
 
-            <div className="brutal-card p-5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-blue)] space-y-1">
+            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-blue)] space-y-0.5 sm:space-y-1">
               <div className="flex items-center justify-between">
-                <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Estimasi Tagihan Bulanan</p>
-                <span className="text-[10px] font-mono text-[var(--accent-blue-light)] font-bold">{bills.length} Tagihan</span>
+                <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Estimasi Tagihan Bulanan</p>
+                <span className="text-[9px] sm:text-[10px] font-mono text-[var(--accent-blue-light)] font-bold">{bills.length} Tagihan</span>
               </div>
-              <p id="total-monthly-bills-display" className="text-3xl font-mono font-bold text-white tracking-tight">
+              <p id="total-monthly-bills-display" className="text-xl sm:text-3xl font-mono font-bold text-white tracking-tight">
                 {formatRupiah(estimatedMonthlyBills)}
               </p>
-              <p className="text-[11px] font-mono text-[var(--text-muted)] pt-1">
-                {variableBillsCount > 0 ? `+ ${variableBillsCount} tagihan fluktuatif` : 'Semua tagihan bernominal tetap'} · Total dibayar: {formatRupiah(totalBillsPaid)}
+              <p className="text-[10px] sm:text-[11px] font-mono text-[var(--text-muted)] pt-0.5 sm:pt-1">
+                {variableBillsCount > 0 ? `+ ${variableBillsCount} tagihan fluktuatif` : 'Nominal tetap'} · Total dibayar: {formatRupiah(totalBillsPaid)}
               </p>
             </div>
 
-            <div className="brutal-card p-5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-sage)] space-y-1">
+            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-sage)] space-y-0.5 sm:space-y-1">
               <div className="flex items-center justify-between">
-                <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Progres Pelunasan Utang</p>
-                <span className="font-mono font-bold text-sm text-[var(--accent-sage-light)]">{debtPayoffProgress}%</span>
+                <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Progres Pelunasan Utang</p>
+                <span className="font-mono font-bold text-xs sm:text-sm text-[var(--accent-sage-light)]">{debtPayoffProgress}%</span>
               </div>
-              <div className="brutal-progress-container mt-2">
+              <div className="brutal-progress-container mt-1.5 sm:mt-2">
                 <div 
                   className="brutal-progress-bar"
                   style={{ width: `${debtPayoffProgress}%`, backgroundColor: 'var(--accent-sage)' }}
                 />
               </div>
-              <p className="text-[11px] font-mono text-[var(--text-muted)] pt-1">
+              <p className="text-[10px] sm:text-[11px] font-mono text-[var(--text-muted)] pt-0.5 sm:pt-1">
                 {debts.filter(d => d.isPaidOff).length} dari {debts.length} pinjaman telah lunas 100%
               </p>
             </div>
@@ -3302,7 +2890,7 @@ export default function App() {
                     className={`px-2.5 py-1 rounded-[var(--radius-sm)] border transition-all shrink-0 ${
                       billFilter === f.id
                         ? 'bg-[var(--accent-blue)] text-black border-white font-bold shadow-[2px_2px_0px_#000]'
-                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-white'
+                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
                     }`}
                   >
                     {f.label}
@@ -3421,7 +3009,7 @@ export default function App() {
                                   e.stopPropagation();
                                   openEditBillModal(b);
                                 }}
-                                className="p-1.5 text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-muted)] border border-transparent hover:border-[var(--border-subtle)] rounded transition-colors"
+                                className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] border border-transparent hover:border-[var(--border-subtle)] rounded transition-colors"
                                 title="Edit Tagihan"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
@@ -3482,7 +3070,7 @@ export default function App() {
                     className={`px-2.5 py-1 rounded-[var(--radius-sm)] border transition-all shrink-0 ${
                       debtFilter === f.id
                         ? 'bg-[var(--accent-terracotta)] text-white border-white font-bold shadow-[2px_2px_0px_#000]'
-                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-white'
+                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
                     }`}
                   >
                     {f.label}
@@ -3624,7 +3212,7 @@ export default function App() {
                                   e.stopPropagation();
                                   openEditDebtModal(d);
                                 }}
-                                className="p-1.5 text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-muted)] border border-transparent hover:border-[var(--border-subtle)] rounded transition-colors"
+                                className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] border border-transparent hover:border-[var(--border-subtle)] rounded transition-colors"
                                 title="Edit Utang"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
@@ -3673,44 +3261,44 @@ export default function App() {
           />
           
           {/* 1. RINGKASAN METRIK OTOMATISASI BUKU KAS AKTIF */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="brutal-card p-5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-sand)] space-y-1">
+          <section className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
+            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-sand)] space-y-0.5 sm:space-y-1">
               <div className="flex items-center justify-between">
-                <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Aturan Aktif</p>
-                <span className="brutal-badge text-[9px]">{currentLedger.name}</span>
+                <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Aturan Aktif</p>
+                <span className="brutal-badge text-[8px] sm:text-[9px]">{currentLedger.name}</span>
               </div>
-              <p className="text-3xl font-mono font-bold text-white tracking-tight">
-                {activeAutomationsCount} <span className="text-sm font-normal text-[var(--text-muted)] font-mono">/ {automations.length}</span>
+              <p className="text-xl sm:text-3xl font-mono font-bold text-white tracking-tight">
+                {activeAutomationsCount} <span className="text-xs sm:text-sm font-normal text-[var(--text-muted)] font-mono">/ {automations.length}</span>
               </p>
-              <p className="text-[11px] font-mono text-[var(--text-muted)] pt-1">
+              <p className="text-[10px] sm:text-[11px] font-mono text-[var(--text-muted)] pt-0.5 sm:pt-1">
                 Aturan siap dieksekusi terjadwal
               </p>
             </div>
 
-            <div className="brutal-card p-5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-sage)] space-y-1">
-              <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Estimasi Auto-Income</p>
-              <p className="text-2xl font-mono font-bold text-[var(--accent-sage-light)] tracking-tight">
+            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-sage)] space-y-0.5 sm:space-y-1">
+              <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Auto-Income</p>
+              <p className="text-base sm:text-2xl font-mono font-bold text-[var(--accent-sage-light)] tracking-tight">
                 +{formatRupiah(estimatedMonthlyAutoIncome)}
               </p>
-              <p className="text-[11px] font-mono text-[var(--text-muted)] pt-1">
-                Pemasukan rutin otomatis per siklus
+              <p className="text-[10px] sm:text-[11px] font-mono text-[var(--text-muted)] pt-0.5 sm:pt-1">
+                Pemasukan rutin otomatis
               </p>
             </div>
 
-            <div className="brutal-card p-5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-terracotta)] space-y-1">
-              <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Estimasi Auto-Expense</p>
-              <p className="text-2xl font-mono font-bold text-[var(--accent-terracotta-light)] tracking-tight">
+            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-terracotta)] space-y-0.5 sm:space-y-1">
+              <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Auto-Expense</p>
+              <p className="text-base sm:text-2xl font-mono font-bold text-[var(--accent-terracotta-light)] tracking-tight">
                 -{formatRupiah(estimatedMonthlyAutoExpense)}
               </p>
-              <p className="text-[11px] font-mono text-[var(--text-muted)] pt-1">
-                Pengeluaran & potongan rutin
+              <p className="text-[10px] sm:text-[11px] font-mono text-[var(--text-muted)] pt-0.5 sm:pt-1">
+                Pengeluaran rutin
               </p>
             </div>
 
-            <div className="brutal-card p-5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-blue)] space-y-1 flex flex-col justify-between">
+            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-blue)] space-y-0.5 sm:space-y-1 flex flex-col justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Total Eksekusi</p>
-                <p className="text-2xl font-mono font-bold text-white tracking-tight">
+                <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Total Eksekusi</p>
+                <p className="text-base sm:text-2xl font-mono font-bold text-white tracking-tight">
                   {totalAutomationExecutions}x
                 </p>
               </div>
@@ -3718,11 +3306,11 @@ export default function App() {
                 type="button"
                 onClick={handleRunCronManual}
                 disabled={isExecutingCron}
-                className="mt-2 w-full brutal-btn brutal-btn-blue text-[11px] py-1 px-2 flex items-center justify-center gap-1.5 font-bold"
+                className="mt-1.5 sm:mt-2 w-full brutal-btn brutal-btn-blue text-[10px] sm:text-[11px] py-1 px-1.5 sm:px-2 flex items-center justify-center gap-1 font-bold"
                 title="Periksa dan jalankan aturan yang jatuh tempo hari ini"
               >
-                <RotateCw className={`w-3.5 h-3.5 ${isExecutingCron ? 'animate-spin' : ''}`} />
-                <span>{isExecutingCron ? 'Memeriksa...' : 'Cek Jadwal Hari Ini'}</span>
+                <RotateCw className={`w-3 h-3 ${isExecutingCron ? 'animate-spin' : ''}`} />
+                <span>{isExecutingCron ? 'Memeriksa...' : 'Cek Jadwal'}</span>
               </button>
             </div>
           </section>
@@ -3760,7 +3348,7 @@ export default function App() {
                     className={`px-2.5 py-1 rounded-[var(--radius-sm)] border transition-all shrink-0 ${
                       automationFilter === f.id
                         ? 'bg-[var(--accent-sand)] text-black border-white font-bold shadow-[2px_2px_0px_#000]'
-                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-white'
+                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]'
                     }`}
                   >
                     {f.label}
@@ -3831,7 +3419,7 @@ export default function App() {
                             className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border flex items-center gap-1 transition-all ${
                               rule.isActive
                                 ? 'bg-[var(--accent-sage-dark)] border-[var(--accent-sage)] text-[var(--accent-sage-light)] hover:bg-[var(--accent-sage)] hover:text-black'
-                                : 'bg-[var(--bg-muted)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-white'
+                                : 'bg-[var(--bg-muted)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                             }`}
                             title={rule.isActive ? 'Klik untuk menonaktifkan aturan ini' : 'Klik untuk mengaktifkan aturan ini'}
                           >
@@ -3915,7 +3503,7 @@ export default function App() {
                             <button
                               type="button"
                               onClick={(e) => openEditAutomationModal(rule, e)}
-                              className="p-1.5 text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-muted)] border border-transparent hover:border-[var(--border-subtle)] rounded transition-colors"
+                              className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] border border-transparent hover:border-[var(--border-subtle)] rounded transition-colors"
                               title="Edit Aturan"
                             >
                               <Pencil className="w-3.5 h-3.5" />
@@ -3951,7 +3539,6 @@ export default function App() {
         {/* KONTEN MODUL 5: LAPORAN & ANALITIK                                  */}
         {/* =================================================================== */}
         <div id="container-modul-5" className={activeModule === 'module5' ? 'space-y-7' : 'hidden'}>
-          <SixMonthReport transactions={transactions} ledgerName={currentLedger.name} />
           <Module5Reports
             transactions={transactions}
             activeLedger={currentLedger}
@@ -3960,6 +3547,7 @@ export default function App() {
             formatDate={(val) => new Date(val).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
             onNavigateToTab={(tab) => setActiveModule(tab)}
           />
+          <SixMonthReport transactions={transactions} ledgerName={currentLedger.name} />
         </div>
         {/* AKHIR KONTEN MODUL 5 */}
 
@@ -3997,7 +3585,7 @@ export default function App() {
               </h3>
               <button 
                 onClick={() => setIsAddLedgerOpen(false)}
-                className="p-1 text-[var(--text-muted)] hover:text-white"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4090,7 +3678,7 @@ export default function App() {
               </h3>
               <button 
                 onClick={() => setEditingLedger(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-white"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4228,7 +3816,7 @@ export default function App() {
               </div>
               <button 
                 onClick={() => setIsAddAccountOpen(false)}
-                className="p-1 text-[var(--text-muted)] hover:text-white"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4337,7 +3925,7 @@ export default function App() {
               </h3>
               <button 
                 onClick={() => setEditingAccount(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-white"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4460,7 +4048,7 @@ export default function App() {
               </div>
               <button 
                 onClick={() => setEditingTx(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-white"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4744,7 +4332,7 @@ export default function App() {
               <button 
                 type="button"
                 onClick={() => setIsAddGoalOpen(false)}
-                className="p-1 text-[var(--text-muted)] hover:text-white"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4761,7 +4349,7 @@ export default function App() {
                     className={`p-3 rounded-[var(--radius-sm)] border-2 text-left transition-all ${
                       newGoalType === 'sinking_fund'
                         ? 'bg-[var(--accent-sand-dark)] border-[var(--accent-sand)] text-white shadow-[2px_2px_0px_#000]'
-                        : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white'
+                        : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                     }`}
                   >
                     <p className="font-heading font-bold text-xs flex items-center gap-1.5 text-[var(--accent-sand-light)]">
@@ -4778,7 +4366,7 @@ export default function App() {
                     className={`p-3 rounded-[var(--radius-sm)] border-2 text-left transition-all ${
                       newGoalType === 'wishlist'
                         ? 'bg-[var(--accent-blue-dark)] border-[var(--accent-blue)] text-white shadow-[2px_2px_0px_#000]'
-                        : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white'
+                        : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                     }`}
                   >
                     <p className="font-heading font-bold text-xs flex items-center gap-1.5 text-[var(--accent-blue-light)]">
@@ -4957,7 +4545,7 @@ export default function App() {
               <button 
                 type="button"
                 onClick={() => setAllocatingGoal(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-white"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -5126,7 +4714,7 @@ export default function App() {
               <button 
                 type="button" 
                 onClick={() => setEditingGoal(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-white"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -5333,7 +4921,7 @@ export default function App() {
                 <button 
                   type="button" 
                   onClick={() => setSelectedGoalForDetail(null)}
-                  className="p-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-white rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
+                  className="p-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
                   title="Tutup Modal"
                 >
                   <X className="w-5 h-5" />
@@ -5482,7 +5070,7 @@ export default function App() {
                               <button
                                 type="button"
                                 onClick={() => openEditTransactionModal(tx)}
-                                className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-colors"
+                                className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-colors"
                                 title="Edit Alokasi Ini"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
@@ -5555,7 +5143,7 @@ export default function App() {
               <button 
                 type="button" 
                 onClick={() => setIsAddBillOpen(false)}
-                className="p-1 text-[var(--text-muted)] hover:text-white"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -5593,7 +5181,7 @@ export default function App() {
                         className={`py-1 text-[11px] font-mono font-bold rounded transition-all ${
                           newBillCycle === item.id
                             ? 'bg-[var(--accent-blue)] text-black shadow-[1px_1px_0px_#000]'
-                            : 'text-[var(--text-secondary)] hover:text-white'
+                            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                         }`}
                       >
                         {item.label}
@@ -5642,7 +5230,7 @@ export default function App() {
                       className={`py-1 text-xs font-mono font-bold rounded transition-all ${
                         newBillPricingType === 'fixed'
                           ? 'bg-[var(--accent-blue)] text-black shadow-[1px_1px_0px_#000]'
-                          : 'text-[var(--text-secondary)] hover:text-white'
+                          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                       }`}
                     >
                       Tetap
@@ -5653,7 +5241,7 @@ export default function App() {
                       className={`py-1 text-xs font-mono font-bold rounded transition-all ${
                         newBillPricingType === 'variable'
                           ? 'bg-[var(--accent-sand)] text-black shadow-[1px_1px_0px_#000]'
-                          : 'text-[var(--text-secondary)] hover:text-white'
+                          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                       }`}
                     >
                       Fluktuatif
@@ -5837,7 +5425,7 @@ export default function App() {
               <button 
                 type="button" 
                 onClick={() => setPayingBill(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-white"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -5963,7 +5551,7 @@ export default function App() {
               <button 
                 type="button" 
                 onClick={() => setEditingBill(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-white"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -5999,7 +5587,7 @@ export default function App() {
                         className={`py-1 text-[11px] font-mono font-bold rounded transition-all ${
                           editBillCycle === item.id
                             ? 'bg-[var(--accent-blue)] text-black shadow-[1px_1px_0px_#000]'
-                            : 'text-[var(--text-secondary)] hover:text-white'
+                            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                         }`}
                       >
                         {item.label}
@@ -6048,7 +5636,7 @@ export default function App() {
                       className={`py-1 text-xs font-mono font-bold rounded transition-all ${
                         editBillPricingType === 'fixed'
                           ? 'bg-[var(--accent-blue)] text-black shadow-[1px_1px_0px_#000]'
-                          : 'text-[var(--text-secondary)] hover:text-white'
+                          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                       }`}
                     >
                       Tetap
@@ -6059,7 +5647,7 @@ export default function App() {
                       className={`py-1 text-xs font-mono font-bold rounded transition-all ${
                         editBillPricingType === 'variable'
                           ? 'bg-[var(--accent-sand)] text-black shadow-[1px_1px_0px_#000]'
-                          : 'text-[var(--text-secondary)] hover:text-white'
+                          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                       }`}
                     >
                       Fluktuatif
@@ -6239,7 +5827,7 @@ export default function App() {
               <button 
                 type="button" 
                 onClick={() => setIsAddDebtOpen(false)}
-                className="p-1 text-[var(--text-muted)] hover:text-white"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -6347,7 +5935,7 @@ export default function App() {
                       className={`py-1.5 px-1 text-center font-mono text-xs rounded border-2 transition-all ${
                         newDebtCycle === c.id
                           ? 'border-[var(--accent-terracotta)] bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)] font-bold shadow-[2px_2px_0px_#000]'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-white'
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                       }`}
                     >
                       {c.label}
@@ -6485,7 +6073,7 @@ export default function App() {
               <button 
                 type="button" 
                 onClick={() => setPayingDebt(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-white"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -6641,7 +6229,7 @@ export default function App() {
               <button 
                 type="button" 
                 onClick={() => setEditingDebt(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-white"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -6723,7 +6311,7 @@ export default function App() {
                       className={`py-1.5 px-1 text-center font-mono text-xs rounded border-2 transition-all ${
                         editDebtCycle === c.id
                           ? 'border-[var(--accent-terracotta)] bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)] font-bold shadow-[2px_2px_0px_#000]'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-white'
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                       }`}
                     >
                       {c.label}
@@ -6891,7 +6479,7 @@ export default function App() {
                 <button 
                   type="button" 
                   onClick={() => setSelectedBillForDetail(null)}
-                  className="p-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-white rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
+                  className="p-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
                   title="Tutup Modal"
                 >
                   <X className="w-5 h-5" />
@@ -7028,7 +6616,7 @@ export default function App() {
                               <button
                                 type="button"
                                 onClick={() => openEditTransactionModal(tx)}
-                                className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-colors"
+                                className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-colors"
                                 title="Edit Transaksi Ini"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
@@ -7123,7 +6711,7 @@ export default function App() {
                 <button 
                   type="button" 
                   onClick={() => setSelectedDebtForDetail(null)}
-                  className="p-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-white rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
+                  className="p-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
                   title="Tutup Modal"
                 >
                   <X className="w-5 h-5" />
@@ -7278,7 +6866,7 @@ export default function App() {
                               <button
                                 type="button"
                                 onClick={() => openEditTransactionModal(tx)}
-                                className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-colors"
+                                className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-colors"
                                 title="Edit Cicilan Ini"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
@@ -7351,7 +6939,7 @@ export default function App() {
               <button 
                 type="button" 
                 onClick={() => setIsAddAutomationOpen(false)}
-                className="p-1 text-[var(--text-muted)] hover:text-white"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -7395,7 +6983,7 @@ export default function App() {
                         className={`p-2.5 rounded-[var(--radius-sm)] border-2 text-left transition-all ${
                           isSelected
                             ? 'bg-[var(--bg-elevated)] border-white text-white shadow-[2px_2px_0px_#000]'
-                            : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white'
+                            : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                         }`}
                       >
                         <div className="flex items-center gap-1.5 font-heading font-bold text-xs" style={{ color: t.color }}>
@@ -7528,7 +7116,7 @@ export default function App() {
                       className={`py-1.5 px-1 text-center font-mono text-xs rounded border-2 transition-all ${
                         newAutoCycle === c.id
                           ? 'border-[var(--accent-sand)] bg-[var(--accent-sand-dark)] text-white font-bold shadow-[2px_2px_0px_#000]'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-white'
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                       }`}
                     >
                       {c.label}
@@ -7676,7 +7264,7 @@ export default function App() {
               <button 
                 type="button" 
                 onClick={() => setEditingAutomation(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-white"
+                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -7785,7 +7373,7 @@ export default function App() {
                       className={`py-1.5 px-1 text-center font-mono text-xs rounded border-2 transition-all ${
                         editAutoCycle === c.id
                           ? 'border-[var(--accent-sand)] bg-[var(--accent-sand-dark)] text-white font-bold shadow-[2px_2px_0px_#000]'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-white'
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                       }`}
                     >
                       {c.label}
@@ -7976,7 +7564,7 @@ export default function App() {
                 <button 
                   type="button" 
                   onClick={() => setSelectedAutomationForDetail(null)}
-                  className="p-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-white rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
+                  className="p-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
                   title="Tutup Modal"
                 >
                   <X className="w-5 h-5" />
@@ -8120,7 +7708,7 @@ export default function App() {
                               <button
                                 type="button"
                                 onClick={() => openEditTransactionModal(tx)}
-                                className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-colors"
+                                className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-colors"
                                 title="Edit Transaksi Ini"
                               >
                                 <Pencil className="w-3.5 h-3.5" />

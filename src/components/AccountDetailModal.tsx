@@ -214,7 +214,7 @@ export function AccountDetailModal({
           <button 
             type="button" 
             onClick={onClose}
-            className="p-1.5 rounded-lg border-2 border-black dark:border-white/20 bg-[var(--bg-elevated)] hover:bg-[var(--accent-terracotta)] hover:text-white transition-all shadow-[2px_2px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
+            className="p-1.5 rounded-lg border-2 border-black dark:border-white/20 bg-[var(--bg-elevated)] hover:bg-[var(--accent-terracotta)] hover:text-[var(--text-inverted)] transition-all shadow-[2px_2px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
           >
             <X className="w-5 h-5" />
           </button>
@@ -242,17 +242,17 @@ export function AccountDetailModal({
           </div>
 
           {/* Quick Shortcuts */}
-          <div className="sm:col-span-5 flex flex-wrap sm:flex-col justify-center gap-2">
+          <div className="sm:col-span-5 flex flex-wrap items-center sm:justify-end gap-1.5">
             <button
               type="button"
               onClick={() => {
                 onClose();
                 onSelectForTransaction(account.id);
               }}
-              className="brutal-btn brutal-btn-sand text-xs py-1.5 px-3 flex items-center justify-center gap-1.5 font-bold shadow-[2px_2px_0px_#000]"
+              className="brutal-btn brutal-btn-sand text-xs py-1.5 px-3 flex items-center justify-center gap-1 font-bold shadow-[2px_2px_0px_#000]"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>+ Catat di Akun Ini</span>
+              <span>Catat</span>
             </button>
 
             <button
@@ -261,10 +261,10 @@ export function AccountDetailModal({
                 onClose();
                 onSelectForTransfer(account.id);
               }}
-              className="brutal-btn brutal-btn-ghost text-xs py-1.5 px-3 flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_#000]"
+              className="brutal-btn brutal-btn-ghost text-xs py-1.5 px-3 flex items-center justify-center gap-1 font-bold shadow-[2px_2px_0px_#000]"
             >
               <ArrowRightLeft className="w-3.5 h-3.5" />
-              <span>⇄ Transfer dari Sini</span>
+              <span>Transfer</span>
             </button>
 
             <button
@@ -273,10 +273,10 @@ export function AccountDetailModal({
                 onClose();
                 onEditAccount(account);
               }}
-              className="brutal-btn brutal-btn-ghost text-xs py-1.5 px-3 flex items-center justify-center gap-1.5"
+              className="brutal-btn brutal-btn-ghost text-xs py-1.5 px-2.5 flex items-center justify-center gap-1 font-bold shadow-[2px_2px_0px_#000]"
             >
               <Pencil className="w-3 h-3" />
-              <span>Edit Akun</span>
+              <span>Edit</span>
             </button>
           </div>
         </div>
@@ -289,7 +289,7 @@ export function AccountDetailModal({
             className={`pb-2.5 px-3 font-heading font-bold text-sm flex items-center gap-2 border-b-2 transition-all ${
               activeTab === 'mutations'
                 ? 'border-[var(--accent-sand)] text-[var(--accent-sand)]'
-                : 'border-transparent text-[var(--text-secondary)] hover:text-white'
+                : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
             <History className="w-4 h-4" />
@@ -302,7 +302,7 @@ export function AccountDetailModal({
             className={`pb-2.5 px-3 font-heading font-bold text-sm flex items-center gap-2 border-b-2 transition-all ${
               activeTab === 'pockets'
                 ? 'border-[var(--accent-sage)] text-[var(--accent-sage)]'
-                : 'border-transparent text-[var(--text-secondary)] hover:text-white'
+                : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
             <Layers className="w-4 h-4" />
@@ -474,7 +474,7 @@ export function AccountDetailModal({
                   <button 
                     type="button" 
                     onClick={() => setIsTransferringPocket(false)}
-                    className="text-xs text-[var(--text-muted)] hover:text-white"
+                    className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                   >
                     Batal
                   </button>
@@ -559,7 +559,7 @@ export function AccountDetailModal({
                       setIsAddingPocket(false);
                       setEditingPocketId(null);
                     }}
-                    className="text-xs text-[var(--text-muted)] hover:text-white"
+                    className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                   >
                     Batal
                   </button>
@@ -660,7 +660,7 @@ export function AccountDetailModal({
                           <button
                             type="button"
                             onClick={() => openEditPocket(pocket)}
-                            className="p-1 text-[var(--text-muted)] hover:text-white"
+                            className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                             title="Edit Kantong"
                           >
                             <Pencil className="w-3 h-3" />

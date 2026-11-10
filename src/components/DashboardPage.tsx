@@ -23,6 +23,15 @@ import { formatRupiah } from '../utils/calculator';
 import { Money, NeoCard } from './ui/Neo';
 import type { ModuleId } from './layout/navConfig';
 import { AiInsightCard } from './AiInsightCard';
+import { 
+  ResponsiveContainer, 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  Tooltip, 
+  CartesianGrid 
+} from 'recharts';
 
 interface Props {
   ledgerName: string;
@@ -175,16 +184,16 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
           <button
             type="button"
             onClick={() => onNavigate('add_transaction')}
-            className="brutal-btn brutal-btn-sand text-xs py-2 px-3 flex items-center gap-1.5 font-bold shadow-[2px_2px_0px_#000]"
+            className="brutal-btn brutal-btn-sand text-xs h-9 px-4 flex items-center justify-center gap-1.5 font-bold shadow-[2px_2px_0px_#000]"
           >
             <Plus className="w-4 h-4" />
-            <span>Catat Transaksi</span>
+            <span>Catat</span>
           </button>
 
           <button
             type="button"
             onClick={() => onNavigate('history_transaction')}
-            className="brutal-btn brutal-btn-ghost text-xs py-2 px-3 flex items-center gap-1.5"
+            className="brutal-btn brutal-btn-ghost text-xs h-9 px-4 flex items-center justify-center gap-1.5 font-bold shadow-[2px_2px_0px_#000]"
           >
             <span>Riwayat →</span>
           </button>
@@ -333,58 +342,113 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
           </div>
         </div>
 
-        {/* Kolom Kanan: Tren Arus Kas 6 Bulan Terakhir */}
+        {/* Kolom Kanan: Tren Arus Kas 6 Bulan Terakhir (Line Chart Income, Expense, Net) */}
         <div className="lg:col-span-7 brutal-card p-4 sm:p-5 bg-[var(--bg-surface)] space-y-3">
-          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-[var(--accent-blue)]" />
               <h3 className="font-heading font-bold text-sm sm:text-base text-[var(--text-primary)]">
-                Tren Bulanan (6 Bulan Terakhir)
+                Tren Bulanan (Line Chart 6 Bulan)
               </h3>
             </div>
-            <div className="flex items-center gap-3 text-[10px] font-mono">
-              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-xs bg-[var(--accent-sage)] inline-block" /> Masuk</span>
-              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-xs bg-[var(--accent-terracotta)] inline-block" /> Keluar</span>
+            <div className="flex items-center gap-3 text-[10px] font-mono flex-wrap">
+              <span className="flex items-center gap-1 text-[var(--accent-sage)]">
+                <span className="w-2.5 h-1 bg-[var(--accent-sage)] inline-block rounded-full" /> Masuk
+              </span>
+              <span className="flex items-center gap-1 text-[var(--accent-terracotta)]">
+                <span className="w-2.5 h-1 bg-[var(--accent-terracotta)] inline-block rounded-full" /> Keluar
+              </span>
+              <span className="flex items-center gap-1 text-[var(--accent-blue)]">
+                <span className="w-2.5 h-1 bg-[var(--accent-blue)] inline-block rounded-full" /> Net
+              </span>
             </div>
           </div>
 
-          {/* Bar Chart 6 Bulan */}
-          <div className="grid grid-cols-6 gap-2 items-end h-36 pt-4 pb-1">
-            {d.monthsData.map(m => {
-              const incPct = maxTrendVal > 0 ? (m.income / maxTrendVal) * 100 : 0;
-              const expPct = maxTrendVal > 0 ? (m.expense / maxTrendVal) * 100 : 0;
-              const isCurrent = m.ym === ym;
-
-              return (
-                <div key={m.ym} className="flex flex-col items-center h-full justify-end gap-1">
-                  <div className="flex items-end gap-1 w-full justify-center h-24">
-                    {/* Income Bar */}
-                    <div 
-                      style={{ height: `${Math.max(4, incPct)}%` }} 
-                      className="w-2.5 sm:w-3.5 bg-[var(--accent-sage)] rounded-t-xs transition-all hover:opacity-80"
-                      title={`${m.label} Masuk: ${formatRupiah(m.income)}`}
-                    />
-                    {/* Expense Bar */}
-                    <div 
-                      style={{ height: `${Math.max(4, expPct)}%` }} 
-                      className="w-2.5 sm:w-3.5 bg-[var(--accent-terracotta)] rounded-t-xs transition-all hover:opacity-80"
-                      title={`${m.label} Keluar: ${formatRupiah(m.expense)}`}
-                    />
-                  </div>
-                  <span className={`text-[10px] font-mono truncate ${isCurrent ? 'font-bold text-[var(--accent-sand)] underline' : 'text-[var(--text-muted)]'}`}>
-                    {m.label}
-                  </span>
-                </div>
-              );
-            })}
+          {/* Line Chart Recharts */}
+          <div className="h-44 sm:h-48 w-full pt-1">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={d.monthsData} margin={{ top: 10, right: 12, left: -18, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(240, 240, 245, 0.08)" vertical={false} />
+                <XAxis 
+                  dataKey="label" 
+                  stroke="var(--text-muted)" 
+                  fontSize={10} 
+                  tickLine={false} 
+                  fontFamily="var(--font-mono)" 
+                />
+                <YAxis 
+                  stroke="var(--text-muted)" 
+                  fontSize={9} 
+                  tickLine={false} 
+                  fontFamily="var(--font-mono)" 
+                  tickFormatter={(v) => {
+                    if (Math.abs(v) >= 1000000) return `${(v / 1000000).toFixed(0)}jt`;
+                    if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(0)}rb`;
+                    return String(v);
+                  }}
+                />
+                <Tooltip 
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="p-2.5 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[var(--shadow-md)] text-xs font-mono space-y-1">
+                          <p className="font-bold font-heading text-[var(--text-primary)] border-b border-[var(--border-subtle)] pb-1 mb-1">
+                            Bulan {label}
+                          </p>
+                          {payload.map((entry: any, index: number) => (
+                            <div key={`item-${index}`} className="flex items-center justify-between gap-3 text-[11px]">
+                              <span style={{ color: entry.color }} className="font-bold">
+                                {entry.name}:
+                              </span>
+                              <span className="text-[var(--text-primary)] font-bold">
+                                {entry.value < 0 ? '-' : ''}{formatRupiah(Math.abs(Number(entry.value)))}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="income" 
+                  name="Pemasukan" 
+                  stroke="var(--accent-sage)" 
+                  strokeWidth={2.5} 
+                  dot={{ r: 3, fill: 'var(--accent-sage)', strokeWidth: 1, stroke: '#000' }} 
+                  activeDot={{ r: 5 }} 
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="expense" 
+                  name="Pengeluaran" 
+                  stroke="var(--accent-terracotta)" 
+                  strokeWidth={2.5} 
+                  dot={{ r: 3, fill: 'var(--accent-terracotta)', strokeWidth: 1, stroke: '#000' }} 
+                  activeDot={{ r: 5 }} 
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="net" 
+                  name="Arus Kas Bersih" 
+                  stroke="var(--accent-blue)" 
+                  strokeWidth={2} 
+                  strokeDasharray="4 4" 
+                  dot={{ r: 3, fill: 'var(--accent-blue)', strokeWidth: 1, stroke: '#000' }} 
+                  activeDot={{ r: 5 }} 
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
 
           <div className="text-[11px] text-[var(--text-secondary)] border-t border-[var(--border-subtle)] pt-2 flex items-center justify-between">
-            <span>Lihat laporan komprehensif & ekspor Excel:</span>
+            <span>Analisis mendalam & komparasi MoM:</span>
             <button
               type="button"
               onClick={() => onNavigate('module5')}
-              className="font-bold underline text-[var(--accent-sand)] hover:text-white"
+              className="font-bold underline text-[var(--accent-sand)] hover:text-[var(--text-primary)]"
             >
               Laporan & Analitik →
             </button>
@@ -467,7 +531,7 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
           <button 
             type="button" 
             onClick={() => onNavigate('module3')} 
-            className="font-bold underline text-[var(--accent-blue-light)] hover:text-white"
+            className="font-bold underline text-[var(--accent-blue-light)] hover:text-[var(--text-primary)]"
           >
             Buka Modul Tagihan & Utang →
           </button>
@@ -604,7 +668,7 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
           <button 
             type="button" 
             onClick={() => onNavigate('history_transaction')} 
-            className="text-xs font-bold underline text-[var(--accent-blue-light)] hover:text-white"
+            className="text-xs font-bold underline text-[var(--accent-blue-light)] hover:text-[var(--text-primary)]"
           >
             Lihat Semua Riwayat →
           </button>
