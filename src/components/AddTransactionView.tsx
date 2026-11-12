@@ -344,11 +344,11 @@ export function AddTransactionView({
   }
 
   return (
-    <div className="space-y-5 max-w-5xl mx-auto">
+    <div className="space-y-3 w-full">
       {/* Header Halaman */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[var(--border-subtle)] pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b-2 border-[var(--border-subtle)] pb-4">
         <div>
-          <h2 className="font-heading font-bold text-2xl text-[var(--text-primary)]">
+          <h2 className="font-heading font-bold text-xl text-[var(--text-primary)]">
             Tambah Transaksi & Transfer
           </h2>
           <p className="text-sm text-[var(--text-secondary)]">
@@ -413,15 +413,15 @@ export function AddTransactionView({
       {/* FORM AREA */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Kolom Kiri: Form Utama */}
-        <div className="lg:col-span-8 space-y-4">
+        <div className="lg:col-span-8 space-y-3">
           {activeTab !== 'transfer' ? (
             /* =================== FORM PENGELUARAN / PEMASUKAN =================== */
-            <div className="brutal-card p-5 bg-[var(--bg-surface)] space-y-4">
+            <div className="brutal-card p-3.5 bg-[var(--bg-surface)] space-y-3">
               <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
                 <div className="flex items-center gap-2">
                   <Tag className="w-4 h-4 text-[var(--accent-sand)]" />
                   <div>
-                    <h3 className="font-heading font-bold text-base text-[var(--text-primary)]">
+                    <h3 className="font-heading font-bold text-sm text-[var(--text-primary)]">
                       Input {activeTab === 'expense' ? 'Pengeluaran' : 'Pemasukan'}
                     </h3>
                     <p className="text-[10px] font-mono text-[var(--accent-sage-light)]">Buku Kas: {currentLedger.name}</p>
@@ -455,8 +455,8 @@ export function AddTransactionView({
 
               {/* Banner Preview Foto Struk yang Dianalisis */}
               {receiptPreview && activeTab === 'expense' && (
-                <div className="p-3 bg-[var(--bg-elevated)] border-2 border-black dark:border-white/20 rounded-xl flex items-center justify-between gap-3 shadow-[2px_2px_0px_#000] animate-in fade-in duration-200">
-                  <div className="flex items-center gap-3 min-w-0">
+                <div className="p-3 bg-[var(--bg-elevated)] border-2 border-black dark:border-white/20 rounded-xl flex items-center justify-between gap-2.5 shadow-[2px_2px_0px_#000] animate-in fade-in duration-200">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <img
                       src={receiptPreview}
                       alt="Struk Belanja"
@@ -497,7 +497,7 @@ export function AddTransactionView({
                 </div>
               )}
 
-              <form onSubmit={handleSubmitTransaction} className="space-y-4">
+              <form onSubmit={handleSubmitTransaction} className="space-y-3">
                 {/* Field Nominal dengan Kalkulator */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
@@ -521,7 +521,7 @@ export function AddTransactionView({
                       onChange={(e) => setAmount(e.target.value)}
                       onBlur={handleAmountBlur}
                       placeholder="0 atau hitung ekspresi..."
-                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-base focus:outline-none"
+                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
                       required
                     />
                   </div>
@@ -570,7 +570,7 @@ export function AddTransactionView({
                 </div>
 
                 {/* Kategori dengan Button Pengaturan Kategori Langsung */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="brutal-label mb-0">Kategori</label>
@@ -634,12 +634,12 @@ export function AddTransactionView({
             </div>
           ) : (
             /* =================== FORM TRANSFER ANTAR AKUN =================== */
-            <div className="brutal-card p-5 bg-[var(--bg-surface)] border-2 border-[var(--accent-blue)] space-y-4">
+            <div className="brutal-card p-3.5 bg-[var(--bg-surface)] border-2 border-[var(--accent-blue)] space-y-3">
               <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
                 <div className="flex items-center gap-2">
                   <ArrowRightLeft className="w-5 h-5 text-[var(--accent-blue)]" />
                   <div>
-                    <h3 className="font-heading font-bold text-base text-[var(--text-primary)]">
+                    <h3 className="font-heading font-bold text-sm text-[var(--text-primary)]">
                       Transfer Antar Akun
                     </h3>
                     <p className="text-[10px] font-mono text-[var(--accent-blue-light)]">Buku Kas: {currentLedger.name}</p>
@@ -647,8 +647,8 @@ export function AddTransactionView({
                 </div>
               </div>
 
-              <form onSubmit={handleSubmitTransfer} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <form onSubmit={handleSubmitTransfer} className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
                     <label className="brutal-label">Akun Asal (Pengirim)</label>
                     <select 
@@ -712,7 +712,7 @@ export function AddTransactionView({
                       onChange={(e) => setTransferAmount(e.target.value)}
                       onBlur={handleTransferAmountBlur}
                       placeholder="0..."
-                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-base focus:outline-none"
+                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
                       required
                     />
                   </div>
@@ -739,7 +739,7 @@ export function AddTransactionView({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
                     <label className="brutal-label">Tanggal</label>
                     <input 
@@ -777,9 +777,9 @@ export function AddTransactionView({
         </div>
 
         {/* Kolom Kanan: Rangkuman Cepat Akun & Transaksi Terakhir */}
-        <div className="lg:col-span-4 space-y-4">
+        <div className="lg:col-span-4 space-y-3">
           {/* Akun Saldo Singkat */}
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] space-y-3">
+          <div className="brutal-card p-3 bg-[var(--bg-surface)] space-y-3">
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
               <span className="text-xs font-heading font-bold text-[var(--text-primary)] uppercase">
                 Akun di Buku Ini
@@ -804,7 +804,7 @@ export function AddTransactionView({
           </div>
 
           {/* 3 Transaksi Terakhir di Buku Ini */}
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] space-y-3">
+          <div className="brutal-card p-3 bg-[var(--bg-surface)] space-y-3">
             <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
               <span className="text-xs font-heading font-bold text-[var(--text-primary)] uppercase">
                 Baru Saja Dicatat
@@ -846,11 +846,11 @@ export function AddTransactionView({
       {/* =================================================================== */}
       {isCategoryModalOpen && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-[2px]"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-[2px]"
           onClick={() => setIsCategoryModalOpen(false)}
         >
           <div 
-            className="w-full max-w-lg bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)] p-5 space-y-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150"
+            className="w-full max-w-lg bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)] p-3.5 space-y-3 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150"
             onClick={e => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -858,7 +858,7 @@ export function AddTransactionView({
               <div className="flex items-center gap-2">
                 <Settings className="w-5 h-5 text-[var(--accent-sand)]" />
                 <div>
-                  <h3 className="font-heading font-bold text-base sm:text-lg text-[var(--text-primary)]">
+                  <h3 className="font-heading font-bold text-sm sm:text-lg text-[var(--text-primary)]">
                     Pengaturan Tab Transaksi
                   </h3>
                   <p className="text-[10px] font-mono text-[var(--text-muted)]">
@@ -907,7 +907,7 @@ export function AddTransactionView({
 
             {/* KONTEN SUB-TAB 1: ALOKASI BUDGET BULANAN */}
             {modalSubTab === 'budget' && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="p-3 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] leading-relaxed space-y-1">
                   <p className="font-bold text-[var(--text-primary)] flex items-center gap-1.5">
                     <Sliders className="w-3.5 h-3.5 text-[var(--accent-sand)]" />
@@ -968,7 +968,7 @@ export function AddTransactionView({
 
                     <button
                       type="submit"
-                      className="brutal-btn brutal-btn-sand text-xs py-2 px-4 font-bold flex items-center gap-1.5 shadow-[2px_2px_0px_#000]"
+                      className="brutal-btn brutal-btn-sand text-xs py-2 px-3 font-bold flex items-center gap-1.5 shadow-[2px_2px_0px_#000]"
                     >
                       <Check className="w-3.5 h-3.5" />
                       <span>Simpan Alokasi Budget</span>
@@ -980,7 +980,7 @@ export function AddTransactionView({
 
             {/* KONTEN SUB-TAB 2: KELOLA KATEGORI */}
             {modalSubTab === 'categories' && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {/* Selector Pengeluaran vs Pemasukan */}
                 <div className="flex gap-2 text-xs">
                   <button
@@ -1123,7 +1123,7 @@ export function AddTransactionView({
                   <button
                     type="button"
                     onClick={() => setIsCategoryModalOpen(false)}
-                    className="brutal-btn brutal-btn-sand text-xs py-1.5 px-4 font-bold"
+                    className="brutal-btn brutal-btn-sand text-xs py-1.5 px-3 font-bold"
                   >
                     Selesai
                   </button>
@@ -1136,12 +1136,12 @@ export function AddTransactionView({
 
       {/* MODAL SETUP CEPAT GEMINI API UNTUK SCAN STRUK */}
       {showApiKeyModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="brutal-card p-5 bg-[var(--bg-surface)] border-2 border-black max-w-md w-full space-y-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-sm">
+          <div className="brutal-card p-3.5 bg-[var(--bg-surface)] border-2 border-black max-w-md w-full space-y-3 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
                 <ScanCamera className="w-5 h-5 text-[var(--accent-sand)]" />
-                <h3 className="font-heading font-bold text-base text-white">Aktifkan Gemini AI Scanner</h3>
+                <h3 className="font-heading font-bold text-sm text-white">Aktifkan Gemini AI Scanner</h3>
               </div>
               <button 
                 type="button" 
@@ -1187,7 +1187,7 @@ export function AddTransactionView({
                 <button
                   type="submit"
                   disabled={!inputApiKey.trim()}
-                  className="brutal-btn brutal-btn-sand text-xs py-1.5 px-4 font-bold shadow-[2px_2px_0px_#000]"
+                  className="brutal-btn brutal-btn-sand text-xs py-1.5 px-3 font-bold shadow-[2px_2px_0px_#000]"
                 >
                   Simpan & Scan Sekarang
                 </button>

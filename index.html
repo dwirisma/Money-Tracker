@@ -1,22 +1,22 @@
 <!doctype html>
-<html lang="id" data-theme="dark" class="dark">
+<html lang="id" data-theme="light">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Artha - Manajemen Keuangan Pribadi</title>
-    <meta name="description" content="Aplikasi manajemen keuangan pribadi offline-first PWA dengan estetika neo-brutalisme kalem, multi-buku kas, sinking funds, dan analitik." />
+    <meta name="description" content="Aplikasi manajemen keuangan pribadi offline-first PWA dengan estetika neo-brutalisme playful, multi-buku kas, sinking funds, dan analitik." />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/icon.svg" />
     
     <!-- PWA & Mobile Meta -->
-    <meta name="theme-color" content="#121316" />
+    <meta name="theme-color" content="#fff4dc" />
     <script>
       // Terapkan tema tersimpan sebelum render pertama agar tidak berkedip
       try {
-        var t = localStorage.getItem('artha_theme') === 'light' ? 'light' : 'dark';
+        var t = localStorage.getItem('artha_theme_v3') === 'dark' ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', t);
         document.documentElement.classList.toggle('dark', t === 'dark');
-        document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'dark' ? '#121316' : '#fff4dc');
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'dark' ? '#16161c' : '#fff4dc');
       } catch (e) {}
     </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -26,14 +26,13 @@
 
     <!-- Open Graph / Social Media -->
     <meta property="og:title" content="Artha - Manajemen Keuangan Pribadi" />
-    <meta property="og:description" content="Aplikasi manajemen keuangan pribadi offline-first PWA dengan estetika neo-brutalisme kalem, multi-buku kas, sinking funds, dan analitik." />
+    <meta property="og:description" content="Aplikasi manajemen keuangan pribadi offline-first PWA dengan estetika neo-brutalisme playful, multi-buku kas, sinking funds, dan analitik." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
 
-    <!-- Google Fonts: Space Grotesk (Heading), JetBrains Mono (Numbers/Code), Plus Jakarta Sans (Body) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- Font self-hosted (Bricolage Grotesque, Instrument Sans, JetBrains Mono) — lihat src/style.css -->
+    <link rel="preload" as="font" type="font/woff" href="/fonts/BricolageGrotesque-Bold.woff" crossorigin />
+    <link rel="preload" as="font" type="font/woff" href="/fonts/InstrumentSans-Regular.woff" crossorigin />
 
     <!-- Lucide Icons (CDN fallback & standalone support) -->
     <script src="https://unpkg.com/lucide@latest"></script>

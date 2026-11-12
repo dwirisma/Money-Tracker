@@ -181,12 +181,12 @@ export function AccountDetailModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="brutal-card bg-[var(--bg-surface)] border-2 border-black dark:border-slate-700 max-w-2xl w-full my-auto space-y-4 p-5 sm:p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 sm:p-3 backdrop-blur-sm overflow-y-auto">
+      <div className="brutal-card bg-[var(--bg-surface)] border-2 border-black dark:border-slate-700 max-w-2xl w-full my-auto space-y-3 p-3.5 sm:p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in-95 duration-150">
         
         {/* Modal Header */}
         <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <div 
               className="w-12 h-12 rounded-xl border-2 border-black dark:border-white/20 flex items-center justify-center text-white shadow-[2px_2px_0px_#000]"
               style={{ backgroundColor: account.colorAccent || 'var(--accent-sage)' }}
@@ -221,12 +221,12 @@ export function AccountDetailModal({
         </div>
 
         {/* Saldo & Quick Actions Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 p-4 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-xl">
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-xl">
           <div className="sm:col-span-7 space-y-1">
             <span className="text-[11px] font-mono uppercase tracking-wider text-[var(--text-secondary)]">
               {account.type === 'credit_card' ? 'Tagihan Berjalan Saat Ini' : 'Total Saldo Rekening'}
             </span>
-            <div className="font-heading font-black text-2xl sm:text-3xl text-[var(--text-primary)]">
+            <div className="font-heading font-black text-xl sm:text-2xl text-[var(--text-primary)]">
               {formatRupiah(account.balance)}
             </div>
             {account.type !== 'credit_card' && pockets.length > 0 && (
@@ -354,7 +354,7 @@ export function AccountDetailModal({
                   return (
                     <div 
                       key={tx.id}
-                      className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-xl flex items-center justify-between gap-3 hover:border-[var(--border-color)] transition-all"
+                      className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-xl flex items-center justify-between gap-2.5 hover:border-[var(--border-color)] transition-all"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className={`w-8 h-8 rounded-lg border-2 border-black flex items-center justify-center shrink-0 ${
@@ -424,7 +424,7 @@ export function AccountDetailModal({
 
         {/* TAB 2: KANTONG POS ANGGARAN (PEMISAH SALDO) */}
         {activeTab === 'pockets' && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Action Bar Kantong */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] p-3 rounded-xl text-xs">
               <div className="space-y-0.5">
@@ -465,7 +465,7 @@ export function AccountDetailModal({
 
             {/* FORM TRANSFER SALDO ANTAR KANTONG / SALDO BEBAS */}
             {isTransferringPocket && (
-              <form onSubmit={handleExecutePocketTransfer} className="p-4 bg-[var(--bg-elevated)] border-2 border-black dark:border-white/20 rounded-xl space-y-3">
+              <form onSubmit={handleExecutePocketTransfer} className="p-3 bg-[var(--bg-elevated)] border-2 border-black dark:border-white/20 rounded-xl space-y-3">
                 <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
                   <h4 className="font-heading font-bold text-xs text-[var(--text-primary)] flex items-center gap-1.5">
                     <ArrowRightLeft className="w-3.5 h-3.5 text-[var(--accent-sand)]" />
@@ -480,7 +480,7 @@ export function AccountDetailModal({
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
                     <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Dari Sumber:</label>
                     <select
@@ -548,7 +548,7 @@ export function AccountDetailModal({
 
             {/* FORM TAMBAH / EDIT KANTONG */}
             {isAddingPocket && (
-              <form onSubmit={handleSavePocket} className="p-4 bg-[var(--bg-elevated)] border-2 border-black dark:border-white/20 rounded-xl space-y-3">
+              <form onSubmit={handleSavePocket} className="p-3 bg-[var(--bg-elevated)] border-2 border-black dark:border-white/20 rounded-xl space-y-3">
                 <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
                   <h4 className="font-heading font-bold text-xs text-[var(--text-primary)]">
                     {editingPocketId ? 'Edit Pos Kantong' : `+ Tambah Pos Kantong di ${account.name}`}
@@ -565,7 +565,7 @@ export function AccountDetailModal({
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
                     <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Nama Pos Kantong</label>
                     <input
@@ -631,7 +631,7 @@ export function AccountDetailModal({
             )}
 
             {/* List Kantong Pos Anggaran */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto pr-1">
               {pockets.length === 0 ? (
                 <div className="col-span-2 p-8 text-center text-xs font-mono text-[var(--text-muted)] bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)]">
                   Belum ada pos kantong di akun ini. Buat kantong pemisah saldo seperti "Belanja Harian", "Transport", atau "Tagihan" agar dana tidak bocor halus.
@@ -641,7 +641,7 @@ export function AccountDetailModal({
                   return (
                     <div
                       key={pocket.id}
-                      className="p-3.5 bg-[var(--bg-elevated)] border-2 border-black dark:border-white/20 rounded-xl space-y-2 shadow-[2px_2px_0px_#000]"
+                      className="p-3 bg-[var(--bg-elevated)] border-2 border-black dark:border-white/20 rounded-xl space-y-2 shadow-[2px_2px_0px_#000]"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2">
@@ -678,7 +678,7 @@ export function AccountDetailModal({
 
                       <div className="pt-1">
                         <span className="text-[10px] font-mono text-[var(--text-secondary)] block">Saldo Alokasi:</span>
-                        <div className="text-base font-mono font-bold text-white">
+                        <div className="text-sm font-mono font-bold text-white">
                           {formatRupiah(pocket.balance || 0)}
                         </div>
                       </div>

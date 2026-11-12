@@ -968,12 +968,12 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   }, [mergedHolidays, currentYear]);
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-200">
+    <div className="space-y-3 animate-in fade-in duration-200">
       
       {/* Toast Feedback */}
       {toastMessage && (
         <div className="fixed top-16 right-4 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
-          <div className={`brutal-card p-3.5 px-4 text-xs font-mono font-bold flex items-center gap-2.5 shadow-[var(--shadow-md)] ${
+          <div className={`brutal-card p-3 px-3 text-xs font-mono font-bold flex items-center gap-2.5 shadow-[var(--shadow-md)] ${
             toastMessage.type === 'success' 
               ? 'bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] border-[var(--accent-sage)]'
               : toastMessage.type === 'error'
@@ -989,7 +989,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
       {/* ===================================================================== */}
       {/* 1. TOP HEADER & KONTROL NAVIGASI                                       */}
       {/* ===================================================================== */}
-      <section className="brutal-card p-3 sm:p-4 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] shadow-[var(--shadow-md)] flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+      <section className="brutal-card p-3 sm:p-3 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] shadow-[var(--shadow-md)] flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
         
         {/* Info Judul & Periode */}
         <div className="space-y-1">
@@ -1099,14 +1099,14 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
         {/* ------------------------------------------------------------------- */}
         {/* KOLOM KIRI (7 SPAN): KALENDER SHIFT & POP-UP EDIT HARI               */}
         {/* ------------------------------------------------------------------- */}
-        <div className="lg:col-span-7 space-y-4">
+        <div className="lg:col-span-7 space-y-3">
           
-          <div className="brutal-card p-3 sm:p-4 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] shadow-[var(--shadow-md)] space-y-4">
+          <div className="brutal-card p-3 sm:p-3 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] shadow-[var(--shadow-md)] space-y-3">
             
             {/* Header Kalender & Quick Filter */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b-2 border-[var(--border-subtle)] pb-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 border-b-2 border-[var(--border-subtle)] pb-3">
               <div>
-                <h3 className="font-heading font-bold text-base text-[var(--text-primary)] flex items-center gap-2">
+                <h3 className="font-heading font-bold text-sm text-[var(--text-primary)] flex items-center gap-2">
                   <CalendarIcon className="w-4 h-4 text-[var(--accent-blue)]" />
                   <span>Jadwal Shift & Ceklis Makan</span>
                 </h3>
@@ -1250,7 +1250,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
                         <div className="font-heading font-extrabold flex items-center gap-1.5 text-[var(--text-primary)]">
-                          <span className="font-mono text-base">{day.dayNumber}</span>
+                          <span className="font-mono text-sm">{day.dayNumber}</span>
                           <span className={`text-[10px] font-mono ${day.dayName === 'Min' || isHoliday ? 'text-[var(--accent-terracotta-light)] font-bold' : 'text-[var(--text-muted)]'}`}>
                             {day.dayName}
                           </span>
@@ -1363,9 +1363,9 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
         {/* ------------------------------------------------------------------- */}
         {/* KOLOM KANAN (5 SPAN): SLIP GAJI & ACTION                             */}
         {/* ------------------------------------------------------------------- */}
-        <div className="lg:col-span-5 space-y-4">
+        <div className="lg:col-span-5 space-y-3">
           
-          <div className="brutal-card p-5 sm:p-6 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] shadow-[var(--shadow-md)] space-y-5">
+          <div className="brutal-card p-3.5 sm:p-4 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] shadow-[var(--shadow-md)] space-y-3">
             
             {/* Header Slip Gaji */}
             <div className="border-b-2 border-[var(--border-subtle)] pb-3 space-y-1">
@@ -1634,7 +1634,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                 {/* Gross Income */}
                 <div className="pt-2 border-t-2 border-[var(--border-subtle)] flex items-center justify-between text-sm font-bold text-[var(--text-primary)]">
                   <span className="font-heading">PENDAPATAN KOTOR (GROSS)</span>
-                  <span className="text-[var(--accent-sage-light)] font-mono text-base">{formatRupiah(salary.grossIncome)}</span>
+                  <span className="text-[var(--accent-sage-light)] font-mono text-sm">{formatRupiah(salary.grossIncome)}</span>
                 </div>
               </div>
             </div>
@@ -1695,7 +1695,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
               <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-wider text-[var(--accent-sage-light)] font-bold block">
                 ESTIMASI PENDAPATAN BERSIH (TAKE HOME PAY)
               </span>
-              <div className="text-xl sm:text-2xl font-heading font-extrabold text-[var(--accent-sage)] font-mono tracking-tight">
+              <div className="text-xl sm:text-xl font-heading font-extrabold text-[var(--accent-sage)] font-mono tracking-tight">
                 {formatRupiah(salary.netSalary)}
               </div>
               <p className="text-[10px] text-[var(--text-muted)] font-mono leading-tight">
@@ -1704,7 +1704,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
             </div>
 
             {/* 4. JADWAL GAJIAN & AKSI */}
-            <div className="p-3.5 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] space-y-2.5 text-xs font-mono">
+            <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] space-y-2.5 text-xs font-mono">
               <div className="flex items-center justify-between text-xs font-mono text-[var(--text-primary)]">
                 <span className="flex items-center gap-1.5 font-bold">
                   <CalendarCheck className="w-4 h-4 text-[var(--accent-sand)]" />
@@ -1761,13 +1761,13 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
       {/* ===================================================================== */}
       {/* 3. ARSIP RIWAYAT GAJI BULANAN (SALARY HISTORY RECORD)                 */}
       {/* ===================================================================== */}
-      <section className="brutal-card p-5 sm:p-6 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] shadow-[var(--shadow-md)] space-y-4">
+      <section className="brutal-card p-3.5 sm:p-4 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] shadow-[var(--shadow-md)] space-y-3">
         
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b-2 border-[var(--border-subtle)] pb-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 border-b-2 border-[var(--border-subtle)] pb-3">
           <div className="space-y-0.5">
             <div className="flex items-center gap-2 flex-wrap">
               <Archive className="w-5 h-5 text-[var(--accent-sand)]" />
-              <h3 className="font-heading font-bold text-base sm:text-lg text-[var(--text-primary)]">
+              <h3 className="font-heading font-bold text-sm sm:text-lg text-[var(--text-primary)]">
                 Arsip Riwayat Gaji
               </h3>
               <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded-[var(--radius-sm)] bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] border border-[var(--accent-sage)]">
@@ -1880,11 +1880,11 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
             </div>
 
             {/* Mobile Card List View */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:hidden gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:hidden gap-2.5">
               {salaryHistories.map((hist) => (
                 <div
                   key={hist.id}
-                  className="p-3.5 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[var(--shadow-sm)] space-y-2.5 font-mono"
+                  className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[var(--shadow-sm)] space-y-2.5 font-mono"
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -1948,15 +1948,15 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
       {/* 4. MODAL POP-UP EDIT HARI (INPUT LEMBUR & CEKLIS MAKAN)                */}
       {/* ===================================================================== */}
       {editingDay && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="brutal-card p-5 sm:p-6 bg-[var(--bg-surface)] max-w-md w-full space-y-4 border-2 border-[var(--border-color)] shadow-[var(--shadow-xl)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="brutal-card p-3.5 sm:p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 border-2 border-[var(--border-color)] shadow-[var(--shadow-xl)]">
             
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div className="space-y-0.5">
                 <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--accent-sand-light)] font-bold">
                   Edit Data Tanggal {editingDay.dayNumber} {editingDay.dayName}
                 </span>
-                <h3 className="font-heading font-extrabold text-base text-[var(--text-primary)]">
+                <h3 className="font-heading font-extrabold text-sm text-[var(--text-primary)]">
                   {editingDay.date} {editingDay.holidayName ? `• 🎉 ${editingDay.holidayName}` : ''}
                 </h3>
               </div>
@@ -1969,7 +1969,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSaveDayModal} className="space-y-4">
+            <form onSubmit={handleSaveDayModal} className="space-y-3">
               
               {/* Pilihan Shift Hari Ini */}
               <div className="space-y-1.5">
@@ -2124,13 +2124,13 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
       {/* 5. MODAL PENGATURAN KHUSUS MODUL GAJI, AUTO OT & TANGGAL MERAH        */}
       {/* ===================================================================== */}
       {isSalarySettingsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="brutal-card p-5 sm:p-6 bg-[var(--bg-surface)] max-w-lg w-full space-y-4 border-2 border-[var(--border-color)] shadow-[var(--shadow-xl)] max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="brutal-card p-3.5 sm:p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 border-2 border-[var(--border-color)] shadow-[var(--shadow-xl)] max-h-[90vh] overflow-y-auto">
             
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div className="flex items-center gap-2">
                 <Settings className="w-5 h-5 text-[var(--accent-sand)]" />
-                <h3 className="font-heading font-bold text-base text-[var(--text-primary)]">
+                <h3 className="font-heading font-bold text-sm text-[var(--text-primary)]">
                   Pengaturan Gaji, Auto OT & Tanggal Merah
                 </h3>
               </div>
@@ -2143,10 +2143,10 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSaveSalarySettings} className="space-y-4">
+            <form onSubmit={handleSaveSalarySettings} className="space-y-3">
               
               {/* Regu / Grup Shift Default & Status PTKP */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div className="space-y-1">
                   <label className="brutal-label text-xs">Regu / Grup Shift Aktif</label>
                   <select
@@ -2386,13 +2386,13 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
       {/* 6. MODAL TAMBAH / EDIT KOMPONEN TAMBAHAN GAJI (BONUS / THR / DLL)     */}
       {/* ===================================================================== */}
       {isAddOnModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="brutal-card p-5 sm:p-6 bg-[var(--bg-surface)] max-w-md w-full space-y-4 border-2 border-[var(--border-color)] shadow-[var(--shadow-xl)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="brutal-card p-3.5 sm:p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 border-2 border-[var(--border-color)] shadow-[var(--shadow-xl)]">
             
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div className="flex items-center gap-2">
                 <Gift className="w-5 h-5 text-[var(--accent-sand)]" />
-                <h3 className="font-heading font-bold text-base text-[var(--text-primary)]">
+                <h3 className="font-heading font-bold text-sm text-[var(--text-primary)]">
                   {editingAddOnId ? 'Edit Komponen Tambahan' : 'Tambah Komponen Tambahan (Bonus/THR)'}
                 </h3>
               </div>
@@ -2405,7 +2405,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSaveAddOnModal} className="space-y-4">
+            <form onSubmit={handleSaveAddOnModal} className="space-y-3">
               
               <div className="space-y-1">
                 <label className="brutal-label text-xs">Nama Komponen Tambahan</label>

@@ -214,7 +214,7 @@ Kembalikan jawaban HANYA dalam format JSON valid:
   const currentData = insight || computeLocalInsight();
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border-2 border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] p-5 shadow-[var(--shadow-md)] transition-colors">
+    <div className="relative overflow-hidden rounded-2xl border-2 border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] p-3.5 shadow-[var(--shadow-md)] transition-colors">
       {/* Background subtle glow */}
       <div className="absolute -top-12 -right-12 w-32 h-32 bg-amber-400/10 dark:bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
 
@@ -222,7 +222,7 @@ Kembalikan jawaban HANYA dalam format JSON valid:
       <div className="flex items-center justify-between mb-4 pb-3 border-b border-[var(--border-subtle)]">
         <div className="flex items-center gap-2">
           <span className="text-xl">💡</span>
-          <h3 className="font-heading font-black text-base sm:text-lg tracking-wide text-[var(--text-primary)]">
+          <h3 className="font-heading font-black text-sm sm:text-lg tracking-wide text-[var(--text-primary)]">
             AI Insight
           </h3>
           <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-400/15 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-400/30">
@@ -243,7 +243,7 @@ Kembalikan jawaban HANYA dalam format JSON valid:
       </div>
 
       {/* Bullets List Dinamis & Natural */}
-      <div className="space-y-3 text-sm sm:text-base leading-relaxed">
+      <div className="space-y-3 text-sm sm:text-sm leading-relaxed">
         {currentData.bullets.map((b, idx) => (
           <div key={idx} className="flex items-start gap-2.5">
             <p className="text-[var(--text-primary)] font-medium">

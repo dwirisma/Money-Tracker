@@ -2013,8 +2013,8 @@ export default function App() {
       
       {/* Toast Notification Banner (Floating di Atas Layar) */}
       {toastMessage && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-full px-4 animate-in fade-in slide-in-from-top-4 duration-200">
-          <div className={`brutal-card p-3.5 flex items-center gap-3 shadow-[var(--shadow-lg)] ${
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-full px-3 animate-in fade-in slide-in-from-top-4 duration-200">
+          <div className={`brutal-card p-3 flex items-center gap-2.5 shadow-[var(--shadow-lg)] ${
             toastMessage.type === 'success' 
               ? 'bg-[var(--accent-sage-dark)] border-[var(--accent-sage)] text-white' 
               : toastMessage.type === 'error'
@@ -2042,8 +2042,8 @@ export default function App() {
       <div className="sticky top-0 z-30 bg-[var(--bg-surface)] border-b-[2.5px] border-[var(--border-color)] shadow-[0_3px_0px_#000]">
         
         {/* 1A. Top Header Bar */}
-        <header className="border-b border-[var(--border-subtle)] px-2.5 sm:px-4 py-1.5">
-          <div className="max-w-[1500px] mx-auto flex items-center justify-between gap-1.5 sm:gap-2">
+        <header className="border-b border-[var(--border-subtle)] px-2.5 sm:px-3 py-1.5">
+          <div className="w-full flex items-center justify-between gap-1.5 sm:gap-2">
             
             {/* Logo & Dropdown Buku Kas Aktif */}
             <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
@@ -2288,16 +2288,16 @@ export default function App() {
 
 
       {/* Main Container */}
-      <main className="flex-1 max-w-[1500px] w-full mx-auto p-3 sm:p-5 space-y-4 sm:space-y-5 pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
+      <main className="flex-1 w-full p-2.5 sm:p-3 space-y-3 sm:space-y-3 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-10">
         
         {/* =================================================================== */}
         {/* KONTEN MODUL 1: KAS & TRANSAKSI                                     */}
         {/* =================================================================== */}
-        <div id="container-settings" className={activeModule === 'settings' ? 'space-y-5' : 'hidden'}>
+        <div id="container-settings" className={activeModule === 'settings' ? 'space-y-3' : 'hidden'}>
           <SettingsPage />
         </div>
 
-        <div id="container-dashboard" className={activeModule === 'dashboard' ? 'space-y-5' : 'hidden'}>
+        <div id="container-dashboard" className={activeModule === 'dashboard' ? 'space-y-3' : 'hidden'}>
           <DashboardPage
             ledgerName={currentLedger.name}
             currentLedger={currentLedger}
@@ -2312,7 +2312,7 @@ export default function App() {
         </div>
 
         {/* KONTEN TAMBAH TRANSAKSI (DEDICATED VIEW DENGAN 3 TAB & KELOLA KATEGORI) */}
-        <div id="container-add-transaction" className={activeModule === 'add_transaction' ? 'space-y-5' : 'hidden'}>
+        <div id="container-add-transaction" className={activeModule === 'add_transaction' ? 'space-y-3' : 'hidden'}>
           <AddTransactionView
             currentLedger={currentLedger}
             accounts={accounts}
@@ -2354,7 +2354,7 @@ export default function App() {
         </div>
 
         {/* KONTEN RIWAYAT TRANSAKSI (DEDICATED SEARCH & FILTER VIEW) */}
-        <div id="container-history-transaction" className={activeModule === 'history_transaction' ? 'space-y-5' : 'hidden'}>
+        <div id="container-history-transaction" className={activeModule === 'history_transaction' ? 'space-y-3' : 'hidden'}>
           <TransactionHistoryView
             currentLedger={currentLedger}
             transactions={transactions}
@@ -2366,7 +2366,7 @@ export default function App() {
         </div>
 
         {/* KONTEN PORTOFOLIO INVESTASI */}
-        <div id="container-investments" className={activeModule === 'investments' ? 'space-y-5' : 'hidden'}>
+        <div id="container-investments" className={activeModule === 'investments' ? 'space-y-3' : 'hidden'}>
           <InvestmentPortfolioView
             currentLedger={currentLedger}
             investments={investments}
@@ -2378,16 +2378,16 @@ export default function App() {
           />
         </div>
 
-        <div id="container-modul-1" className={activeModule === 'module1' ? 'space-y-5' : 'hidden'}>
+        <div id="container-modul-1" className={activeModule === 'module1' ? 'space-y-3' : 'hidden'}>
           
           {/* RINGKASAN SALDO KHUSUS BUKU KAS AKTIF (TOTAL SALDO / ASET / TAGIHAN)*/}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="brutal-card p-5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-sage)] space-y-1">
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="brutal-card p-3.5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-sage)] space-y-1">
             <div className="flex items-center justify-between">
               <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Total Saldo Bersih</p>
               <span className="brutal-badge text-[9px]">{currentLedger.name}</span>
             </div>
-            <p id="total-balance-display" className="text-3xl font-mono font-bold text-white tracking-tight">
+            <p id="total-balance-display" className="text-2xl font-mono font-bold text-white tracking-tight">
               {formatRupiah(totals.netBalance)}
             </p>
             <p className="text-[11px] font-mono text-[var(--text-muted)] pt-1">
@@ -2395,9 +2395,9 @@ export default function App() {
             </p>
           </div>
 
-          <div className="brutal-card p-5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-blue)] space-y-1">
+          <div className="brutal-card p-3.5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-blue)] space-y-1">
             <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Total Aset Kas & Bank</p>
-            <p id="total-assets-display" className="text-3xl font-mono font-bold text-[var(--accent-blue-light)] tracking-tight">
+            <p id="total-assets-display" className="text-2xl font-mono font-bold text-[var(--accent-blue-light)] tracking-tight">
               {formatRupiah(totals.totalAssets)}
             </p>
             <p className="text-[11px] font-mono text-[var(--text-muted)] pt-1">
@@ -2405,9 +2405,9 @@ export default function App() {
             </p>
           </div>
 
-          <div className="brutal-card p-5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-terracotta)] space-y-1">
+          <div className="brutal-card p-3.5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-terracotta)] space-y-1">
             <p className="text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Tagihan Kartu Kredit</p>
-            <p id="total-debt-display" className="text-3xl font-mono font-bold text-[var(--accent-terracotta-light)] tracking-tight">
+            <p id="total-debt-display" className="text-2xl font-mono font-bold text-[var(--accent-terracotta-light)] tracking-tight">
               {formatRupiah(totals.totalCreditDebt)}
             </p>
             <p className="text-[11px] font-mono text-[var(--text-muted)] pt-1">
@@ -2457,14 +2457,14 @@ export default function App() {
               </button>
             </div>
           ) : (
-            <div id="accounts-list-container" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div id="accounts-list-container" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5 gap-3">
               {accounts.map(acc => {
                 const isCredit = acc.type === 'credit_card';
                 return (
                   <div 
                     key={acc.id}
                     onClick={() => setSelectedAccountForDetail(acc)}
-                    className="brutal-card p-4 space-y-3 bg-[var(--bg-surface)] group cursor-pointer hover:-translate-y-1 hover:shadow-[6px_6px_0px_#000] transition-all"
+                    className="brutal-card p-3 space-y-3 bg-[var(--bg-surface)] group cursor-pointer hover:-translate-y-1 hover:shadow-[6px_6px_0px_#000] transition-all"
                     style={{ borderTopColor: acc.colorAccent || 'var(--border-color)', borderTopWidth: '5px' }}
                   >
                     <div className="flex items-start justify-between">
@@ -2532,16 +2532,16 @@ export default function App() {
         {/* =================================================================== */}
         {/* KONTEN MODUL 2: GOALS & MASA DEPAN (WISHLIST & SINKING FUNDS)       */}
         {/* =================================================================== */}
-        <div id="container-modul-2" className={activeModule === 'module2' ? 'space-y-5' : 'hidden'}>
+        <div id="container-modul-2" className={activeModule === 'module2' ? 'space-y-3' : 'hidden'}>
           
           {/* 1. RINGKASAN METRIK TARGET BUKU KAS AKTIF */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-4">
-            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-sand)] space-y-0.5 sm:space-y-1">
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-3">
+            <div className="brutal-card p-3 sm:p-3.5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-sand)] space-y-0.5 sm:space-y-1">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Total Target Dana</p>
                 <span className="brutal-badge text-[8px] sm:text-[9px]">{currentLedger.name}</span>
               </div>
-              <p id="total-goals-target-display" className="text-xl sm:text-3xl font-mono font-bold text-white tracking-tight">
+              <p id="total-goals-target-display" className="text-xl sm:text-2xl font-mono font-bold text-white tracking-tight">
                 {formatRupiah(totalGoalsTarget)}
               </p>
               <p className="text-[10px] sm:text-[11px] font-mono text-[var(--text-muted)] pt-0.5 sm:pt-1">
@@ -2549,9 +2549,9 @@ export default function App() {
               </p>
             </div>
 
-            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-sage)] space-y-0.5 sm:space-y-1">
+            <div className="brutal-card p-3 sm:p-3.5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-sage)] space-y-0.5 sm:space-y-1">
               <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Total Dana Terkumpul</p>
-              <p id="total-goals-saved-display" className="text-xl sm:text-3xl font-mono font-bold text-[var(--accent-sage-light)] tracking-tight">
+              <p id="total-goals-saved-display" className="text-xl sm:text-2xl font-mono font-bold text-[var(--accent-sage-light)] tracking-tight">
                 {formatRupiah(totalGoalsSaved)}
               </p>
               <p className="text-[10px] sm:text-[11px] font-mono text-[var(--text-muted)] pt-0.5 sm:pt-1">
@@ -2559,7 +2559,7 @@ export default function App() {
               </p>
             </div>
 
-            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-blue)] space-y-0.5 sm:space-y-1">
+            <div className="brutal-card p-3 sm:p-3.5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-blue)] space-y-0.5 sm:space-y-1">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Progres Keseluruhan</p>
                 <span className="font-mono font-bold text-xs sm:text-sm text-[var(--accent-blue-light)]">{goalsOverallProgress}%</span>
@@ -2577,8 +2577,8 @@ export default function App() {
           </section>
 
           {/* 2. FILTER TABS & SUB-HEADER TARGET */}
-          <section className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[var(--border-subtle)] pb-3">
+          <section className="space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b-2 border-[var(--border-subtle)] pb-3">
               <div className="flex items-center gap-2">
                 <Target className="w-5 h-5 text-[var(--accent-sand)]" />
                 <div>
@@ -2644,7 +2644,7 @@ export default function App() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {filteredGoals.map(goal => {
                   const progress = goal.targetAmount > 0 
                     ? Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100))
@@ -2656,7 +2656,7 @@ export default function App() {
                     <div
                       key={goal.id}
                       onClick={() => openGoalDetailModal(goal)}
-                      className="brutal-card p-5 bg-[var(--bg-surface)] space-y-4 flex flex-col justify-between group cursor-pointer transition-all duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] active:translate-y-0"
+                      className="brutal-card p-3.5 bg-[var(--bg-surface)] space-y-3 flex flex-col justify-between group cursor-pointer transition-all duration-150 hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] active:translate-y-0"
                       style={{ borderTopColor: goal.colorAccent || 'var(--border-color)', borderTopWidth: '5px' }}
                       title="Klik untuk melihat Detail & Riwayat Alokasi"
                     >
@@ -2710,7 +2710,7 @@ export default function App() {
                         {/* Judul & Catatan */}
                         <div>
                           <div className="flex items-center justify-between gap-2">
-                            <h3 className="font-heading font-bold text-base text-white line-clamp-1 group-hover:text-[var(--accent-sand-light)] transition-colors">
+                            <h3 className="font-heading font-bold text-sm text-white line-clamp-1 group-hover:text-[var(--accent-sand-light)] transition-colors">
                               {goal.name}
                             </h3>
                             <span className="text-[10px] font-mono text-[var(--text-muted)] group-hover:text-[var(--accent-sand-light)] shrink-0 flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
@@ -2801,16 +2801,16 @@ export default function App() {
         {/* =================================================================== */}
         {/* KONTEN MODUL 3: UTANG & TAGIHAN RUTIN (DEBT & SUBSCRIPTIONS)         */}
         {/* =================================================================== */}
-        <div id="container-modul-3" className={activeModule === 'module3' ? 'space-y-5' : 'hidden'}>
+        <div id="container-modul-3" className={activeModule === 'module3' ? 'space-y-3' : 'hidden'}>
           
           {/* 1. RINGKASAN METRIK MODUL 3 */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-4">
-            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-terracotta)] space-y-0.5 sm:space-y-1">
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-3">
+            <div className="brutal-card p-3 sm:p-3.5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-terracotta)] space-y-0.5 sm:space-y-1">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Total Beban Utang Berjalan</p>
                 <span className="brutal-badge text-[8px] sm:text-[9px]">{currentLedger.name}</span>
               </div>
-              <p id="total-debts-remaining-display" className="text-xl sm:text-3xl font-mono font-bold text-[var(--accent-terracotta-light)] tracking-tight">
+              <p id="total-debts-remaining-display" className="text-xl sm:text-2xl font-mono font-bold text-[var(--accent-terracotta-light)] tracking-tight">
                 {formatRupiah(totalRemainingDebt)}
               </p>
               <p className="text-[10px] sm:text-[11px] font-mono text-[var(--text-muted)] pt-0.5 sm:pt-1">
@@ -2818,12 +2818,12 @@ export default function App() {
               </p>
             </div>
 
-            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-blue)] space-y-0.5 sm:space-y-1">
+            <div className="brutal-card p-3 sm:p-3.5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-blue)] space-y-0.5 sm:space-y-1">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Estimasi Tagihan Bulanan</p>
                 <span className="text-[9px] sm:text-[10px] font-mono text-[var(--accent-blue-light)] font-bold">{bills.length} Tagihan</span>
               </div>
-              <p id="total-monthly-bills-display" className="text-xl sm:text-3xl font-mono font-bold text-white tracking-tight">
+              <p id="total-monthly-bills-display" className="text-xl sm:text-2xl font-mono font-bold text-white tracking-tight">
                 {formatRupiah(estimatedMonthlyBills)}
               </p>
               <p className="text-[10px] sm:text-[11px] font-mono text-[var(--text-muted)] pt-0.5 sm:pt-1">
@@ -2831,7 +2831,7 @@ export default function App() {
               </p>
             </div>
 
-            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-sage)] space-y-0.5 sm:space-y-1">
+            <div className="brutal-card p-3 sm:p-3.5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-sage)] space-y-0.5 sm:space-y-1">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Progres Pelunasan Utang</p>
                 <span className="font-mono font-bold text-xs sm:text-sm text-[var(--accent-sage-light)]">{debtPayoffProgress}%</span>
@@ -2854,12 +2854,12 @@ export default function App() {
             {/* =============================================================== */}
             {/* CONTAINER ATAS: TAGIHAN RUTIN & LANGGANAN                       */}
             {/* =============================================================== */}
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[var(--border-subtle)] pb-3">
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b-2 border-[var(--border-subtle)] pb-3">
                 <div className="flex items-center gap-2">
                   <RotateCw className="w-5 h-5 text-[var(--accent-blue)]" />
                   <div>
-                    <h2 className="font-heading font-bold text-base sm:text-lg text-white">
+                    <h2 className="font-heading font-bold text-sm sm:text-lg text-white">
                       Tagihan Rutin & Langganan
                     </h2>
                     <p className="text-[11px] text-[var(--text-muted)]">
@@ -2913,14 +2913,14 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setIsAddBillOpen(true)}
-                    className="brutal-btn brutal-btn-blue text-xs py-1.5 px-4 inline-flex items-center gap-1.5"
+                    className="brutal-btn brutal-btn-blue text-xs py-1.5 px-3 inline-flex items-center gap-1.5"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Tambah Tagihan Pertama</span>
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {filteredBills.map(b => {
                     const dueStatus = getBillDueStatus(b.nextPaymentDate);
 
@@ -2928,13 +2928,13 @@ export default function App() {
                       <div
                         key={b.id}
                         onClick={() => setSelectedBillForDetail(b)}
-                        className="brutal-card p-4 bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition-all border-2 border-[var(--border-color)] hover:border-white space-y-3 shadow-[var(--shadow-sm)] cursor-pointer group flex flex-col justify-between"
+                        className="brutal-card p-3 bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition-all border-2 border-[var(--border-color)] hover:border-white space-y-3 shadow-[var(--shadow-sm)] cursor-pointer group flex flex-col justify-between"
                         style={{ borderLeftColor: b.colorAccent || '#6c97ff', borderLeftWidth: '6px' }}
                       >
                         <div className="space-y-3">
                           {/* Header Kartu: Nama & Badge Sisa Hari */}
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="font-heading font-bold text-base text-white group-hover:text-[var(--accent-blue-light)] transition-colors truncate flex-1" title={b.name}>
+                            <h3 className="font-heading font-bold text-sm text-white group-hover:text-[var(--accent-blue-light)] transition-colors truncate flex-1" title={b.name}>
                               {b.name}
                             </h3>
 
@@ -3041,12 +3041,12 @@ export default function App() {
             {/* =============================================================== */}
             {/* CONTAINER BAWAH: UTANG & CICILAN                                */}
             {/* =============================================================== */}
-            <div className="space-y-4 pt-6 border-t-2 border-[var(--border-subtle)]">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[var(--border-subtle)] pb-3">
+            <div className="space-y-3 pt-6 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b-2 border-[var(--border-subtle)] pb-3">
                 <div className="flex items-center gap-2">
                   <CreditCard className="w-5 h-5 text-[var(--accent-terracotta)]" />
                   <div>
-                    <h2 className="font-heading font-bold text-base sm:text-lg text-white">
+                    <h2 className="font-heading font-bold text-sm sm:text-lg text-white">
                       Utang & Cicilan
                     </h2>
                     <p className="text-[11px] text-[var(--text-muted)]">
@@ -3093,14 +3093,14 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setIsAddDebtOpen(true)}
-                    className="brutal-btn brutal-btn-terracotta text-xs py-1.5 px-4 inline-flex items-center gap-1.5"
+                    className="brutal-btn brutal-btn-terracotta text-xs py-1.5 px-3 inline-flex items-center gap-1.5"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Catat Pinjaman Baru</span>
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {filteredDebts.map(d => {
                     const progress = d.totalDebt > 0 ? Math.min(100, Math.round(((d.totalDebt - d.remainingDebt) / d.totalDebt) * 100)) : 100;
                     const dueStatus = getBillDueStatus(d.nextPaymentDate || d.dueDate || '');
@@ -3109,7 +3109,7 @@ export default function App() {
                       <div
                         key={d.id}
                         onClick={() => setSelectedDebtForDetail(d)}
-                        className={`brutal-card p-4 bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition-all border-2 border-[var(--border-color)] hover:border-white space-y-3 shadow-[var(--shadow-sm)] cursor-pointer group flex flex-col justify-between ${
+                        className={`brutal-card p-3 bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition-all border-2 border-[var(--border-color)] hover:border-white space-y-3 shadow-[var(--shadow-sm)] cursor-pointer group flex flex-col justify-between ${
                           d.isPaidOff ? 'opacity-80' : ''
                         }`}
                         style={{ borderLeftColor: d.colorAccent || '#ff7a4d', borderLeftWidth: '6px' }}
@@ -3117,7 +3117,7 @@ export default function App() {
                         <div className="space-y-3">
                           {/* Header Kartu: Nama & Badge Countdown Status */}
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="font-heading font-bold text-base text-white group-hover:text-[var(--accent-terracotta-light)] transition-colors truncate flex-1" title={d.name}>
+                            <h3 className="font-heading font-bold text-sm text-white group-hover:text-[var(--accent-terracotta-light)] transition-colors truncate flex-1" title={d.name}>
                               {d.name}
                             </h3>
 
@@ -3249,7 +3249,7 @@ export default function App() {
         {/* =================================================================== */}
         {/* KONTEN MODUL 4: OTOMATISASI TRANSAKSI (AUTO-INCOME/EXPENSE/TRANSFER)*/}
         {/* =================================================================== */}
-        <div id="container-modul-4" className={activeModule === 'module4' ? 'space-y-5' : 'hidden'}>
+        <div id="container-modul-4" className={activeModule === 'module4' ? 'space-y-3' : 'hidden'}>
           <AutopilotList
             ledgerId={currentLedger.id}
             accounts={accounts}
@@ -3261,13 +3261,13 @@ export default function App() {
           />
           
           {/* 1. RINGKASAN METRIK OTOMATISASI BUKU KAS AKTIF */}
-          <section className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
-            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-sand)] space-y-0.5 sm:space-y-1">
+          <section className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
+            <div className="brutal-card p-3 sm:p-3.5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-sand)] space-y-0.5 sm:space-y-1">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Aturan Aktif</p>
                 <span className="brutal-badge text-[8px] sm:text-[9px]">{currentLedger.name}</span>
               </div>
-              <p className="text-xl sm:text-3xl font-mono font-bold text-white tracking-tight">
+              <p className="text-xl sm:text-2xl font-mono font-bold text-white tracking-tight">
                 {activeAutomationsCount} <span className="text-xs sm:text-sm font-normal text-[var(--text-muted)] font-mono">/ {automations.length}</span>
               </p>
               <p className="text-[10px] sm:text-[11px] font-mono text-[var(--text-muted)] pt-0.5 sm:pt-1">
@@ -3275,9 +3275,9 @@ export default function App() {
               </p>
             </div>
 
-            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-sage)] space-y-0.5 sm:space-y-1">
+            <div className="brutal-card p-3 sm:p-3.5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-sage)] space-y-0.5 sm:space-y-1">
               <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Auto-Income</p>
-              <p className="text-base sm:text-2xl font-mono font-bold text-[var(--accent-sage-light)] tracking-tight">
+              <p className="text-sm sm:text-xl font-mono font-bold text-[var(--accent-sage-light)] tracking-tight">
                 +{formatRupiah(estimatedMonthlyAutoIncome)}
               </p>
               <p className="text-[10px] sm:text-[11px] font-mono text-[var(--text-muted)] pt-0.5 sm:pt-1">
@@ -3285,9 +3285,9 @@ export default function App() {
               </p>
             </div>
 
-            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-terracotta)] space-y-0.5 sm:space-y-1">
+            <div className="brutal-card p-3 sm:p-3.5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-terracotta)] space-y-0.5 sm:space-y-1">
               <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Auto-Expense</p>
-              <p className="text-base sm:text-2xl font-mono font-bold text-[var(--accent-terracotta-light)] tracking-tight">
+              <p className="text-sm sm:text-xl font-mono font-bold text-[var(--accent-terracotta-light)] tracking-tight">
                 -{formatRupiah(estimatedMonthlyAutoExpense)}
               </p>
               <p className="text-[10px] sm:text-[11px] font-mono text-[var(--text-muted)] pt-0.5 sm:pt-1">
@@ -3295,10 +3295,10 @@ export default function App() {
               </p>
             </div>
 
-            <div className="brutal-card p-3 sm:p-5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-blue)] space-y-0.5 sm:space-y-1 flex flex-col justify-between">
+            <div className="brutal-card p-3 sm:p-3.5 bg-[var(--bg-surface)] border-l-4 sm:border-l-8 border-l-[var(--accent-blue)] space-y-0.5 sm:space-y-1 flex flex-col justify-between">
               <div>
                 <p className="text-[10px] sm:text-xs uppercase tracking-wider text-[var(--text-secondary)] font-heading">Total Eksekusi</p>
-                <p className="text-base sm:text-2xl font-mono font-bold text-white tracking-tight">
+                <p className="text-sm sm:text-xl font-mono font-bold text-white tracking-tight">
                   {totalAutomationExecutions}x
                 </p>
               </div>
@@ -3316,14 +3316,14 @@ export default function App() {
           </section>
 
           {/* 2. SECTION DAFTAR ATURAN OTOMATIS */}
-          <section className="space-y-4">
+          <section className="space-y-3">
             
             {/* Header List & Filter */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[var(--border-subtle)] pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b-2 border-[var(--border-subtle)] pb-3">
               <div className="flex items-center gap-2">
                 <Zap className="w-5 h-5 text-[var(--accent-sand)]" />
                 <div>
-                  <h2 className="font-heading font-bold text-base sm:text-lg text-white">
+                  <h2 className="font-heading font-bold text-sm sm:text-lg text-white">
                     Daftar Aturan Otomatisasi (Automation Rules)
                   </h2>
                   <p className="text-[11px] text-[var(--text-muted)]">
@@ -3372,14 +3372,14 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setIsAddAutomationOpen(true)}
-                  className="brutal-btn brutal-btn-sand text-xs py-1.5 px-4 inline-flex items-center gap-1.5 font-bold"
+                  className="brutal-btn brutal-btn-sand text-xs py-1.5 px-3 inline-flex items-center gap-1.5 font-bold"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>+ Buat Aturan Otomatis Pertama</span>
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {filteredAutomations.map(rule => {
                   const sourceAcc = accounts.find(a => a.id === rule.sourceAccountId);
                   const destAcc = rule.toAccountId ? accounts.find(a => a.id === rule.toAccountId) : null;
@@ -3393,7 +3393,7 @@ export default function App() {
                     <div
                       key={rule.id}
                       onClick={() => setSelectedAutomationForDetail(rule)}
-                      className="brutal-card p-4 bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition-all border-2 border-[var(--border-color)] hover:border-white space-y-3 shadow-[var(--shadow-sm)] cursor-pointer group flex flex-col justify-between"
+                      className="brutal-card p-3 bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition-all border-2 border-[var(--border-color)] hover:border-white space-y-3 shadow-[var(--shadow-sm)] cursor-pointer group flex flex-col justify-between"
                       style={{ 
                         borderLeftColor: rule.colorAccent || (rule.type === 'income' ? '#2dd4a7' : rule.type === 'expense' ? '#ff7a4d' : '#6c97ff'), 
                         borderLeftWidth: '6px' 
@@ -3430,7 +3430,7 @@ export default function App() {
 
                         {/* Nama Aturan & Nominal */}
                         <div>
-                          <h3 className="font-heading font-bold text-base text-white group-hover:text-[var(--accent-sand-light)] transition-colors truncate" title={rule.name}>
+                          <h3 className="font-heading font-bold text-sm text-white group-hover:text-[var(--accent-sand-light)] transition-colors truncate" title={rule.name}>
                             {rule.name}
                           </h3>
                           <p className={`font-mono font-bold text-lg mt-0.5 ${
@@ -3538,7 +3538,7 @@ export default function App() {
         {/* =================================================================== */}
         {/* KONTEN MODUL 5: LAPORAN & ANALITIK                                  */}
         {/* =================================================================== */}
-        <div id="container-modul-5" className={activeModule === 'module5' ? 'space-y-5' : 'hidden'}>
+        <div id="container-modul-5" className={activeModule === 'module5' ? 'space-y-3' : 'hidden'}>
           <Module5Reports
             transactions={transactions}
             activeLedger={currentLedger}
@@ -3554,7 +3554,7 @@ export default function App() {
         {/* =================================================================== */}
         {/* KONTEN MODUL 6: PREDIKSI GAJI & KALENDER SHIFT (GROUP C)            */}
         {/* =================================================================== */}
-        <div id="container-modul-6" className={activeModule === 'module6' ? 'space-y-5' : 'hidden'}>
+        <div id="container-modul-6" className={activeModule === 'module6' ? 'space-y-3' : 'hidden'}>
           <Module6SalaryShift
             activeLedger={currentLedger}
             accounts={accounts}
@@ -3576,8 +3576,8 @@ export default function App() {
       {/* MODAL 0: BUAT BUKU KAS BARU (NEW LEDGER MODAL)                      */}
       {/* =================================================================== */}
       {isAddLedgerOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-md w-full space-y-4 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
                 <FolderPlus className="w-5 h-5 text-[var(--accent-sand)]" />
@@ -3591,7 +3591,7 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateLedger} className="space-y-4">
+            <form onSubmit={handleCreateLedger} className="space-y-3">
               <div>
                 <label className="brutal-label">Nama Buku Kas</label>
                 <input 
@@ -3645,7 +3645,7 @@ export default function App() {
                 ℹ️ Setiap Buku Kas memiliki <strong>Daftar Akun, Saldo, dan Transaksi tersendiri</strong> yang sepenuhnya terisolasi.
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
                 <button 
                   type="button" 
                   onClick={() => setIsAddLedgerOpen(false)}
@@ -3669,8 +3669,8 @@ export default function App() {
       {/* MODAL 0B: EDIT BUKU KAS (EDIT LEDGER MODAL)                         */}
       {/* =================================================================== */}
       {editingLedger && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-md w-full space-y-4 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
                 <Pencil className="w-5 h-5 text-[var(--accent-sand)]" />
@@ -3684,7 +3684,7 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditedLedger} className="space-y-4">
+            <form onSubmit={handleSaveEditedLedger} className="space-y-3">
               <div>
                 <label className="brutal-label">Nama Buku Kas</label>
                 <input 
@@ -3733,7 +3733,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
                 <button 
                   type="button" 
                   onClick={() => setEditingLedger(null)}
@@ -3757,9 +3757,9 @@ export default function App() {
       {/* MODAL 0C: KONFIRMASI HAPUS BUKU KAS (DELETE LEDGER MODAL)           */}
       {/* =================================================================== */}
       {ledgerToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-4 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-3">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-2.5">
               <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5" />
               </div>
@@ -3779,7 +3779,7 @@ export default function App() {
               )}
             </div>
 
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2">
               <button 
                 type="button" 
                 onClick={() => setLedgerToDelete(null)}
@@ -3804,8 +3804,8 @@ export default function App() {
       {/* MODAL 1: TAMBAH AKUN BARU KE BUKU KAS AKTIF                         */}
       {/* =================================================================== */}
       {isAddAccountOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-md w-full space-y-4">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div>
                 <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
@@ -3822,7 +3822,7 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateAccount} className="space-y-4">
+            <form onSubmit={handleCreateAccount} className="space-y-3">
               <div>
                 <label className="brutal-label">Nama Akun</label>
                 <input 
@@ -3860,7 +3860,7 @@ export default function App() {
                     value={newAccBalance}
                     onChange={(e) => setNewAccBalance(e.target.value)}
                     placeholder="0"
-                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-base focus:outline-none"
+                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
                     required
                   />
                 </div>
@@ -3892,7 +3892,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
                 <button 
                   type="button" 
                   onClick={() => setIsAddAccountOpen(false)}
@@ -3916,8 +3916,8 @@ export default function App() {
       {/* MODAL 2: EDIT AKUN                                                  */}
       {/* =================================================================== */}
       {editingAccount && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-md w-full space-y-4">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
                 <Pencil className="w-5 h-5 text-[var(--accent-blue)]" />
@@ -3931,7 +3931,7 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditedAccount} className="space-y-4">
+            <form onSubmit={handleSaveEditedAccount} className="space-y-3">
               <div>
                 <label className="brutal-label">Nama Akun</label>
                 <input 
@@ -3967,7 +3967,7 @@ export default function App() {
                     type="text"
                     value={editAccBalance}
                     onChange={(e) => setEditAccBalance(e.target.value)}
-                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-base focus:outline-none"
+                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
                     required
                   />
                 </div>
@@ -3999,7 +3999,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
                 <button 
                   type="button" 
                   onClick={() => setEditingAccount(null)}
@@ -4023,8 +4023,8 @@ export default function App() {
       {/* MODAL 3: EDIT TRANSAKSI / TRANSFER (DENGAN SINKRONISASI ATOMIK)     */}
       {/* =================================================================== */}
       {editingTx && (
-        <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4 backdrop-blur-[2px]">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-md w-full space-y-4 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div>
                 <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
@@ -4054,7 +4054,7 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditedTransaction} className="space-y-4">
+            <form onSubmit={handleSaveEditedTransaction} className="space-y-3">
               {editingTx.type !== 'transfer' ? (
                 <div className="flex p-0.5 bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)]">
                   <button
@@ -4100,7 +4100,7 @@ export default function App() {
                     value={editTxAmount}
                     onChange={(e) => setEditTxAmount(e.target.value)}
                     onBlur={handleEditTxAmountBlur}
-                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-base focus:outline-none"
+                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
                     required
                   />
                 </div>
@@ -4199,7 +4199,7 @@ export default function App() {
                 ℹ️ Sistem otomatis menghitung <strong>selisih nominal</strong> dan merefleksikan saldo akun secara akurat lewat transaksi atomik.
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
                 <button 
                   type="button" 
                   onClick={() => setEditingTx(null)}
@@ -4223,9 +4223,9 @@ export default function App() {
       {/* MODAL KONFIRMASI HAPUS TRANSAKSI                                    */}
       {/* =================================================================== */}
       {txToDelete && (
-        <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4 backdrop-blur-[2px]">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-4 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-3">
+        <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-2.5">
               <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
                 <Trash2 className="w-5 h-5" />
               </div>
@@ -4251,7 +4251,7 @@ export default function App() {
               )}
             </div>
 
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2">
               <button 
                 type="button" 
                 onClick={() => setTxToDelete(null)}
@@ -4276,9 +4276,9 @@ export default function App() {
       {/* MODAL KONFIRMASI HAPUS AKUN                                         */}
       {/* =================================================================== */}
       {accountToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-4 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-3">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-2.5">
               <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5" />
               </div>
@@ -4294,7 +4294,7 @@ export default function App() {
               ⚠️ Akun akan dihapus dari daftar akun aktif dan total saldo buku kas ini akan otomatis menyesuaikan.
             </div>
 
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2">
               <button 
                 type="button" 
                 onClick={() => setAccountToDelete(null)}
@@ -4319,8 +4319,8 @@ export default function App() {
       {/* MODAL 4: BUAT TARGET BARU (WISHLIST & SINKING FUNDS)                */}
       {/* =================================================================== */}
       {isAddGoalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-lg w-full space-y-4 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div>
                 <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
@@ -4338,7 +4338,7 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateGoal} className="space-y-4">
+            <form onSubmit={handleCreateGoal} className="space-y-3">
               {/* Tipe Target: Sinking Fund vs Wishlist */}
               <div>
                 <label className="brutal-label">Pilih Tipe Target</label>
@@ -4393,7 +4393,7 @@ export default function App() {
               </div>
 
               {/* Nominal Target & Awal */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="brutal-label mb-0">Nominal Target</label>
@@ -4436,7 +4436,7 @@ export default function App() {
               </div>
 
               {/* Tenggat Waktu & Akun Sumber (Khusus Sinking Fund) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="brutal-label">Tenggat Waktu / Deadline</label>
                   <input 
@@ -4508,7 +4508,7 @@ export default function App() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
                 <button 
                   type="button" 
                   onClick={() => setIsAddGoalOpen(false)}
@@ -4532,8 +4532,8 @@ export default function App() {
       {/* MODAL 5: ALOKASIKAN DANA KE GOAL (DENGAN SINKRONISASI SALDO ATOMIK) */}
       {/* =================================================================== */}
       {allocatingGoal && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-md w-full space-y-4 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div>
                 <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
@@ -4571,7 +4571,7 @@ export default function App() {
               </p>
             </div>
 
-            <form onSubmit={handleExecuteAllocation} className="space-y-4">
+            <form onSubmit={handleExecuteAllocation} className="space-y-3">
               {/* Akun Sumber Pengambilan Dana */}
               <div>
                 <label className="brutal-label">
@@ -4611,7 +4611,7 @@ export default function App() {
                     onChange={(e) => setAllocAmount(e.target.value)}
                     onBlur={handleAllocAmountBlur}
                     placeholder="0 atau hitung ekspresi..."
-                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-base focus:outline-none"
+                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
                     required
                   />
                 </div>
@@ -4649,7 +4649,7 @@ export default function App() {
               </div>
 
               {/* Tanggal & Catatan Alokasi */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="brutal-label">Tanggal</label>
                   <input 
@@ -4679,7 +4679,7 @@ export default function App() {
                 <p>Uang akan dipotong dari saldo akun kas dan dicatat sebagai transaksi pengeluaran alokasi agar aset kas tetap akurat.</p>
               </div>
 
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex justify-end gap-2.5 pt-2">
                 <button 
                   type="button" 
                   onClick={() => setAllocatingGoal(null)}
@@ -4704,8 +4704,8 @@ export default function App() {
       {/* MODAL 6: EDIT TARGET (WISHLIST & SINKING FUNDS)                     */}
       {/* =================================================================== */}
       {editingGoal && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-md w-full space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
                 <Pencil className="w-5 h-5 text-[var(--accent-sand)]" />
@@ -4720,7 +4720,7 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditedGoal} className="space-y-4">
+            <form onSubmit={handleSaveEditedGoal} className="space-y-3">
               <div>
                 <label className="brutal-label">Nama Target</label>
                 <input 
@@ -4732,7 +4732,7 @@ export default function App() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="brutal-label">Nominal Target</label>
                   <input 
@@ -4756,7 +4756,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="brutal-label">Tenggat Waktu</label>
                   <input 
@@ -4795,7 +4795,7 @@ export default function App() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
                 <button 
                   type="button" 
                   onClick={() => setEditingGoal(null)}
@@ -4819,9 +4819,9 @@ export default function App() {
       {/* MODAL 7: KONFIRMASI HAPUS TARGET                                    */}
       {/* =================================================================== */}
       {goalToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-4 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-3">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-2.5">
               <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
                 <Trash2 className="w-5 h-5" />
               </div>
@@ -4837,7 +4837,7 @@ export default function App() {
               ℹ️ Target akan dihapus dari daftar. Transaksi penyisihan dana yang telah lalu tetap tercatat dalam riwayat transaksi kas Anda.
             </div>
 
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2">
               <button 
                 type="button" 
                 onClick={() => setGoalToDelete(null)}
@@ -4895,11 +4895,11 @@ export default function App() {
         const sourceAcc = accounts.find(a => a.id === goal.sourceAccountId);
 
         return (
-          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-[2px]">
-            <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-lg w-full space-y-5 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2">
+          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+            <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2">
               
               {/* Header Modal */}
-              <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-3 gap-3">
+              <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-3 gap-2.5">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className={`brutal-badge text-[10px] font-mono font-bold ${
@@ -4929,11 +4929,11 @@ export default function App() {
               </div>
 
               {/* Banner Overview / Metrik Progres */}
-              <div className="p-4 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] space-y-3 shadow-[var(--shadow-sm)]">
+              <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] space-y-3 shadow-[var(--shadow-sm)]">
                 <div className="flex items-baseline justify-between">
                   <div>
                     <p className="text-[10px] font-heading uppercase text-[var(--text-secondary)]">Total Dana Terkumpul</p>
-                    <p className="text-2xl font-mono font-bold text-white tracking-tight">
+                    <p className="text-xl font-mono font-bold text-white tracking-tight">
                       {formatRupiah(goal.currentAmount)}
                     </p>
                   </div>
@@ -5022,7 +5022,7 @@ export default function App() {
                       <p>Memuat riwayat alokasi dari Firestore...</p>
                     </div>
                   ) : goalAllocationHistory.length === 0 ? (
-                    <div className="p-6 bg-[var(--bg-elevated)] border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-center space-y-2">
+                    <div className="p-4 bg-[var(--bg-elevated)] border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-center space-y-2">
                       <Coins className="w-6 h-6 text-[var(--accent-sand)] mx-auto opacity-70" />
                       <p className="font-heading text-xs font-bold text-white">
                         Belum ada riwayat alokasi dana untuk target ini
@@ -5037,9 +5037,9 @@ export default function App() {
                       return (
                         <div
                           key={tx.id}
-                          className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] flex items-center justify-between gap-3 group"
+                          className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] flex items-center justify-between gap-2.5 group"
                         >
-                          <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex items-center gap-2.5 min-w-0">
                             <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-[var(--accent-sand-dark)] border border-[var(--accent-sand)] text-[var(--accent-sand-light)] flex items-center justify-center shrink-0">
                               <Coins className="w-4 h-4" />
                             </div>
@@ -5093,7 +5093,7 @@ export default function App() {
               </div>
 
               {/* Footer Tombol Aksi Modal */}
-              <div className="flex items-center justify-between gap-3 pt-3 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex items-center justify-between gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
                 <button
                   type="button"
                   onClick={() => {
@@ -5115,7 +5115,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setSelectedGoalForDetail(null)}
-                  className="brutal-btn brutal-btn-ghost text-xs py-2 px-4"
+                  className="brutal-btn brutal-btn-ghost text-xs py-2 px-3"
                 >
                   Tutup
                 </button>
@@ -5130,8 +5130,8 @@ export default function App() {
       {/* MODAL 9: TAMBAH TAGIHAN RUTIN BARU (NEW BILL MODAL)                 */}
       {/* =================================================================== */}
       {isAddBillOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-[2px]">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-md w-full space-y-4 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div>
                 <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
@@ -5149,7 +5149,7 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateBill} className="space-y-4">
+            <form onSubmit={handleCreateBill} className="space-y-3">
               <div>
                 <label className="brutal-label">Nama Tagihan / Langganan</label>
                 <input 
@@ -5266,7 +5266,7 @@ export default function App() {
                       value={newBillAmount}
                       onChange={(e) => handleBillAmountCalcChange(e.target.value)}
                       placeholder="Contoh: 186000 atau 54000+10000"
-                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-base focus:outline-none"
+                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
                       required
                     />
                   </div>
@@ -5289,7 +5289,7 @@ export default function App() {
                       value={newBillLastNominal}
                       onChange={(e) => handleBillLastNominalCalcChange(e.target.value)}
                       placeholder="Contoh: 450000 atau 200000+50000"
-                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-base focus:outline-none"
+                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
                       required
                     />
                   </div>
@@ -5303,7 +5303,7 @@ export default function App() {
               )}
 
               {/* Tanggal Jatuh Tempo Berikutnya */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="brutal-label">Jatuh Tempo Berikutnya</label>
                   <input 
@@ -5383,7 +5383,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
                 <button 
                   type="button" 
                   onClick={() => setIsAddBillOpen(false)}
@@ -5408,8 +5408,8 @@ export default function App() {
       {/* MODAL 10: BAYAR SEKARANG (PAY BILL MODAL) DENGAN AUTO-RENEWAL        */}
       {/* =================================================================== */}
       {payingBill && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-[2px]">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-md w-full space-y-4 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2 border-[var(--accent-blue)]">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2 border-[var(--accent-blue)]">
             <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div>
                 <span className="brutal-badge text-[9px] brutal-badge-blue mb-1">
@@ -5431,7 +5431,7 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleExecutePayBill} className="space-y-4">
+            <form onSubmit={handleExecutePayBill} className="space-y-3">
               {/* Nominal Pembayaran */}
               <div>
                 <div className="flex items-center justify-between mb-1">
@@ -5452,7 +5452,7 @@ export default function App() {
                     value={payBillAmount}
                     onChange={(e) => handlePayBillAmountCalcChange(e.target.value)}
                     placeholder="Contoh: 150000 atau 75000+2500"
-                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-base focus:outline-none"
+                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
                     required
                   />
                 </div>
@@ -5480,7 +5480,7 @@ export default function App() {
               </div>
 
               {/* Tanggal & Catatan */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="brutal-label">Tanggal Bayar</label>
                   <input 
@@ -5516,7 +5516,7 @@ export default function App() {
                 </p>
               </div>
 
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex justify-end gap-2.5 pt-2">
                 <button 
                   type="button" 
                   onClick={() => setPayingBill(null)}
@@ -5541,8 +5541,8 @@ export default function App() {
       {/* MODAL 11: EDIT TAGIHAN                                              */}
       {/* =================================================================== */}
       {editingBill && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-[2px]">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-md w-full space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
                 <Pencil className="w-5 h-5 text-[var(--accent-blue)]" />
@@ -5557,7 +5557,7 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditedBill} className="space-y-4">
+            <form onSubmit={handleSaveEditedBill} className="space-y-3">
               <div>
                 <label className="brutal-label">Nama Tagihan</label>
                 <input 
@@ -5669,7 +5669,7 @@ export default function App() {
                       type="text"
                       value={editBillAmount}
                       onChange={(e) => setEditBillAmount(e.target.value)}
-                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-base focus:outline-none"
+                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
                       required
                     />
                   </div>
@@ -5689,7 +5689,7 @@ export default function App() {
                       value={editBillLastNominal}
                       onChange={(e) => handleEditBillLastNominalCalcChange(e.target.value)}
                       placeholder="Contoh: 450000"
-                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-base focus:outline-none"
+                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
                     />
                   </div>
                   {editBillLastNominalCalcNotice && (
@@ -5698,7 +5698,7 @@ export default function App() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="brutal-label">Jatuh Tempo Berikutnya</label>
                   <input 
@@ -5747,7 +5747,7 @@ export default function App() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
                 <button 
                   type="button" 
                   onClick={() => setEditingBill(null)}
@@ -5771,9 +5771,9 @@ export default function App() {
       {/* MODAL 12: KONFIRMASI HAPUS TAGIHAN                                  */}
       {/* =================================================================== */}
       {billToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-[2px]">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-4 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-3">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-2.5">
               <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
                 <Trash2 className="w-5 h-5" />
               </div>
@@ -5789,7 +5789,7 @@ export default function App() {
               ℹ️ Pengingat tagihan ini akan dihapus. Riwayat transaksi pembayaran yang sudah dilakukan sebelumnya tetap tersimpan di riwayat kas Anda.
             </div>
 
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2">
               <button 
                 type="button" 
                 onClick={() => setBillToDelete(null)}
@@ -5814,8 +5814,8 @@ export default function App() {
       {/* MODAL 13: CATAT UTANG BARU (NEW DEBT MODAL)                         */}
       {/* =================================================================== */}
       {isAddDebtOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-[2px]">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-md w-full space-y-4 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div>
                 <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
@@ -5833,7 +5833,7 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateDebt} className="space-y-4">
+            <form onSubmit={handleCreateDebt} className="space-y-3">
               <div>
                 <label className="brutal-label">Nama Utang / Pinjaman</label>
                 <input 
@@ -5858,7 +5858,7 @@ export default function App() {
               </div>
 
               {/* Total Utang & Sisa Utang */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="brutal-label mb-0">Total Utang Awal</label>
@@ -6029,7 +6029,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
                 <button 
                   type="button" 
                   onClick={() => setIsAddDebtOpen(false)}
@@ -6054,8 +6054,8 @@ export default function App() {
       {/* MODAL 14: BAYAR CICILAN UTANG (PAY DEBT INSTALLMENT MODAL)          */}
       {/* =================================================================== */}
       {payingDebt && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-[2px]">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-md w-full space-y-4 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2 border-[var(--accent-terracotta)]">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2 border-[var(--accent-terracotta)]">
             <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div>
                 <span className="brutal-badge text-[9px] brutal-badge-terracotta mb-1">
@@ -6095,7 +6095,7 @@ export default function App() {
               </div>
             </div>
 
-            <form onSubmit={handleExecutePayDebt} className="space-y-4">
+            <form onSubmit={handleExecutePayDebt} className="space-y-3">
               {/* Nominal Pembayaran Cicilan */}
               <div>
                 <div className="flex items-center justify-between mb-1">
@@ -6112,7 +6112,7 @@ export default function App() {
                     value={payDebtAmount}
                     onChange={(e) => handlePayDebtAmountCalcChange(e.target.value)}
                     placeholder="Contoh: 500000 atau 250000*2"
-                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-base focus:outline-none"
+                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
                     required
                   />
                 </div>
@@ -6166,7 +6166,7 @@ export default function App() {
               </div>
 
               {/* Tanggal & Catatan */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="brutal-label">Tanggal Bayar</label>
                   <input 
@@ -6194,7 +6194,7 @@ export default function App() {
                 <p>Nominal cicilan akan langsung memotong saldo akun kas, mencatat transaksi pengeluaran di Firestore, dan mengurangi sisa pokok utang secara serentak.</p>
               </div>
 
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex justify-end gap-2.5 pt-2">
                 <button 
                   type="button" 
                   onClick={() => setPayingDebt(null)}
@@ -6219,8 +6219,8 @@ export default function App() {
       {/* MODAL 15: EDIT UTANG                                                */}
       {/* =================================================================== */}
       {editingDebt && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-[2px]">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-md w-full space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
                 <Pencil className="w-5 h-5 text-[var(--accent-terracotta)]" />
@@ -6235,7 +6235,7 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditedDebt} className="space-y-4">
+            <form onSubmit={handleSaveEditedDebt} className="space-y-3">
               <div>
                 <label className="brutal-label">Nama Utang</label>
                 <input 
@@ -6257,7 +6257,7 @@ export default function App() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="brutal-label">Total Utang Awal</label>
                   <input 
@@ -6375,7 +6375,7 @@ export default function App() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
                 <button 
                   type="button" 
                   onClick={() => setEditingDebt(null)}
@@ -6399,9 +6399,9 @@ export default function App() {
       {/* MODAL 16: KONFIRMASI HAPUS UTANG                                    */}
       {/* =================================================================== */}
       {debtToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-[2px]">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-4 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-3">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-2.5">
               <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
                 <Trash2 className="w-5 h-5" />
               </div>
@@ -6417,7 +6417,7 @@ export default function App() {
               ℹ️ Dokumen utang ini akan dihapus. Riwayat transaksi cicilan yang telah dicatat sebelumnya tetap tersimpan di riwayat kas Anda.
             </div>
 
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2">
               <button 
                 type="button" 
                 onClick={() => setDebtToDelete(null)}
@@ -6448,11 +6448,11 @@ export default function App() {
         const billTransactions = transactions.filter(t => t.billId === bill.id);
 
         return (
-          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-[2px]">
-            <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-lg w-full space-y-5 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2">
+          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+            <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2">
               
               {/* Header Modal */}
-              <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-3 gap-3">
+              <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-3 gap-2.5">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="brutal-badge text-[10px] font-mono font-bold bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
@@ -6487,12 +6487,12 @@ export default function App() {
               </div>
 
               {/* Banner Overview / Metadata Ringkas */}
-              <div className="p-4 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] space-y-3 shadow-[var(--shadow-sm)]">
+              <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] space-y-3 shadow-[var(--shadow-sm)]">
                 <div className="flex items-baseline justify-between">
                   <div>
                     <p className="text-[10px] font-heading uppercase text-[var(--text-secondary)]">Nominal Tagihan</p>
                     {bill.pricingType === 'fixed' ? (
-                      <p className="text-2xl font-mono font-bold text-[var(--accent-blue-light)] tracking-tight">
+                      <p className="text-xl font-mono font-bold text-[var(--accent-blue-light)] tracking-tight">
                         {formatRupiah(bill.fixedAmount || 0)}
                       </p>
                     ) : (
@@ -6569,7 +6569,7 @@ export default function App() {
 
                 <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
                   {billTransactions.length === 0 ? (
-                    <div className="p-6 bg-[var(--bg-elevated)] border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-center space-y-2">
+                    <div className="p-4 bg-[var(--bg-elevated)] border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-center space-y-2">
                       <Receipt className="w-6 h-6 text-[var(--accent-blue)] mx-auto opacity-70" />
                       <p className="font-heading text-xs font-bold text-white">
                         Belum ada riwayat pembayaran untuk tagihan ini
@@ -6584,9 +6584,9 @@ export default function App() {
                       return (
                         <div
                           key={tx.id}
-                          className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] flex items-center justify-between gap-3 group"
+                          className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] flex items-center justify-between gap-2.5 group"
                         >
-                          <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex items-center gap-2.5 min-w-0">
                             <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-[var(--accent-blue-dark)] border border-[var(--accent-blue)] text-[var(--accent-blue-light)] flex items-center justify-center shrink-0">
                               <CreditCard className="w-4 h-4" />
                             </div>
@@ -6639,7 +6639,7 @@ export default function App() {
               </div>
 
               {/* Footer Tombol Aksi Modal */}
-              <div className="flex items-center justify-between gap-3 pt-3 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex items-center justify-between gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
                 <button
                   type="button"
                   onClick={() => {
@@ -6647,7 +6647,7 @@ export default function App() {
                     setSelectedBillForDetail(null);
                     openPayBillModal(targetBill);
                   }}
-                  className="brutal-btn brutal-btn-blue text-xs py-2 px-4 flex items-center gap-1.5 font-bold"
+                  className="brutal-btn brutal-btn-blue text-xs py-2 px-3 flex items-center gap-1.5 font-bold"
                 >
                   <CreditCard className="w-3.5 h-3.5" />
                   <span>+ Bayar Sekarang</span>
@@ -6656,7 +6656,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setSelectedBillForDetail(null)}
-                  className="brutal-btn brutal-btn-ghost text-xs py-2 px-4"
+                  className="brutal-btn brutal-btn-ghost text-xs py-2 px-3"
                 >
                   Tutup
                 </button>
@@ -6678,11 +6678,11 @@ export default function App() {
         const dueStatus = getBillDueStatus(debt.nextPaymentDate);
 
         return (
-          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-[2px]">
-            <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-lg w-full space-y-5 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2">
+          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+            <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2">
               
               {/* Header Modal */}
-              <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-3 gap-3">
+              <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-3 gap-2.5">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     {debt.isPaidOff ? (
@@ -6719,11 +6719,11 @@ export default function App() {
               </div>
 
               {/* Banner Overview / Metrik Utang */}
-              <div className="p-4 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] space-y-3 shadow-[var(--shadow-sm)]">
+              <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] space-y-3 shadow-[var(--shadow-sm)]">
                 <div className="flex items-baseline justify-between">
                   <div>
                     <p className="text-[10px] font-heading uppercase text-[var(--text-secondary)]">Sisa Pokok Utang</p>
-                    <p className="text-2xl font-mono font-bold text-[var(--accent-terracotta-light)] tracking-tight">
+                    <p className="text-xl font-mono font-bold text-[var(--accent-terracotta-light)] tracking-tight">
                       {formatRupiah(debt.remainingDebt)}
                     </p>
                   </div>
@@ -6819,7 +6819,7 @@ export default function App() {
 
                 <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
                   {debtTransactions.length === 0 ? (
-                    <div className="p-6 bg-[var(--bg-elevated)] border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-center space-y-2">
+                    <div className="p-4 bg-[var(--bg-elevated)] border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-center space-y-2">
                       <Banknote className="w-6 h-6 text-[var(--accent-terracotta)] mx-auto opacity-70" />
                       <p className="font-heading text-xs font-bold text-white">
                         Belum ada riwayat pembayaran cicilan untuk utang ini
@@ -6834,9 +6834,9 @@ export default function App() {
                       return (
                         <div
                           key={tx.id}
-                          className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] flex items-center justify-between gap-3 group"
+                          className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] flex items-center justify-between gap-2.5 group"
                         >
-                          <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex items-center gap-2.5 min-w-0">
                             <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
                               <Banknote className="w-4 h-4" />
                             </div>
@@ -6889,7 +6889,7 @@ export default function App() {
               </div>
 
               {/* Footer Tombol Aksi Modal */}
-              <div className="flex items-center justify-between gap-3 pt-3 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex items-center justify-between gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
                 <button
                   type="button"
                   onClick={() => {
@@ -6898,7 +6898,7 @@ export default function App() {
                     openPayDebtModal(targetDebt);
                   }}
                   disabled={debt.isPaidOff}
-                  className={`brutal-btn text-xs py-2 px-4 flex items-center gap-1.5 font-bold ${
+                  className={`brutal-btn text-xs py-2 px-3 flex items-center gap-1.5 font-bold ${
                     debt.isPaidOff 
                       ? 'opacity-60 bg-[var(--bg-elevated)] border-[var(--border-subtle)] cursor-not-allowed text-[var(--text-secondary)]'
                       : 'brutal-btn-terracotta'
@@ -6911,7 +6911,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setSelectedDebtForDetail(null)}
-                  className="brutal-btn brutal-btn-ghost text-xs py-2 px-4"
+                  className="brutal-btn brutal-btn-ghost text-xs py-2 px-3"
                 >
                   Tutup
                 </button>
@@ -6926,8 +6926,8 @@ export default function App() {
       {/* MODAL 19: BUAT ATURAN OTOMATISASI BARU (NEW AUTOMATION RULE)        */}
       {/* =================================================================== */}
       {isAddAutomationOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-[2px]">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-lg w-full space-y-4 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div>
                 <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
@@ -6945,7 +6945,7 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={apKind ? handleCreateAutopilot : handleCreateAutomation} className="space-y-4">
+            <form onSubmit={apKind ? handleCreateAutopilot : handleCreateAutomation} className="space-y-3">
               {/* Tipe Transaksi Otomatis */}
               <div>
                 <label className="brutal-label">Tipe Transaksi Otomatis</label>
@@ -7020,7 +7020,7 @@ export default function App() {
               </div>
 
               {/* Kategori & Nominal */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="brutal-label">Kategori</label>
                   <input 
@@ -7058,7 +7058,7 @@ export default function App() {
               )}
 
               {/* Akun Sumber & Akun Tujuan (Khusus Transfer) */}
-              <div className={`grid ${newAutoType === 'transfer' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-3`}>
+              <div className={`grid ${newAutoType === 'transfer' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-2.5`}>
                 <div>
                   <label className="brutal-label">
                     {newAutoType === 'income' ? 'Rekening / Kas Penerima' : newAutoType === 'expense' ? 'Rekening / Kas Pemotong' : 'Rekening Asal (Sumber)'}
@@ -7126,7 +7126,7 @@ export default function App() {
 
                 {/* Pengaturan Tambahan Siklus Bulanan */}
                 {newAutoCycle === 'monthly' && (
-                  <div className="mt-3 p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] flex items-center justify-between gap-3">
+                  <div className="mt-3 p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] flex items-center justify-between gap-2.5">
                     <div>
                       <p className="text-xs font-mono font-bold text-white">Eksekusi Tanggal Berapa?</p>
                       <p className="text-[10px] text-[var(--text-muted)] font-mono">Dijalankan otomatis tiap bulan pada tanggal ini</p>
@@ -7226,7 +7226,7 @@ export default function App() {
 
               </>)}
 
-              <div className="flex justify-end gap-3 pt-3 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
                 <button 
                   type="button" 
                   onClick={() => setIsAddAutomationOpen(false)}
@@ -7251,8 +7251,8 @@ export default function App() {
       {/* MODAL 20: EDIT ATURAN OTOMATISASI                                   */}
       {/* =================================================================== */}
       {editingAutomation && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-[2px]">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-lg w-full space-y-4 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div>
                 <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
@@ -7270,7 +7270,7 @@ export default function App() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditedAutomation} className="space-y-4">
+            <form onSubmit={handleSaveEditedAutomation} className="space-y-3">
               <div>
                 <label className="brutal-label">Nama Aturan</label>
                 <input 
@@ -7282,7 +7282,7 @@ export default function App() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="brutal-label">Kategori</label>
                   <input 
@@ -7317,7 +7317,7 @@ export default function App() {
                 <p className="text-xs font-mono text-[var(--accent-sand-light)]">{editAutoCalcNotice}</p>
               )}
 
-              <div className={`grid ${editAutoType === 'transfer' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-3`}>
+              <div className={`grid ${editAutoType === 'transfer' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-2.5`}>
                 <div>
                   <label className="brutal-label">
                     {editAutoType === 'income' ? 'Rekening / Kas Penerima' : editAutoType === 'expense' ? 'Rekening / Kas Pemotong' : 'Rekening Asal'}
@@ -7382,7 +7382,7 @@ export default function App() {
                 </div>
 
                 {editAutoCycle === 'monthly' && (
-                  <div className="mt-3 p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] flex items-center justify-between gap-3">
+                  <div className="mt-3 p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] flex items-center justify-between gap-2.5">
                     <p className="text-xs font-mono font-bold text-white">Eksekusi Tanggal Berapa?</p>
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-mono text-[var(--text-secondary)]">Tgl</span>
@@ -7454,7 +7454,7 @@ export default function App() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
                 <button 
                   type="button" 
                   onClick={() => setEditingAutomation(null)}
@@ -7478,9 +7478,9 @@ export default function App() {
       {/* MODAL 21: KONFIRMASI HAPUS ATURAN OTOMATISASI                       */}
       {/* =================================================================== */}
       {automationToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-[2px]">
-          <div className="brutal-card p-6 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-4 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-3">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+          <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-2.5">
               <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
                 <Trash2 className="w-5 h-5" />
               </div>
@@ -7496,7 +7496,7 @@ export default function App() {
               ℹ️ Aturan penjadwalan ini akan dihapus. Semua riwayat transaksi yang pernah dibuat oleh aturan ini sebelumnya tetap aman tersimpan di riwayat kas Anda.
             </div>
 
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2">
               <button 
                 type="button" 
                 onClick={() => setAutomationToDelete(null)}
@@ -7532,11 +7532,11 @@ export default function App() {
           : cycleLabel;
 
         return (
-          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-[2px]">
-            <div className="brutal-card p-6 bg-[var(--bg-surface)] max-w-lg w-full space-y-5 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2">
+          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+            <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2">
               
               {/* Header Modal */}
-              <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-3 gap-3">
+              <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-3 gap-2.5">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`brutal-badge text-[10px] font-mono font-bold ${
@@ -7572,11 +7572,11 @@ export default function App() {
               </div>
 
               {/* Banner Overview / Metadata Ringkas */}
-              <div className="p-4 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] space-y-3 shadow-[var(--shadow-sm)]">
+              <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] space-y-3 shadow-[var(--shadow-sm)]">
                 <div className="flex items-baseline justify-between">
                   <div>
                     <p className="text-[10px] font-heading uppercase text-[var(--text-secondary)]">Nominal Eksekusi</p>
-                    <p className={`text-2xl font-mono font-bold tracking-tight ${
+                    <p className={`text-xl font-mono font-bold tracking-tight ${
                       rule.type === 'income'
                         ? 'text-[var(--accent-sage-light)]'
                         : rule.type === 'expense'
@@ -7658,7 +7658,7 @@ export default function App() {
 
                 <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
                   {autoTransactions.length === 0 ? (
-                    <div className="p-6 bg-[var(--bg-elevated)] border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-center space-y-2">
+                    <div className="p-4 bg-[var(--bg-elevated)] border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-center space-y-2">
                       <Zap className="w-6 h-6 text-[var(--accent-sand)] mx-auto opacity-70" />
                       <p className="font-heading text-xs font-bold text-white">
                         Belum ada riwayat eksekusi transaksi
@@ -7674,9 +7674,9 @@ export default function App() {
                       return (
                         <div
                           key={tx.id}
-                          className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] flex items-center justify-between gap-3 group"
+                          className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] flex items-center justify-between gap-2.5 group"
                         >
-                          <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex items-center gap-2.5 min-w-0">
                             <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-[var(--accent-sand-dark)] border border-[var(--accent-sand)] text-[var(--accent-sand-light)] flex items-center justify-center shrink-0">
                               <Zap className="w-4 h-4" />
                             </div>
@@ -7731,13 +7731,13 @@ export default function App() {
               </div>
 
               {/* Footer Tombol Aksi Modal */}
-              <div className="flex items-center justify-between gap-3 pt-3 border-t-2 border-[var(--border-subtle)]">
+              <div className="flex items-center justify-between gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
                 <button
                   type="button"
                   onClick={(e) => {
                     handleManualExecuteAutomation(rule, e);
                   }}
-                  className="brutal-btn brutal-btn-sand text-xs py-2 px-4 flex items-center gap-1.5 font-bold"
+                  className="brutal-btn brutal-btn-sand text-xs py-2 px-3 flex items-center gap-1.5 font-bold"
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
                   <span>Jalankan Sekarang</span>
@@ -7758,7 +7758,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setSelectedAutomationForDetail(null)}
-                    className="brutal-btn brutal-btn-ghost text-xs py-2 px-4"
+                    className="brutal-btn brutal-btn-ghost text-xs py-2 px-3"
                   >
                     Tutup
                   </button>
@@ -7771,7 +7771,7 @@ export default function App() {
       })()}
 
       {/* Footer */}
-      <footer className="border-t-[2.5px] border-[var(--border-color)] bg-[var(--bg-surface)] py-3 px-4 pb-20 md:pb-3 text-center text-xs font-mono text-[var(--text-secondary)]">
+      <footer className="border-t-[2.5px] border-[var(--border-color)] bg-[var(--bg-surface)] py-3 px-3 pb-20 md:pb-3 text-center text-xs font-mono text-[var(--text-secondary)]">
         Artha Neo-Brutalism • Multi-Buku Kas (Active: {currentLedger.name}) & Firestore Offline-First
       </footer>
     </div>

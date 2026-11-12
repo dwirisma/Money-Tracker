@@ -228,13 +228,13 @@ export function InvestmentPortfolioView({
   }
 
   return (
-    <div className="space-y-5 max-w-[1400px] mx-auto">
+    <div className="space-y-3 w-full">
       {/* Header Halaman */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[var(--border-subtle)] pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b-2 border-[var(--border-subtle)] pb-4">
         <div>
           <div className="flex items-center gap-2">
             <TrendingUp className="w-6 h-6 text-[var(--accent-sand)]" />
-            <h2 className="font-heading font-bold text-2xl text-[var(--text-primary)]">
+            <h2 className="font-heading font-bold text-xl text-[var(--text-primary)]">
               Portofolio Investasi
             </h2>
           </div>
@@ -245,28 +245,28 @@ export function InvestmentPortfolioView({
       </div>
 
       {/* SCORECARDS PORTOFOLIO UTAMA */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="brutal-card p-4 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-sand)] space-y-1">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+        <div className="brutal-card p-3 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-sand)] space-y-1">
           <span className="text-[10px] font-mono uppercase text-[var(--text-secondary)] font-bold">Total Nilai Pasar</span>
-          <p className="font-mono font-bold text-lg sm:text-2xl text-[var(--text-primary)] tracking-tight">
+          <p className="font-mono font-bold text-lg sm:text-xl text-[var(--text-primary)] tracking-tight">
             {formatRupiah(summary.totalCurrentValue)}
           </p>
           <span className="text-[10px] text-[var(--text-muted)] font-mono block">Valuasi portofolio terkini</span>
         </div>
 
-        <div className="brutal-card p-4 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-blue)] space-y-1">
+        <div className="brutal-card p-3 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-blue)] space-y-1">
           <span className="text-[10px] font-mono uppercase text-[var(--text-secondary)] font-bold">Modal Pembelian</span>
-          <p className="font-mono font-bold text-lg sm:text-2xl text-[var(--accent-blue-light)] tracking-tight">
+          <p className="font-mono font-bold text-lg sm:text-xl text-[var(--accent-blue-light)] tracking-tight">
             {formatRupiah(summary.totalCapital)}
           </p>
           <span className="text-[10px] text-[var(--text-muted)] font-mono block">Total modal disetor (cost)</span>
         </div>
 
-        <div className="brutal-card p-4 bg-[var(--bg-surface)] border-l-8 space-y-1" style={{
+        <div className="brutal-card p-3 bg-[var(--bg-surface)] border-l-8 space-y-1" style={{
           borderLeftColor: summary.netGainLoss >= 0 ? 'var(--accent-sage)' : 'var(--accent-terracotta)'
         }}>
           <span className="text-[10px] font-mono uppercase text-[var(--text-secondary)] font-bold">Keuntungan / Kerugian</span>
-          <p className={`font-mono font-bold text-lg sm:text-2xl tracking-tight ${
+          <p className={`font-mono font-bold text-lg sm:text-xl tracking-tight ${
             summary.netGainLoss >= 0 ? 'text-[var(--accent-sage-light)]' : 'text-[var(--accent-terracotta-light)]'
           }`}>
             {summary.netGainLoss >= 0 ? '+' : ''}{formatRupiah(summary.netGainLoss)}
@@ -278,9 +278,9 @@ export function InvestmentPortfolioView({
           </span>
         </div>
 
-        <div className="brutal-card p-4 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-lavender)] space-y-1">
+        <div className="brutal-card p-3 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-lavender)] space-y-1">
           <span className="text-[10px] font-mono uppercase text-[var(--text-secondary)] font-bold">Total Instrumen</span>
-          <p className="font-mono font-bold text-lg sm:text-2xl text-[var(--text-primary)]">
+          <p className="font-mono font-bold text-lg sm:text-xl text-[var(--text-primary)]">
             {summary.assetCount} <span className="text-xs font-normal text-[var(--text-muted)]">Aset</span>
           </p>
           <span className="text-[10px] text-[var(--text-muted)] font-mono block">
@@ -290,7 +290,7 @@ export function InvestmentPortfolioView({
       </div>
 
       {/* DIVERSIFIKASI & ALOKASI ASET (STACKED BAR & LEGEND) */}
-      <div className="brutal-card p-5 bg-[var(--bg-surface)] space-y-4">
+      <div className="brutal-card p-3.5 bg-[var(--bg-surface)] space-y-3">
         <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
           <div className="flex items-center gap-2">
             <PieIcon className="w-4 h-4 text-[var(--accent-sand)]" />
@@ -374,7 +374,7 @@ export function InvestmentPortfolioView({
       {/* ASSET CARDS GRID */}
       {filteredAssets.length === 0 ? (
         <div className="brutal-card p-10 text-center space-y-3 bg-[var(--bg-surface)]">
-          <p className="font-heading font-bold text-base text-[var(--text-secondary)]">
+          <p className="font-heading font-bold text-sm text-[var(--text-secondary)]">
             Belum ada instrumen investasi di kategori ini
           </p>
           <p className="text-xs text-[var(--text-muted)] font-mono">
@@ -383,14 +383,14 @@ export function InvestmentPortfolioView({
           <button
             type="button"
             onClick={openAddModal}
-            className="brutal-btn brutal-btn-sand text-xs py-2 px-4 inline-flex items-center gap-1.5 font-bold"
+            className="brutal-btn brutal-btn-sand text-xs py-2 px-3 inline-flex items-center gap-1.5 font-bold"
           >
             <Plus className="w-4 h-4" />
             <span>+ Catat Aset Investasi Pertama</span>
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {filteredAssets.map(asset => {
             const gainLoss = asset.currentValue - asset.initialCapital;
             const gainLossPct = asset.initialCapital > 0 ? (gainLoss / asset.initialCapital) * 100 : 0;
@@ -399,7 +399,7 @@ export function InvestmentPortfolioView({
             return (
               <div
                 key={asset.id}
-                className="brutal-card p-3 sm:p-4 bg-[var(--bg-surface)] space-y-3 flex flex-col justify-between group hover:border-[var(--accent-sand)] transition-all"
+                className="brutal-card p-3 sm:p-3 bg-[var(--bg-surface)] space-y-3 flex flex-col justify-between group hover:border-[var(--accent-sand)] transition-all"
                 style={{ borderTopWidth: '5px', borderTopColor: meta.color }}
               >
                 {/* Header Kartu */}
@@ -421,7 +421,7 @@ export function InvestmentPortfolioView({
                           </span>
                         )}
                       </div>
-                      <h4 className="font-heading font-bold text-base text-[var(--text-primary)] mt-1">
+                      <h4 className="font-heading font-bold text-sm text-[var(--text-primary)] mt-1">
                         {asset.name}
                       </h4>
                     </div>
@@ -528,11 +528,11 @@ export function InvestmentPortfolioView({
       {/* =================================================================== */}
       {(isAddOpen || editingAsset) && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-[2px]"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-[2px]"
           onClick={() => { setIsAddOpen(false); setEditingAsset(null); }}
         >
           <div 
-            className="w-full max-w-lg bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)] p-5 space-y-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150"
+            className="w-full max-w-lg bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)] p-3.5 space-y-3 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
@@ -552,7 +552,7 @@ export function InvestmentPortfolioView({
             </div>
 
             <form onSubmit={editingAsset ? handleSaveEditedAsset : handleCreateAsset} className="space-y-3.5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="brutal-label">Nama Instrumen / Aset</label>
                   <input
@@ -577,7 +577,7 @@ export function InvestmentPortfolioView({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="brutal-label">Kategori Aset</label>
                   <select
@@ -603,7 +603,7 @@ export function InvestmentPortfolioView({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="brutal-label flex items-center justify-between">
                     <span>Modal Pembelian (Rp)</span>
@@ -644,7 +644,7 @@ export function InvestmentPortfolioView({
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="brutal-label">Jumlah Unit / Lot / Gram</label>
                   <input
@@ -672,7 +672,7 @@ export function InvestmentPortfolioView({
                 <button
                   type="button"
                   onClick={() => { setIsAddOpen(false); setEditingAsset(null); }}
-                  className="brutal-btn brutal-btn-ghost text-xs py-2 px-4"
+                  className="brutal-btn brutal-btn-ghost text-xs py-2 px-3"
                 >
                   Batal
                 </button>
@@ -693,15 +693,15 @@ export function InvestmentPortfolioView({
       {/* =================================================================== */}
       {quickUpdateAsset && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-[2px]"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-[2px]"
           onClick={() => setQuickUpdateAsset(null)}
         >
           <div 
-            className="w-full max-w-sm bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)] p-5 space-y-4 animate-in zoom-in-95 duration-150"
+            className="w-full max-w-sm bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)] p-3.5 space-y-3 animate-in zoom-in-95 duration-150"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-2">
-              <h3 className="font-heading font-bold text-base text-[var(--text-primary)]">
+              <h3 className="font-heading font-bold text-sm text-[var(--text-primary)]">
                 Perbarui Nilai Pasar
               </h3>
               <button type="button" onClick={() => setQuickUpdateAsset(null)} className="brutal-btn !p-1">
@@ -738,7 +738,7 @@ export function InvestmentPortfolioView({
                 </button>
                 <button
                   type="submit"
-                  className="brutal-btn brutal-btn-sage text-xs py-1.5 px-4 font-bold shadow-[2px_2px_0px_#000]"
+                  className="brutal-btn brutal-btn-sage text-xs py-1.5 px-3 font-bold shadow-[2px_2px_0px_#000]"
                 >
                   Update Nilai
                 </button>
@@ -753,16 +753,16 @@ export function InvestmentPortfolioView({
       {/* =================================================================== */}
       {assetToDelete && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-[2px]"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-[2px]"
           onClick={() => setAssetToDelete(null)}
         >
           <div 
-            className="w-full max-w-sm bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)] p-5 space-y-4 animate-in zoom-in-95 duration-150"
+            className="w-full max-w-sm bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)] p-3.5 space-y-3 animate-in zoom-in-95 duration-150"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 text-[var(--accent-terracotta)]">
               <AlertCircle className="w-5 h-5" />
-              <h3 className="font-heading font-bold text-base text-[var(--text-primary)]">
+              <h3 className="font-heading font-bold text-sm text-[var(--text-primary)]">
                 Hapus Aset Investasi?
               </h3>
             </div>
@@ -782,7 +782,7 @@ export function InvestmentPortfolioView({
               <button
                 type="button"
                 onClick={confirmDeleteAsset}
-                className="brutal-btn brutal-btn-terracotta text-xs py-1.5 px-4 font-bold shadow-[2px_2px_0px_#000]"
+                className="brutal-btn brutal-btn-terracotta text-xs py-1.5 px-3 font-bold shadow-[2px_2px_0px_#000]"
               >
                 Ya, Hapus Aset
               </button>

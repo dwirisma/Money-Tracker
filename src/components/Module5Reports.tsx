@@ -673,21 +673,21 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
           <p className="font-heading font-bold text-white text-sm border-b border-[var(--border-subtle)] pb-1">
             {label}
           </p>
-          <div className="flex items-center justify-between gap-4 text-[var(--accent-sage)]">
+          <div className="flex items-center justify-between gap-3 text-[var(--accent-sage)]">
             <span className="flex items-center gap-1.5 font-bold">
               <span className="w-2.5 h-2.5 bg-[var(--accent-sage)] border border-black inline-block" />
               Pemasukan:
             </span>
             <span>{formatRupiah(inc)}</span>
           </div>
-          <div className="flex items-center justify-between gap-4 text-[var(--accent-terracotta-light)]">
+          <div className="flex items-center justify-between gap-3 text-[var(--accent-terracotta-light)]">
             <span className="flex items-center gap-1.5 font-bold">
               <span className="w-2.5 h-2.5 bg-[var(--accent-terracotta)] border border-black inline-block" />
               Pengeluaran:
             </span>
             <span>{formatRupiah(exp)}</span>
           </div>
-          <div className="flex items-center justify-between gap-4 pt-1 border-t border-[var(--border-subtle)] font-bold text-white">
+          <div className="flex items-center justify-between gap-3 pt-1 border-t border-[var(--border-subtle)] font-bold text-white">
             <span>Net Arus Kas:</span>
             <span className={net >= 0 ? 'text-[var(--accent-sage)]' : 'text-[var(--accent-terracotta)]'}>
               {net >= 0 ? `+${formatRupiah(net)}` : `-${formatRupiah(Math.abs(net))}`}
@@ -711,7 +711,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
           <p className="text-[var(--accent-terracotta-light)] font-bold text-sm">
             {formatRupiah(data.amount)}
           </p>
-          <div className="flex items-center justify-between gap-3 text-[var(--text-secondary)] text-[11px] pt-1 border-t border-[var(--border-subtle)]">
+          <div className="flex items-center justify-between gap-2.5 text-[var(--text-secondary)] text-[11px] pt-1 border-t border-[var(--border-subtle)]">
             <span>Porsi Pengeluaran:</span>
             <span className="font-bold text-white">{data.percentage}%</span>
           </div>
@@ -783,12 +783,12 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
   }, [metrics, categoryBreakdown, formatRupiah, timeRange]);
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-200">
+    <div className="space-y-3 animate-in fade-in duration-200">
       
       {/* ===================================================================== */}
       {/* 1. FILTER WAKTU & HEADER LAPORAN (NEO-BRUTALISME)                      */}
       {/* ===================================================================== */}
-      <section className="brutal-card p-3 sm:p-4 bg-[var(--bg-surface)] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <section className="brutal-card p-3 sm:p-3 bg-[var(--bg-surface)] flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-[var(--accent-sand)]" />
@@ -882,7 +882,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
 
       {/* Input Tanggal Kustom (Jika Filter Kustom Aktif) */}
       {timeRange === 'custom' && (
-        <div className="brutal-card p-4 bg-[var(--bg-elevated)] flex flex-wrap items-center gap-3 text-xs animate-in fade-in duration-150">
+        <div className="brutal-card p-3 bg-[var(--bg-elevated)] flex flex-wrap items-center gap-2.5 text-xs animate-in fade-in duration-150">
           <span className="font-heading font-bold text-white flex items-center gap-1.5">
             <Calendar className="w-4 h-4 text-[var(--accent-blue)]" />
             Pilih Rentang Tanggal:
@@ -914,10 +914,10 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       {/* ===================================================================== */}
       {/* 2. KARTU RINGKASAN METRIK (SCORECARDS NEO-BRUTALISME)                  */}
       {/* ===================================================================== */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
         
         {/* KARTU 1: TOTAL PEMASUKAN (HIJAU SAGE KALEM DENGAN MoM) */}
-        <div className="brutal-card p-5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-sage)] space-y-2">
+        <div className="brutal-card p-3.5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-sage)] space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-heading font-bold text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-1.5">
               <TrendingUp className="w-4 h-4 text-[var(--accent-sage)]" />
@@ -929,7 +929,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
           </div>
 
           <div className="flex items-baseline gap-2.5 flex-wrap">
-            <div className="text-2xl sm:text-3xl font-heading font-extrabold text-[var(--accent-sage)] font-mono">
+            <div className="text-xl sm:text-2xl font-heading font-extrabold text-[var(--accent-sage)] font-mono">
               {formatRupiah(metrics.totalIncome)}
             </div>
             {/* 1. Indikator Komparasi MoM Pemasukan */}
@@ -959,7 +959,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
         </div>
 
         {/* KARTU 2: TOTAL PENGELUARAN (MERAH BATA TERRACOTTA DENGAN MoM) */}
-        <div className="brutal-card p-5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-terracotta)] space-y-2">
+        <div className="brutal-card p-3.5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-terracotta)] space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-heading font-bold text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-1.5">
               <TrendingDown className="w-4 h-4 text-[var(--accent-terracotta)]" />
@@ -971,7 +971,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
           </div>
 
           <div className="flex items-baseline gap-2.5 flex-wrap">
-            <div className="text-2xl sm:text-3xl font-heading font-extrabold text-[var(--accent-terracotta-light)] font-mono">
+            <div className="text-xl sm:text-2xl font-heading font-extrabold text-[var(--accent-terracotta-light)] font-mono">
               {formatRupiah(metrics.totalExpense)}
             </div>
             {/* 1. Indikator Komparasi MoM Pengeluaran (Turun = Bagus/Hijau, Naik = Merah) */}
@@ -1000,7 +1000,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
         </div>
 
         {/* KARTU 3: ARUS KAS / NET CASH FLOW (SURPLUS/DEFISIT & FINANCIAL RUNWAY) */}
-        <div className={`brutal-card p-5 bg-[var(--bg-surface)] border-l-8 space-y-2 ${
+        <div className={`brutal-card p-3.5 bg-[var(--bg-surface)] border-l-8 space-y-2 ${
           metrics.netCashFlow >= 0 ? 'border-l-[var(--accent-sage)]' : 'border-l-[var(--accent-terracotta)]'
         }`}>
           <div className="flex items-center justify-between">
@@ -1017,7 +1017,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
             </span>
           </div>
 
-          <div className={`text-2xl sm:text-3xl font-heading font-extrabold font-mono ${
+          <div className={`text-xl sm:text-2xl font-heading font-extrabold font-mono ${
             metrics.netCashFlow >= 0 ? 'text-[var(--accent-sage)]' : 'text-[var(--accent-terracotta)]'
           }`}>
             {metrics.netCashFlow >= 0 
@@ -1068,7 +1068,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       </section>
 
       {/* HIGHLIGHT INSIGHT CERDAS */}
-      <div className="brutal-card p-4 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] flex items-start gap-3">
+      <div className="brutal-card p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] flex items-start gap-2.5">
         <Sparkles className="w-5 h-5 text-[var(--accent-sand)] shrink-0 mt-0.5" />
         <div className="text-xs space-y-0.5">
           <span className="font-heading font-bold text-white uppercase tracking-wider text-[11px]">
@@ -1083,12 +1083,12 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       {/* ===================================================================== */}
       {/* 2B. INDIKATOR ANALISIS KESEHATAN FINANSIAL & RASIO VITAL             */}
       {/* ===================================================================== */}
-      <section className="brutal-card p-5 bg-[var(--bg-surface)] space-y-4">
+      <section className="brutal-card p-3.5 bg-[var(--bg-surface)] space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b-2 border-[var(--border-subtle)] pb-3">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-[var(--accent-sage)]" />
             <div>
-              <h3 className="font-heading font-bold text-base text-white">
+              <h3 className="font-heading font-bold text-sm text-white">
                 Analisis Kesehatan Finansial & Rasio Vital
               </h3>
               <p className="text-xs text-[var(--text-secondary)] font-mono">
@@ -1106,9 +1106,9 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* 1. Rasio Tabungan */}
-          <div className="p-4 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
+          <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-heading font-bold text-white flex items-center gap-1.5">
                 <TrendingUp className="w-4 h-4 text-[var(--accent-sage)]" />
@@ -1133,7 +1133,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
           </div>
 
           {/* 2. Kesiapan Dana Darurat */}
-          <div className="p-4 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
+          <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-heading font-bold text-white flex items-center gap-1.5">
                 <Hourglass className="w-4 h-4 text-[var(--accent-blue)]" />
@@ -1158,7 +1158,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
           </div>
 
           {/* 3. Beban Cicilan & Utang (DTI) */}
-          <div className="p-4 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
+          <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-heading font-bold text-white flex items-center gap-1.5">
                 <AlertTriangle className="w-4 h-4 text-[var(--accent-terracotta)]" />
@@ -1189,10 +1189,10 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       {/* ===================================================================== */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* GRAFIK 1 (BAR CHART): TREN PEMASUKAN VS PENGELUARAN */}
-        <div className="brutal-card p-5 bg-[var(--bg-surface)] flex flex-col justify-between space-y-4">
+        <div className="brutal-card p-3.5 bg-[var(--bg-surface)] flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
             <div>
-              <h3 className="font-heading font-bold text-base text-white flex items-center gap-2">
+              <h3 className="font-heading font-bold text-sm text-white flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-[var(--accent-sand)]" />
                 Tren Arus Kas (Pemasukan vs Pengeluaran)
               </h3>
@@ -1262,7 +1262,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)]">
+              <div className="h-full flex flex-col items-center justify-center text-center p-4 border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)]">
                 <BarChart3 className="w-10 h-10 text-[var(--text-muted)] mb-2" />
                 <p className="text-xs text-[var(--text-secondary)] font-mono">
                   Belum ada data transaksi untuk divisualisasikan.
@@ -1278,10 +1278,10 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
         </div>
 
         {/* GRAFIK 2 (DOUGHNUT / PIE CHART): KOMPOSISI PENGELUARAN PER KATEGORI */}
-        <div className="brutal-card p-5 bg-[var(--bg-surface)] flex flex-col justify-between space-y-4">
+        <div className="brutal-card p-3.5 bg-[var(--bg-surface)] flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
             <div>
-              <h3 className="font-heading font-bold text-base text-white flex items-center gap-2">
+              <h3 className="font-heading font-bold text-sm text-white flex items-center gap-2">
                 <PieIcon className="w-4 h-4 text-[var(--accent-terracotta)]" />
                 Komposisi Pengeluaran
               </h3>
@@ -1334,7 +1334,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
             {/* Pie Container */}
             <div className="h-60 sm:h-64 w-full relative flex items-center justify-center">
               {categoryBreakdown.length > 0 ? (
@@ -1376,7 +1376,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
                   </div>
                 </>
               ) : (
-                <div className="h-full w-full flex flex-col items-center justify-center text-center p-4 border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)]">
+                <div className="h-full w-full flex flex-col items-center justify-center text-center p-3 border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)]">
                   <PieIcon className="w-10 h-10 text-[var(--text-muted)] mb-2" />
                   <p className="text-xs text-[var(--text-secondary)] font-mono">
                     Tidak ada transaksi pengeluaran.
@@ -1428,12 +1428,12 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       {/* ===================================================================== */}
       {/* 3B. ANALISIS ALOKASI DANA KATEGORI (ATURAN 50/30/20 EXPERT)          */}
       {/* ===================================================================== */}
-      <section className="brutal-card p-5 bg-[var(--bg-surface)] space-y-4">
+      <section className="brutal-card p-3.5 bg-[var(--bg-surface)] space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b-2 border-[var(--border-subtle)] pb-3">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-[var(--accent-sand)]" />
             <div>
-              <h3 className="font-heading font-bold text-base text-white">
+              <h3 className="font-heading font-bold text-sm text-white">
                 Analisis Alokasi Dana Kategori (Metode 50 / 30 / 20)
               </h3>
               <p className="text-xs text-[var(--text-secondary)] font-mono">
@@ -1446,9 +1446,9 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* 1. Kebutuhan Pokok (Needs) */}
-          <div className="p-4 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
+          <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-heading font-bold text-white flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-blue)]" />
@@ -1473,7 +1473,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
           </div>
 
           {/* 2. Keinginan & Gaya Hidup (Wants) */}
-          <div className="p-4 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
+          <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-heading font-bold text-white flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-terracotta)]" />
@@ -1498,7 +1498,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
           </div>
 
           {/* 3. Tabungan & Investasi (Savings) */}
-          <div className="p-4 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
+          <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-heading font-bold text-white flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-sage)]" />
@@ -1583,7 +1583,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
               return (
                 <div 
                   key={item.category}
-                  className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] space-y-3 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] transition-all flex flex-col justify-between"
+                  className="brutal-card p-3 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] space-y-3 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] transition-all flex flex-col justify-between"
                 >
                   {/* Top Row: Icon + Category Name */}
                   <div className="space-y-1">
@@ -1692,10 +1692,10 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* TABEL RINCIAN SEMUA KATEGORI PENGELUARAN */}
-        <div className="lg:col-span-2 brutal-card p-5 bg-[var(--bg-surface)] space-y-4">
+        <div className="lg:col-span-2 brutal-card p-3.5 bg-[var(--bg-surface)] space-y-3">
           <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
             <div>
-              <h3 className="font-heading font-bold text-base text-white flex items-center gap-2">
+              <h3 className="font-heading font-bold text-sm text-white flex items-center gap-2">
                 <Layers className="w-4 h-4 text-[var(--accent-blue)]" />
                 Rincian Alokasi Pengeluaran per Pos
               </h3>
@@ -1761,9 +1761,9 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
         </div>
 
         {/* TOP 5 PENGELUARAN TUNGGAL TERBESAR (TOP EXPENSES) */}
-        <div className="brutal-card p-5 bg-[var(--bg-surface)] space-y-4">
+        <div className="brutal-card p-3.5 bg-[var(--bg-surface)] space-y-3">
           <div className="border-b-2 border-[var(--border-subtle)] pb-3">
-            <h3 className="font-heading font-bold text-base text-white flex items-center gap-2">
+            <h3 className="font-heading font-bold text-sm text-white flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-[var(--accent-terracotta)]" />
               Top 5 Transaksi Terbesar
             </h3>

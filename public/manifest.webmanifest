@@ -1,11 +1,11 @@
 {
   "name": "Artha - Manajemen Keuangan Pribadi",
   "short_name": "Artha",
-  "description": "Aplikasi manajemen keuangan pribadi offline-first PWA dengan estetika neo-brutalisme kalem.",
+  "description": "Aplikasi manajemen keuangan pribadi offline-first PWA dengan estetika neo-brutalisme playful.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#121316",
-  "theme_color": "#121316",
+  "background_color": "#fff4dc",
+  "theme_color": "#fff4dc",
   "icons": [
     {
       "src": "/icon.svg",

@@ -13,14 +13,13 @@ import {
   ArrowRightLeft, 
   BarChart2, 
   Coins, 
-  Receipt,
-  type LucideIcon 
+  Receipt
 } from 'lucide-react';
 import type { Account, Bill, Debt, Goal, Transaction, InvestmentAsset, Ledger } from '../types';
 import { calculateNetWorthAccounts, getBillDueStatus } from '../services/cashManagementService';
 import { calculateInvestmentSummary } from '../services/investmentService';
 import { formatRupiah } from '../utils/calculator';
-import { Money, NeoCard } from './ui/Neo';
+import { Money } from './ui/Neo';
 import type { ModuleId } from './layout/navConfig';
 import { AiInsightCard } from './AiInsightCard';
 import { 
@@ -64,18 +63,6 @@ function scoreMeta(score: number) {
   if (score >= 60) return { label: 'Cukup Baik', color: 'var(--accent-sand)' };
   if (score >= 40) return { label: 'Perlu Perhatian', color: 'var(--accent-terracotta)' };
   return { label: 'Kritis', color: 'var(--accent-terracotta)' };
-}
-
-function Metric({ icon: Icon, label, children, hint, tint, wide }: { icon: LucideIcon; label: string; children: React.ReactNode; hint?: string; tint?: 'sage' | 'blue' | 'terracotta' | 'sand' | 'lavender'; wide?: boolean }) {
-  return (
-    <NeoCard className={`p-3 sm:p-3.5 flex flex-col gap-1${wide ? ' col-span-2 lg:col-span-1' : ''}`} title={hint} style={tint ? { backgroundColor: `var(--accent-${tint}-dark)` } : undefined}>
-      <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
-        <Icon className="w-4 h-4 text-[var(--accent-sand)] shrink-0" />
-        <span className="font-mono text-[10px] sm:text-[11px] font-bold tracking-wide uppercase truncate">{label}</span>
-      </div>
-      <div className="font-heading font-bold text-lg sm:text-2xl text-[var(--text-primary)] break-words">{children}</div>
-    </NeoCard>
-  );
 }
 
 export function DashboardPage({ ledgerName, currentLedger, accounts, transactions, goals, bills, debts, investments = [], onNavigate }: Props) {
@@ -164,548 +151,260 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
   // Health circle
   const R = 26, C = 2 * Math.PI * R;
 
-  // Max value for trend bars
-  const maxTrendVal = Math.max(1, ...d.monthsData.map(m => Math.max(m.income, m.expense)));
+  const sign = (n: number) => (n >= 0 ? '+' : '-');
 
   return (
-    <div className="space-y-5 max-w-[1400px] mx-auto">
-      {/* Header Dashboard & Quick Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[var(--border-subtle)] pb-4">
-        <div>
-          <h2 className="font-heading font-bold text-2xl text-[var(--text-primary)]">
-            {greeting(now.getHours())}!
-          </h2>
-          <p className="text-sm text-[var(--text-secondary)]">
-            Kondisi keuangan terkini di buku kas <b>{ledgerName}</b>.
-          </p>
+    <div className="ax-dash">
+      {/* HERO: kekayaan bersih sebagai satu angka utama */}
+      <section className="ax-b s8 ax-panel ax-hero">
+        <div className="ax-hero-head">
+          <div>
+            <h2 className="ax-greet">{greeting(now.getHours())}!</h2>
+            <p className="ax-sub">Buku kas <b>{ledgerName}</b></p>
+          </div>
+          <div className="ax-actions">
+            <button type="button" className="brutal-btn ax-btn-ink" onClick={() => onNavigate('add_transaction')}>
+              <Plus className="w-4 h-4" />Catat
+            </button>
+            <button type="button" className="brutal-btn ax-btn-light" onClick={() => onNavigate('history_transaction')}>Riwayat →</button>
+          </div>
         </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={() => onNavigate('add_transaction')}
-            className="brutal-btn brutal-btn-sand text-xs h-9 px-4 flex items-center justify-center gap-1.5 font-bold shadow-[2px_2px_0px_#000]"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Catat</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onNavigate('history_transaction')}
-            className="brutal-btn brutal-btn-ghost text-xs h-9 px-4 flex items-center justify-center gap-1.5 font-bold shadow-[2px_2px_0px_#000]"
-          >
-            <span>Riwayat →</span>
-          </button>
+        <div className="ax-eyebrow" title="Total saldo kas + portofolio investasi - sisa utang">
+          <Landmark className="w-3.5 h-3.5" />Estimasi kekayaan bersih
         </div>
-      </div>
+        <div className="ax-big"><Money value={d.netWorth} /></div>
+        <div className="ax-stats">
+          <div className="ax-stat" title="Total aset kas & bank dikurangi tagihan kartu kredit">
+            <span><Wallet className="w-3 h-3" />Saldo kas</span>
+            <b><Money value={d.netBalance} /></b>
+          </div>
+          <div className="ax-stat" title="Semua uang masuk di periode bulan ini">
+            <span><TrendingUp className="w-3 h-3" />Masuk bulan ini</span>
+            <b className="ax-pos"><Money value={d.income} /></b>
+          </div>
+          <div className="ax-stat" title="Semua pengeluaran riil di periode bulan ini">
+            <span><TrendingDown className="w-3 h-3" />Keluar bulan ini</span>
+            <b className="ax-neg"><Money value={d.expense} /></b>
+          </div>
+        </div>
+      </section>
 
-      {/* AI INSIGHT CARD (SEPERTI REFERENSI MOCKUP GAMBAR) */}
-      <AiInsightCard
-        currentLedger={currentLedger || { id: 'active', name: ledgerName, createdAt: Date.now() }}
-        transactions={transactions}
-        goals={goals}
-        bills={bills}
-        debts={debts}
-        accounts={accounts}
-      />
-
-      {/* 6 SCORECARD METRIK UTAMA */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 grid-flow-dense gap-2.5 sm:gap-3">
-        <Metric wide tint="sand" icon={Wallet} label="Total Saldo Kas" hint="Total aset kas & bank dikurangi tagihan kartu kredit">
-          <Money value={d.netBalance} />
-        </Metric>
-
-        <Metric tint="sage" icon={TrendingUp} label="Pemasukan Bulan Ini" hint="Semua uang masuk di periode bulan ini">
-          <Money value={d.income} tone="income" />
-        </Metric>
-
-        <Metric tint="terracotta" icon={TrendingDown} label="Pengeluaran Bulan Ini" hint="Semua pengeluaran riil di periode bulan ini">
-          <Money value={d.expense} tone="expense" />
-        </Metric>
-
-        <Metric tint="lavender" icon={PiggyBank} label="Rasio Tabungan" hint="(Pemasukan - Pengeluaran) / Pemasukan">
-          <span className="font-num text-[var(--accent-sage-light)]">
-            {d.income > 0 ? `${d.savingsRatio.toFixed(1)}%` : '-'}
-          </span>
-        </Metric>
-
-        <Metric wide tint="blue" icon={Landmark} label="Estimasi Kekayaan Bersih" hint="Total saldo kas + portofolio investasi - sisa utang">
-          <Money value={d.netWorth} tone="auto" />
-        </Metric>
-
-        {/* Skor Kesehatan Finansial */}
-        <NeoCard className="p-3.5 sm:p-4 flex items-center gap-3">
-          <svg width="60" height="60" viewBox="0 0 64 64" className="shrink-0 -rotate-90" aria-hidden="true">
-            <circle cx="32" cy="32" r={R} fill="none" stroke="var(--bg-muted)" strokeWidth="7" />
-            <circle 
-              cx="32" 
-              cy="32" 
-              r={R} 
-              fill="none" 
-              stroke={meta.color} 
-              strokeWidth="7" 
-              strokeDasharray={C} 
-              strokeDashoffset={C * (1 - d.score / 100)} 
-              strokeLinecap="round"
-            />
+      {/* SKOR + RASIO TABUNGAN */}
+      <section className="ax-b s4 ax-panel ax-score">
+        <div className="ax-ph"><h3><span className="ax-ic" style={{ background: 'var(--accent-lavender)' }}><Activity className="w-3.5 h-3.5" /></span>Skor Finansial</h3></div>
+        <div className="ax-ring">
+          <svg width="104" height="104" viewBox="0 0 64 64" className="-rotate-90" aria-hidden="true">
+            <circle cx="32" cy="32" r={R} fill="none" stroke="var(--bg-muted)" strokeWidth="8" />
+            <circle cx="32" cy="32" r={R} fill="none" stroke={meta.color} strokeWidth="8" strokeDasharray={C} strokeDashoffset={C * (1 - d.score / 100)} strokeLinecap="round" />
           </svg>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1 text-[var(--text-secondary)]">
-              <Activity className="w-3.5 h-3.5 text-[var(--accent-sand)]" />
-              <span className="font-mono text-[10px] font-bold uppercase truncate">Skor Finansial</span>
-            </div>
-            <div className="font-heading font-bold text-xl text-[var(--text-primary)]">
-              {d.score}<span className="text-xs text-[var(--text-secondary)]"> / 100</span>
-            </div>
-            <div className="text-[11px] font-bold truncate" style={{ color: meta.color }}>
-              {meta.label}
-            </div>
-          </div>
-        </NeoCard>
+          <div className="ax-ring-n"><b>{d.score}</b><small>/ 100</small></div>
+        </div>
+        <div className="ax-meta" style={{ background: meta.color }}>{meta.label}</div>
+        <div className="ax-ratio" title="(Pemasukan - Pengeluaran) / Pemasukan">
+          <span><PiggyBank className="w-3.5 h-3.5" />Rasio tabungan</span>
+          <b>{d.income > 0 ? `${d.savingsRatio.toFixed(1)}%` : '-'}</b>
+        </div>
+      </section>
+
+      {/* AI INSIGHT */}
+      <div className="ax-b s12">
+        <AiInsightCard
+          currentLedger={currentLedger || { id: 'active', name: ledgerName, createdAt: Date.now() }}
+          transactions={transactions}
+          goals={goals}
+          bills={bills}
+          debts={debts}
+          accounts={accounts}
+        />
       </div>
 
-      {/* =================================================================== */}
-      {/* 1. ARUS KAS BULAN INI & TREN BULANAN (FITUR REQUESTED)               */}
-      {/* =================================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Kolom Kiri: Arus Kas Bulan Ini (Comparison Breakdown) */}
-        <div className="lg:col-span-5 brutal-card p-3 sm:p-4 bg-[var(--bg-surface)] space-y-4 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2 mb-3">
-              <div className="flex items-center gap-2">
-                <BarChart2 className="w-4 h-4 text-[var(--accent-sand)]" />
-                <h3 className="font-heading font-bold text-sm sm:text-base text-[var(--text-primary)]">
-                  Arus Kas Bulan Ini
-                </h3>
-              </div>
-              <span className={`brutal-badge text-[9px] ${
-                d.netCashFlow >= 0 ? 'bg-[var(--accent-sage)] text-[#111]' : 'bg-[var(--accent-terracotta)] text-white'
-              }`}>
-                {d.netCashFlow >= 0 ? 'Surplus' : 'Defisit'}
-              </span>
-            </div>
+      {/* ARUS KAS BULAN INI */}
+      <section className="ax-b s4 ax-panel">
+        <div className="ax-ph">
+          <h3><span className="ax-ic" style={{ background: 'var(--accent-sage)' }}><BarChart2 className="w-3.5 h-3.5" /></span>Arus Kas Bulan Ini</h3>
+          <span className={`ax-pill ${d.netCashFlow >= 0 ? 'pos' : 'neg'}`}>{d.netCashFlow >= 0 ? 'Surplus' : 'Defisit'}</span>
+        </div>
+        <div className="ax-flow-n" style={{ color: d.netCashFlow >= 0 ? 'var(--accent-sage-light)' : 'var(--accent-terracotta-light)' }}>
+          {sign(d.netCashFlow)}{formatRupiah(Math.abs(d.netCashFlow))}
+        </div>
+        <div className="ax-flowbar">
+          {d.income + d.expense > 0 ? (
+            <>
+              <i title="Pemasukan" style={{ width: `${(d.income / (d.income + d.expense)) * 100}%`, background: 'var(--accent-sage)' }} />
+              <i title="Pengeluaran" style={{ width: `${(d.expense / (d.income + d.expense)) * 100}%`, background: 'var(--accent-terracotta)' }} />
+            </>
+          ) : null}
+        </div>
+        <div className="ax-flow-l">
+          <span><i style={{ background: 'var(--accent-sage)' }} />Masuk {formatRupiah(d.income)}</span>
+          <span><i style={{ background: 'var(--accent-terracotta)' }} />Keluar {formatRupiah(d.expense)}</span>
+        </div>
+        <div className="ax-foot">
+          <span>Rata-rata keluar/hari <b>{formatRupiah(Math.round(d.expense / Math.max(1, now.getDate())))}</b></span>
+          <button type="button" className="ax-link" onClick={() => onNavigate('module5')}>Analisis →</button>
+        </div>
+      </section>
 
-            <div className="space-y-3">
-              {/* Visual Income vs Expense Bar */}
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-[var(--accent-sage-light)] font-bold">Masuk: {formatRupiah(d.income)}</span>
-                  <span className="text-[var(--accent-terracotta-light)] font-bold">Keluar: {formatRupiah(d.expense)}</span>
-                </div>
-                <div className="h-4 w-full bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-[var(--radius-xs)] overflow-hidden flex">
-                  {d.income + d.expense > 0 ? (
-                    <>
-                      <div 
-                        style={{ width: `${(d.income / (d.income + d.expense)) * 100}%` }} 
-                        className="bg-[var(--accent-sage)] h-full" 
-                        title="Pemasukan"
-                      />
-                      <div 
-                        style={{ width: `${(d.expense / (d.income + d.expense)) * 100}%` }} 
-                        className="bg-[var(--accent-terracotta)] h-full" 
-                        title="Pengeluaran"
-                      />
-                    </>
-                  ) : (
-                    <div className="w-full bg-[var(--bg-muted)] h-full" />
-                  )}
-                </div>
-              </div>
-
-              {/* Net Cash Flow Box */}
-              <div className="p-3 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-mono uppercase text-[var(--text-muted)] block">Selisih Kas Bersih</span>
-                  <span className={`font-mono font-bold text-lg ${
-                    d.netCashFlow >= 0 ? 'text-[var(--accent-sage-light)]' : 'text-[var(--accent-terracotta-light)]'
-                  }`}>
-                    {d.netCashFlow >= 0 ? '+' : ''}{formatRupiah(d.netCashFlow)}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onNavigate('module5')}
-                  className="text-xs font-mono text-[var(--accent-blue-light)] hover:underline flex items-center gap-1"
-                >
-                  Analisis Laporan →
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-[var(--border-subtle)] text-[11px] text-[var(--text-muted)] font-mono flex items-center justify-between">
-            <span>Rata-rata pengeluaran/hari:</span>
-            <b className="text-[var(--text-secondary)]">
-              {formatRupiah(Math.round(d.expense / Math.max(1, now.getDate())))}
-            </b>
+      {/* TREN 6 BULAN */}
+      <section className="ax-b s8 ax-panel">
+        <div className="ax-ph">
+          <h3><span className="ax-ic" style={{ background: 'var(--accent-blue)' }}><TrendingUp className="w-3.5 h-3.5" /></span>Tren 6 Bulan</h3>
+          <div className="ax-leg">
+            <span><i style={{ background: 'var(--accent-sage)' }} />Masuk</span>
+            <span><i style={{ background: 'var(--accent-terracotta)' }} />Keluar</span>
+            <span><i style={{ background: 'var(--accent-blue)' }} />Net</span>
           </div>
         </div>
-
-        {/* Kolom Kanan: Tren Arus Kas 6 Bulan Terakhir (Line Chart Income, Expense, Net) */}
-        <div className="lg:col-span-7 brutal-card p-3 sm:p-4 bg-[var(--bg-surface)] space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-[var(--accent-blue)]" />
-              <h3 className="font-heading font-bold text-sm sm:text-base text-[var(--text-primary)]">
-                Tren Bulanan (Line Chart 6 Bulan)
-              </h3>
-            </div>
-            <div className="flex items-center gap-3 text-[10px] font-mono flex-wrap">
-              <span className="flex items-center gap-1 text-[var(--accent-sage)]">
-                <span className="w-2.5 h-1 bg-[var(--accent-sage)] inline-block rounded-full" /> Masuk
-              </span>
-              <span className="flex items-center gap-1 text-[var(--accent-terracotta)]">
-                <span className="w-2.5 h-1 bg-[var(--accent-terracotta)] inline-block rounded-full" /> Keluar
-              </span>
-              <span className="flex items-center gap-1 text-[var(--accent-blue)]">
-                <span className="w-2.5 h-1 bg-[var(--accent-blue)] inline-block rounded-full" /> Net
-              </span>
-            </div>
-          </div>
-
-          {/* Line Chart Recharts */}
-          <div className="h-44 sm:h-48 w-full pt-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={d.monthsData} margin={{ top: 10, right: 12, left: -18, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(240, 240, 245, 0.08)" vertical={false} />
-                <XAxis 
-                  dataKey="label" 
-                  stroke="var(--text-muted)" 
-                  fontSize={10} 
-                  tickLine={false} 
-                  fontFamily="var(--font-mono)" 
-                />
-                <YAxis 
-                  stroke="var(--text-muted)" 
-                  fontSize={9} 
-                  tickLine={false} 
-                  fontFamily="var(--font-mono)" 
-                  tickFormatter={(v) => {
-                    if (Math.abs(v) >= 1000000) return `${(v / 1000000).toFixed(0)}jt`;
-                    if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(0)}rb`;
-                    return String(v);
-                  }}
-                />
-                <Tooltip 
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="p-2.5 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[var(--shadow-md)] text-xs font-mono space-y-1">
-                          <p className="font-bold font-heading text-[var(--text-primary)] border-b border-[var(--border-subtle)] pb-1 mb-1">
-                            Bulan {label}
-                          </p>
-                          {payload.map((entry: any, index: number) => (
-                            <div key={`item-${index}`} className="flex items-center justify-between gap-3 text-[11px]">
-                              <span style={{ color: entry.color }} className="font-bold">
-                                {entry.name}:
-                              </span>
-                              <span className="text-[var(--text-primary)] font-bold">
-                                {entry.value < 0 ? '-' : ''}{formatRupiah(Math.abs(Number(entry.value)))}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="income" 
-                  name="Pemasukan" 
-                  stroke="var(--accent-sage)" 
-                  strokeWidth={2.5} 
-                  dot={{ r: 3, fill: 'var(--accent-sage)', strokeWidth: 1, stroke: '#000' }} 
-                  activeDot={{ r: 5 }} 
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="expense" 
-                  name="Pengeluaran" 
-                  stroke="var(--accent-terracotta)" 
-                  strokeWidth={2.5} 
-                  dot={{ r: 3, fill: 'var(--accent-terracotta)', strokeWidth: 1, stroke: '#000' }} 
-                  activeDot={{ r: 5 }} 
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="net" 
-                  name="Arus Kas Bersih" 
-                  stroke="var(--accent-blue)" 
-                  strokeWidth={2} 
-                  strokeDasharray="4 4" 
-                  dot={{ r: 3, fill: 'var(--accent-blue)', strokeWidth: 1, stroke: '#000' }} 
-                  activeDot={{ r: 5 }} 
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="text-[11px] text-[var(--text-secondary)] border-t border-[var(--border-subtle)] pt-2 flex items-center justify-between">
-            <span>Analisis mendalam & komparasi MoM:</span>
-            <button
-              type="button"
-              onClick={() => onNavigate('module5')}
-              className="font-bold underline text-[var(--accent-sand)] hover:text-[var(--text-primary)]"
-            >
-              Laporan & Analitik →
-            </button>
-          </div>
+        <div className="ax-chart">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={d.monthsData} margin={{ top: 8, right: 10, left: -18, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+              <XAxis dataKey="label" stroke="var(--text-muted)" fontSize={10} tickLine={false} fontFamily="var(--font-mono)" />
+              <YAxis
+                stroke="var(--text-muted)"
+                fontSize={9}
+                tickLine={false}
+                fontFamily="var(--font-mono)"
+                tickFormatter={(v) => {
+                  if (Math.abs(v) >= 1000000) return `${(v / 1000000).toFixed(0)}jt`;
+                  if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(0)}rb`;
+                  return String(v);
+                }}
+              />
+              <Tooltip
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="ax-tip">
+                        <p>Bulan {label}</p>
+                        {payload.map((entry: any, index: number) => (
+                          <div key={`item-${index}`}>
+                            <span style={{ color: entry.color }}>{entry.name}:</span>
+                            <b>{entry.value < 0 ? '-' : ''}{formatRupiah(Math.abs(Number(entry.value)))}</b>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Line type="monotone" dataKey="income" name="Pemasukan" stroke="var(--accent-sage)" strokeWidth={3} dot={{ r: 3, fill: 'var(--accent-sage)', strokeWidth: 1.5, stroke: 'var(--ink)' }} activeDot={{ r: 5 }} />
+              <Line type="monotone" dataKey="expense" name="Pengeluaran" stroke="var(--accent-terracotta)" strokeWidth={3} dot={{ r: 3, fill: 'var(--accent-terracotta)', strokeWidth: 1.5, stroke: 'var(--ink)' }} activeDot={{ r: 5 }} />
+              <Line type="monotone" dataKey="net" name="Arus Kas Bersih" stroke="var(--accent-blue)" strokeWidth={2} strokeDasharray="4 4" dot={{ r: 3, fill: 'var(--accent-blue)', strokeWidth: 1.5, stroke: 'var(--ink)' }} activeDot={{ r: 5 }} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
-      </div>
+        <div className="ax-foot">
+          <span>Komparasi bulan ke bulan</span>
+          <button type="button" className="ax-link" onClick={() => onNavigate('module5')}>Laporan & Analitik →</button>
+        </div>
+      </section>
 
-      {/* =================================================================== */}
-      {/* 2. RINCIAN PENGELUARAN TAGIHAN MENDATANG (REQUESTED)                */}
-      {/* =================================================================== */}
-      <div className="brutal-card p-3 sm:p-4 bg-[var(--bg-surface)] space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2">
-          <div className="flex items-center gap-2">
-            <CalendarClock className="w-5 h-5 text-[var(--accent-terracotta)]" />
-            <div>
-              <h3 className="font-heading font-bold text-base text-[var(--text-primary)]">
-                Rincian Tagihan & Cicilan Mendatang
-              </h3>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Kewajiban dalam {windowDays} hari: <b>{formatRupiah(totalDueAmount)}</b>
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 self-start sm:self-auto">
+      {/* TAGIHAN MENDATANG */}
+      <section className="ax-b s6 ax-panel">
+        <div className="ax-ph">
+          <h3><span className="ax-ic" style={{ background: 'var(--accent-terracotta)' }}><CalendarClock className="w-3.5 h-3.5" /></span>Tagihan & Cicilan</h3>
+          <div className="ax-chips">
             {WINDOWS.map(w => (
-              <button 
-                key={w} 
-                type="button" 
-                onClick={() => setWindowDays(w)} 
-                className={`brutal-badge text-xs px-2.5 py-1 ${
-                  windowDays === w ? 'bg-[var(--accent-sand)] text-[#111] font-bold' : ''
-                }`}
-              >
-                {w} Hari
-              </button>
+              <button key={w} type="button" onClick={() => setWindowDays(w)} data-on={windowDays === w}>{w}H</button>
             ))}
           </div>
         </div>
-
+        <p className="ax-note">Kewajiban {windowDays} hari ke depan: <b>{formatRupiah(totalDueAmount)}</b></p>
         {due.length === 0 ? (
-          <p className="text-xs text-[var(--text-secondary)] italic py-2">
-            Tidak ada tagihan atau cicilan jatuh tempo dalam {windowDays} hari ke depan. Semua aman terkendali!
-          </p>
+          <p className="ax-empty">Tidak ada tagihan atau cicilan jatuh tempo dalam {windowDays} hari ke depan. Semua aman terkendali!</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          <ul className="ax-list">
             {due.slice(0, 6).map(item => (
-              <div 
-                key={item.key}
-                onClick={() => onNavigate('module3')}
-                className="p-3 rounded bg-[var(--bg-elevated)] border border-[var(--border-color)] hover:border-[var(--accent-sand)] cursor-pointer transition-all space-y-1.5"
-              >
-                <div className="flex items-start justify-between gap-1">
-                  <span className="font-heading font-bold text-xs text-[var(--text-primary)] truncate max-w-[130px]">
-                    {item.name}
-                  </span>
-                  <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
-                    item.st.isOverdue 
-                      ? 'bg-[var(--accent-terracotta)] text-white' 
-                      : item.st.daysLeft === 0 
-                      ? 'bg-[var(--accent-sand)] text-[#111]' 
-                      : 'bg-[var(--bg-muted)] text-[var(--text-secondary)]'
-                  }`}>
-                    {item.st.label}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between text-xs pt-1 border-t border-[var(--border-subtle)]">
-                  <span className="text-[10px] text-[var(--text-muted)] font-mono">{item.kind}</span>
-                  <span className="font-mono font-bold text-[var(--accent-terracotta-light)]">
-                    {formatRupiah(item.amount)}
-                  </span>
-                </div>
-              </div>
+              <li key={item.key}>
+                <button type="button" className="ax-row" onClick={() => onNavigate('module3')}>
+                  <span className={`ax-due ${item.st.isOverdue ? 'late' : item.st.daysLeft === 0 ? 'today' : ''}`}>{item.st.label}</span>
+                  <span className="ax-row-t"><b>{item.name}</b><small>{item.kind}</small></span>
+                  <span className="ax-row-v neg">{formatRupiah(item.amount)}</span>
+                </button>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
-
-        <div className="flex justify-between items-center pt-1 text-xs">
-          <button 
-            type="button" 
-            onClick={() => onNavigate('module3')} 
-            className="font-bold underline text-[var(--accent-blue-light)] hover:text-[var(--text-primary)]"
-          >
-            Buka Modul Tagihan & Utang →
-          </button>
-          {due.length > 6 && (
-            <span className="text-xs text-[var(--text-muted)]">
-              +{due.length - 6} kewajiban lainnya
-            </span>
-          )}
+        <div className="ax-foot">
+          <button type="button" className="ax-link" onClick={() => onNavigate('module3')}>Buka Tagihan & Utang →</button>
+          {due.length > 6 && <span>+{due.length - 6} lainnya</span>}
         </div>
-      </div>
+      </section>
 
-      {/* =================================================================== */}
-      {/* 3. DUA KOLOM: PROGRES TABUNGAN & PORTOFOLIO INVESTASI               */}
-      {/* =================================================================== */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Kolom Kiri: Sinking Funds & Goals */}
-        <div className="brutal-card p-3 sm:p-4 bg-[var(--bg-surface)] space-y-3">
-          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
-            <div className="flex items-center gap-2">
-              <Target className="w-4 h-4 text-[var(--accent-sand)]" />
-              <h3 className="font-heading font-bold text-sm text-[var(--text-primary)]">
-                Progres Sinking Funds Terdekat
-              </h3>
-            </div>
-            <button
-              type="button"
-              onClick={() => onNavigate('module2')}
-              className="text-[11px] font-mono text-[var(--accent-sand-light)] hover:underline"
-            >
-              Lihat Semua →
-            </button>
-          </div>
-
-          {d.nearGoals.length === 0 ? (
-            <p className="text-xs text-[var(--text-muted)] italic py-2">
-              Belum ada target aktif di buku ini. Mulai buat di Sinking Funds!
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {d.nearGoals.map(g => {
-                const pct = Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100));
-                return (
-                  <button
-                    key={g.id}
-                    type="button"
-                    onClick={() => onNavigate('module2')}
-                    className="w-full text-left space-y-1.5 p-2 rounded hover:bg-[var(--bg-elevated)] transition-all"
-                  >
-                    <div className="flex justify-between text-xs">
-                      <b className="text-[var(--text-primary)]">{g.name}</b>
-                      <span className="font-mono font-bold text-[var(--accent-sand-light)]">{pct}%</span>
-                    </div>
-                    <div className="brutal-progress-container">
-                      <div className="brutal-progress-bar" style={{ width: `${pct}%` }} />
-                    </div>
-                    <div className="text-[10px] text-[var(--text-secondary)] font-mono">
-                      {formatRupiah(g.currentAmount)} / {formatRupiah(g.targetAmount)}
-                      {g.deadline ? ` • Deadline: ${g.deadline}` : ''}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+      {/* 5 TRANSAKSI TERAKHIR */}
+      <section className="ax-b s6 ax-panel">
+        <div className="ax-ph">
+          <h3><span className="ax-ic" style={{ background: 'var(--accent-blue)' }}><Receipt className="w-3.5 h-3.5" /></span>5 Transaksi Terakhir</h3>
+          <button type="button" className="ax-link" onClick={() => onNavigate('history_transaction')}>Semua riwayat →</button>
         </div>
-
-        {/* Kolom Kanan: Sekilas Portofolio Investasi */}
-        <div className="brutal-card p-3 sm:p-4 bg-[var(--bg-surface)] space-y-3 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2 mb-2">
-              <div className="flex items-center gap-2">
-                <Coins className="w-4 h-4 text-[var(--accent-sand)]" />
-                <h3 className="font-heading font-bold text-sm text-[var(--text-primary)]">
-                  Portofolio Investasi
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => onNavigate('investments')}
-                className="text-[11px] font-mono text-[var(--accent-sand-light)] hover:underline"
-              >
-                Detail Portofolio →
-              </button>
-            </div>
-
-            <div className="space-y-2.5">
-              <div className="flex justify-between items-baseline">
-                <span className="text-xs text-[var(--text-secondary)]">Nilai Pasar Portofolio:</span>
-                <span className="font-mono font-bold text-base text-[var(--text-primary)]">
-                  {formatRupiah(d.invSummary.totalCurrentValue)}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-baseline">
-                <span className="text-xs text-[var(--text-secondary)]">Total Modal Beli:</span>
-                <span className="font-mono text-xs text-[var(--text-muted)]">
-                  {formatRupiah(d.invSummary.totalCapital)}
-                </span>
-              </div>
-
-              <div className="p-2.5 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] flex items-center justify-between text-xs">
-                <span className="text-[11px] font-mono text-[var(--text-muted)]">Return Investasi:</span>
-                <span className={`font-mono font-bold ${
-                  d.invSummary.netGainLoss >= 0 ? 'text-[var(--accent-sage-light)]' : 'text-[var(--accent-terracotta-light)]'
-                }`}>
-                  {d.invSummary.netGainLoss >= 0 ? '+' : ''}{formatRupiah(d.invSummary.netGainLoss)} ({d.invSummary.netGainLossPercent.toFixed(2)}%)
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onNavigate('investments')}
-            className="brutal-btn brutal-btn-sand text-xs py-2 w-full flex items-center justify-center gap-1.5 font-bold"
-          >
-            <span>Buka Portofolio Investasi</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {/* =================================================================== */}
-      {/* 4. 5 TRANSAKSI TERAKHIR DENGAN LINK CEPAT KE RIWAYAT TRANSAKSI     */}
-      {/* =================================================================== */}
-      <div className="brutal-card p-3 sm:p-4 bg-[var(--bg-surface)] space-y-3">
-        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
-          <div className="flex items-center gap-2">
-            <Receipt className="w-4 h-4 text-[var(--accent-blue)]" />
-            <h3 className="font-heading font-bold text-sm sm:text-base text-[var(--text-primary)]">
-              5 Transaksi Terakhir
-            </h3>
-          </div>
-          <button 
-            type="button" 
-            onClick={() => onNavigate('history_transaction')} 
-            className="text-xs font-bold underline text-[var(--accent-blue-light)] hover:text-[var(--text-primary)]"
-          >
-            Lihat Semua Riwayat →
-          </button>
-        </div>
-
         {d.recent.length === 0 ? (
-          <p className="text-xs text-[var(--text-secondary)] italic py-2">
-            Belum ada transaksi di buku kas ini. Klik tombol (Catat Transaksi) di atas untuk mulai mencatat.
-          </p>
+          <p className="ax-empty">Belum ada transaksi di buku kas ini. Tekan tombol Catat untuk mulai mencatat.</p>
         ) : (
-          <div className="space-y-2">
+          <ul className="ax-list">
             {d.recent.map(t => (
-              <div 
-                key={t.id} 
-                className="flex items-center justify-between gap-3 p-2.5 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] hover:border-[var(--accent-sand)] transition-all"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="font-bold text-xs sm:text-sm truncate text-[var(--text-primary)]">
-                    {t.category || (t.type === 'transfer' ? 'Transfer Antar Akun' : 'Lainnya')}
-                  </div>
-                  <div className="text-[11px] text-[var(--text-secondary)] truncate">
-                    {t.date} • {accName(t.accountId)}{t.note ? ` • ${t.note}` : ''}
-                  </div>
-                </div>
-
-                <div className="text-right shrink-0">
-                  <span className={`font-mono font-bold text-xs sm:text-sm ${
-                    t.type === 'income' ? 'text-[var(--accent-sage-light)]' : t.type === 'expense' ? 'text-[var(--accent-terracotta-light)]' : 'text-[var(--accent-blue-light)]'
-                  }`}>
-                    {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : '⇄'} {formatRupiah(t.amount)}
-                  </span>
-                </div>
-              </div>
+              <li key={t.id} className="ax-row static">
+                <span className="ax-ic" style={{ background: t.type === 'income' ? 'var(--accent-sage)' : t.type === 'expense' ? 'var(--accent-terracotta)' : 'var(--accent-blue)' }}>
+                  {t.type === 'income' ? <TrendingUp className="w-3.5 h-3.5" /> : t.type === 'expense' ? <TrendingDown className="w-3.5 h-3.5" /> : <ArrowRightLeft className="w-3.5 h-3.5" />}
+                </span>
+                <span className="ax-row-t">
+                  <b>{t.category || (t.type === 'transfer' ? 'Transfer Antar Akun' : 'Lainnya')}</b>
+                  <small>{t.date} • {accName(t.accountId)}{t.note ? ` • ${t.note}` : ''}</small>
+                </span>
+                <span className={`ax-row-v ${t.type === 'income' ? 'pos' : t.type === 'expense' ? 'neg' : 'blu'}`}>
+                  {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : '⇄'} {formatRupiah(t.amount)}
+                </span>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
-      </div>
+      </section>
+
+      {/* SINKING FUNDS */}
+      <section className="ax-b s6 ax-panel">
+        <div className="ax-ph">
+          <h3><span className="ax-ic" style={{ background: 'var(--accent-sand)' }}><Target className="w-3.5 h-3.5" /></span>Sinking Funds Terdekat</h3>
+          <button type="button" className="ax-link" onClick={() => onNavigate('module2')}>Lihat semua →</button>
+        </div>
+        {d.nearGoals.length === 0 ? (
+          <p className="ax-empty">Belum ada target aktif di buku ini. Mulai buat di Sinking Funds!</p>
+        ) : (
+          <ul className="ax-list">
+            {d.nearGoals.map(g => {
+              const pct = Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100));
+              return (
+                <li key={g.id}>
+                  <button type="button" className="ax-goal" onClick={() => onNavigate('module2')}>
+                    <span className="ax-goal-h"><b>{g.name}</b><em>{pct}%</em></span>
+                    <span className="brutal-progress-container"><span className="brutal-progress-bar" style={{ width: `${pct}%`, display: 'block' }} /></span>
+                    <small>{formatRupiah(g.currentAmount)} / {formatRupiah(g.targetAmount)}{g.deadline ? ` • Deadline: ${g.deadline}` : ''}</small>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      {/* PORTOFOLIO INVESTASI */}
+      <section className="ax-b s6 ax-panel ax-inv">
+        <div className="ax-ph">
+          <h3><span className="ax-ic" style={{ background: 'var(--accent-lavender)' }}><Coins className="w-3.5 h-3.5" /></span>Portofolio Investasi</h3>
+          <button type="button" className="ax-link" onClick={() => onNavigate('investments')}>Detail →</button>
+        </div>
+        <div className="ax-eyebrow dim">Nilai pasar portofolio</div>
+        <div className="ax-inv-n"><Money value={d.invSummary.totalCurrentValue} /></div>
+        <div className="ax-kv"><span>Total modal beli</span><b>{formatRupiah(d.invSummary.totalCapital)}</b></div>
+        <div className="ax-kv"><span>Return investasi</span>
+          <b className={d.invSummary.netGainLoss >= 0 ? 'pos' : 'neg'}>
+            {d.invSummary.netGainLoss >= 0 ? '+' : ''}{formatRupiah(d.invSummary.netGainLoss)} ({d.invSummary.netGainLossPercent.toFixed(2)}%)
+          </b>
+        </div>
+        <button type="button" className="brutal-btn brutal-btn-sand ax-wide" onClick={() => onNavigate('investments')}>
+          Buka Portofolio Investasi<ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </section>
     </div>
   );
 }

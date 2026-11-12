@@ -29,7 +29,7 @@ export function SixMonthReport({ transactions, ledgerName }: { transactions: Tra
   };
 
   return (
-    <NeoCard className="p-4 space-y-4">
+    <NeoCard className="p-3 space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
           <h3 className="font-heading font-bold text-[var(--text-primary)]">Arus Kas 6 Bulan Terakhir</h3>

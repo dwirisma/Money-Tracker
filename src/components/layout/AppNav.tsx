@@ -1,49 +1,29 @@
 import { useEffect, useState } from 'react';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Clock, 
-  Eye, 
-  EyeOff, 
-  Moon, 
-  Sun, 
-  X, 
-  Calendar 
-} from 'lucide-react';
+import { ChevronsLeft, ChevronsRight, Eye, EyeOff, LayoutGrid, Moon, Plus, Sun, X } from 'lucide-react';
 import { useUI } from '../../context/UIContext';
-import { SIDEBAR_GROUPS, type ModuleId } from './navConfig';
+import { ALL_NAV_ITEMS, SIDEBAR_GROUPS, type ModuleId } from './navConfig';
 
 interface Props {
   active: ModuleId;
   onNavigate: (id: ModuleId) => void;
 }
 
-function formatDrawerNow(d: Date) {
-  const hari = d.toLocaleDateString('id-ID', { weekday: 'long' });
-  const tgl = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-  const jam = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  return { hari, tgl, jam };
+const TABS: ModuleId[] = ['dashboard', 'history_transaction', 'module1'];
+const item = (id: ModuleId) => ALL_NAV_ITEMS.find(i => i.id === id)!;
+
+function Tab({ id, active, onGo }: { id: ModuleId; active: boolean; onGo: (id: ModuleId) => void }) {
+  const it = item(id);
+  return (
+    <button type="button" className="ax-tab" data-active={active} onClick={() => onGo(id)} aria-current={active ? 'page' : undefined}>
+      <span className="ax-tab-ic"><it.icon size={18} /></span>
+      {it.short}
+    </button>
+  );
 }
 
 export function AppNav({ active, onNavigate }: Props) {
-  const { 
-    sidebarCollapsed, 
-    toggleSidebar, 
-    mobileDrawerOpen, 
-    setMobileDrawerOpen,
-    theme,
-    privacy,
-    toggleTheme,
-    togglePrivacy
-  } = useUI();
-
-  const [drawerTime, setDrawerTime] = useState(() => new Date());
-
-  useEffect(() => {
-    if (!mobileDrawerOpen) return;
-    const interval = setInterval(() => setDrawerTime(new Date()), 1000);
-    return () => clearInterval(interval);
-  }, [mobileDrawerOpen]);
+  const { sidebarCollapsed, toggleSidebar, mobileDrawerOpen, setMobileDrawerOpen, theme, privacy, toggleTheme, togglePrivacy } = useUI();
+  const [now, setNow] = useState(() => new Date());
 
   const go = (id: ModuleId) => {
     onNavigate(id);
@@ -51,192 +31,79 @@ export function AppNav({ active, onNavigate }: Props) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const { hari, tgl, jam } = formatDrawerNow(drawerTime);
+  useEffect(() => {
+    if (!mobileDrawerOpen) return;
+    const t = setInterval(() => setNow(new Date()), 1000);
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileDrawerOpen(false); };
+    window.addEventListener('keydown', esc);
+    return () => { clearInterval(t); window.removeEventListener('keydown', esc); };
+  }, [mobileDrawerOpen, setMobileDrawerOpen]);
+
+  const tgl = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const jam = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const menuActive = !TABS.includes(active) && active !== 'add_transaction';
 
   return (
     <>
-      {/* =================================================================== */}
-      {/* DESKTOP SIDEBAR (FIXED LEFT ON SCREENS >= MD)                      */}
-      {/* =================================================================== */}
-      <aside
-        aria-label="Navigasi utama"
-        className="max-md:hidden flex fixed inset-y-0 left-0 z-40 flex-col bg-[var(--sidebar-bg)] border-r-2 border-[var(--border-color)] overflow-y-auto"
-        style={{ width: 'var(--sidebar-w)' }}
-      >
-        <div className="flex items-center justify-between px-3 py-3.5 border-b-2 border-[var(--border-subtle)]">
-          {!sidebarCollapsed && (
-            <div>
-              <div className="font-heading font-bold text-lg leading-none text-[var(--text-primary)]">Artha</div>
-              <div className="font-mono text-[10px] text-[var(--text-muted)] mt-1">WEALTH OS • V2</div>
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            aria-label={sidebarCollapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}
-            title={sidebarCollapsed ? 'Buka Navigasi Artha' : 'Ciutkan sidebar'}
-            className={`${
-              sidebarCollapsed ? 'w-9 h-9 mx-auto' : 'w-8 h-8'
-            } bg-[var(--accent-sand)] text-[#14141a] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] flex items-center justify-center font-heading font-extrabold text-base shrink-0 hover:opacity-90 active:translate-x-0.5 active:translate-y-0.5 cursor-pointer`}
-          >
-            A
-          </button>
+      {/* DESKTOP: sidebar */}
+      <aside className="ax-side" data-collapsed={sidebarCollapsed} aria-label="Navigasi utama">
+        <div className="ax-brand">
+          <button type="button" className="ax-logo" onClick={toggleSidebar} aria-label={sidebarCollapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}>A</button>
+          <div><b>Artha</b><small>WEALTH OS</small></div>
         </div>
-
-        <nav className="flex-1 px-2 pb-4 space-y-4 pt-2">
-          {SIDEBAR_GROUPS.map(group => (
-            <div key={group.label}>
-              {!sidebarCollapsed && <div className="nav-group-label">{group.label}</div>}
-              {sidebarCollapsed && <div className="h-3" />}
-              <div className="space-y-1">
-                {group.items.map(item => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className="nav-item"
-                    data-active={active === item.id}
-                    title={sidebarCollapsed ? item.label : undefined}
-                    onClick={() => go(item.id)}
-                    aria-current={active === item.id ? 'page' : undefined}
-                  >
-                    <item.icon className="w-[18px] h-[18px] shrink-0" />
-                    {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </nav>
+        {SIDEBAR_GROUPS.map(g => (
+          <div key={g.label}>
+            <div className="ax-grp">{g.label}</div>
+            {g.items.map(it => (
+              <button key={it.id} type="button" className="ax-item" data-active={active === it.id} title={it.label} onClick={() => go(it.id)} aria-current={active === it.id ? 'page' : undefined}>
+                <span className="ax-chip" style={{ backgroundColor: it.accent }}><it.icon size={16} /></span>
+                <span>{it.label}</span>
+              </button>
+            ))}
+          </div>
+        ))}
+        <button type="button" className="ax-collapse" onClick={toggleSidebar} aria-label="Ciutkan atau perluas sidebar">
+          {sidebarCollapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}<span>Ciutkan</span>
+        </button>
       </aside>
 
-      {/* =================================================================== */}
-      {/* MOBILE SIDEBAR DRAWER (DIPICU OLEH KLIK LOGO 'A' DI TOP HEADER)     */}
-      {/* Menggantikan navigasi bawah sesuai permintaan pengguna              */}
-      {/* =================================================================== */}
+      {/* MOBILE: tab bar + tombol catat di tengah */}
+      <nav className="ax-tabbar" aria-label="Navigasi bawah">
+        <Tab id="dashboard" active={active === 'dashboard'} onGo={go} />
+        <Tab id="history_transaction" active={active === 'history_transaction'} onGo={go} />
+        <button type="button" className="ax-fab" onClick={() => go('add_transaction')} aria-label="Catat transaksi baru"><Plus size={26} strokeWidth={3} /></button>
+        <Tab id="module1" active={active === 'module1'} onGo={go} />
+        <button type="button" className="ax-tab" data-active={menuActive} onClick={() => setMobileDrawerOpen(true)}>
+          <span className="ax-tab-ic"><LayoutGrid size={18} /></span>Menu
+        </button>
+      </nav>
+
+      {/* MOBILE: sheet menu semua modul */}
       {mobileDrawerOpen && (
-        <div 
-          className="md:hidden fixed inset-0 z-50 flex bg-black/75 backdrop-blur-[2px] transition-opacity animate-in fade-in duration-200"
-          onClick={() => setMobileDrawerOpen(false)}
-        >
-          <div
-            role="dialog"
-            aria-label="Menu Navigasi Artha"
-            className="w-[85%] max-w-[320px] h-full bg-[var(--sidebar-bg)] border-r-2 border-[var(--border-color)] shadow-[var(--shadow-lg)] flex flex-col overflow-hidden animate-in slide-in-from-left duration-200"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Header Drawer */}
-            <div className="p-4 border-b-2 border-[var(--border-color)] bg-[var(--bg-elevated)] space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 bg-[var(--accent-sand)] text-[#14141a] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] flex items-center justify-center font-heading font-bold text-lg">
-                    A
-                  </div>
-                  <div>
-                    <h2 className="font-heading font-bold text-base leading-none text-[var(--text-primary)]">ARTHA</h2>
-                    <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase">Wealth OS Drawer</span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setMobileDrawerOpen(false)}
-                  className="brutal-btn !p-1.5"
-                  aria-label="Tutup Menu"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* WIDGET TANGGAL & JAM REALTIME KHUSUS MOBILE (DIPINDAHKAN KE SINI SESUAI REQUEST) */}
-              <div className="p-2.5 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1 font-heading font-bold text-[var(--text-primary)]">
-                    <Calendar className="w-3.5 h-3.5 text-[var(--accent-sand)]" />
-                    {hari}, {tgl}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-1">
-                  <span className="flex items-center gap-1 font-mono text-xs text-[var(--text-secondary)]">
-                    <Clock className="w-3 h-3 text-[var(--accent-sage)]" />
-                    Waktu Saat Ini
-                  </span>
-                  <span className="font-mono font-bold text-xs text-[var(--accent-sand-light)]">
-                    {jam}
-                  </span>
-                </div>
-              </div>
-
-              {/* QUICK CONTROLS: TEMA & PRIVASI DALAM DRAWER */}
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={togglePrivacy}
-                  className="brutal-btn text-xs py-1.5 px-2 flex items-center justify-center gap-1.5 !shadow-[1px_1px_0px_#000]"
-                >
-                  {privacy ? <EyeOff className="w-3.5 h-3.5 text-[var(--accent-sand)]" /> : <Eye className="w-3.5 h-3.5 text-[var(--accent-sage)]" />}
-                  <span className="truncate">{privacy ? 'Saldo Sensor' : 'Saldo Terbuka'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={toggleTheme}
-                  className="brutal-btn text-xs py-1.5 px-2 flex items-center justify-center gap-1.5 !shadow-[1px_1px_0px_#000]"
-                >
-                  {theme === 'dark' ? <Sun className="w-3.5 h-3.5 text-[var(--accent-sand)]" /> : <Moon className="w-3.5 h-3.5 text-[var(--accent-blue)]" />}
-                  <span className="truncate">{theme === 'dark' ? 'Mode Gelap' : 'Mode Terang'}</span>
-                </button>
-              </div>
+        <div className="ax-overlay md:hidden" onClick={() => setMobileDrawerOpen(false)}>
+          <div className="ax-sheet" role="dialog" aria-label="Menu Artha" onClick={e => e.stopPropagation()}>
+            <div className="ax-handle" />
+            <div className="ax-sh">
+              <div><h2>Menu</h2><p>{tgl} · {jam}</p></div>
+              <button type="button" className="brutal-btn !p-2" onClick={() => setMobileDrawerOpen(false)} aria-label="Tutup menu"><X size={16} /></button>
             </div>
-
-            {/* List Menu Navigasi Lengkap di Drawer */}
-            <nav className="flex-1 overflow-y-auto p-3 space-y-4">
-              {SIDEBAR_GROUPS.map(group => (
-                <div key={group.label} className="space-y-1.5">
-                  <div className="px-2 text-[10px] font-mono uppercase font-bold text-[var(--text-secondary)] tracking-wider">
-                    {group.label}
-                  </div>
-                  <div className="space-y-1">
-                    {group.items.map(item => {
-                      const isActive = active === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => go(item.id)}
-                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-sm)] border-2 transition-all text-left ${
-                            isActive
-                              ? 'bg-[var(--bg-surface)] border-[var(--border-color)] shadow-[2px_2px_0px_#000] font-bold text-[var(--text-primary)]'
-                              : 'border-transparent hover:border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)]'
-                          }`}
-                        >
-                          <span 
-                            className="w-7 h-7 shrink-0 flex items-center justify-center border border-[var(--border-color)] rounded-[var(--radius-xs)] shadow-[1px_1px_0px_#000]"
-                            style={{ backgroundColor: isActive ? item.accent : 'var(--bg-surface)' }}
-                          >
-                            <item.icon className="w-4 h-4 text-[#111]" />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <span className="block font-heading text-xs truncate leading-tight">
-                              {item.label}
-                            </span>
-                            <span className="block text-[10px] text-[var(--text-secondary)] truncate">
-                              {item.hint}
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </nav>
-
-            {/* Footer Drawer */}
-            <div className="p-3 border-t-2 border-[var(--border-color)] bg-[var(--bg-elevated)] text-center">
-              <span className="text-[10px] font-mono text-[var(--text-muted)]">
-                Artha Wealth OS • Offline-First PWA
-              </span>
+            <div className="ax-tools">
+              <button type="button" className="brutal-btn" onClick={togglePrivacy}>{privacy ? <EyeOff size={14} /> : <Eye size={14} />}{privacy ? 'Saldo disensor' : 'Saldo terbuka'}</button>
+              <button type="button" className="brutal-btn" onClick={toggleTheme}>{theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}{theme === 'dark' ? 'Mode gelap' : 'Mode terang'}</button>
             </div>
+            {SIDEBAR_GROUPS.map(g => (
+              <div key={g.label}>
+                <div className="ax-grp">{g.label}</div>
+                <div className="ax-grid">
+                  {g.items.map(it => (
+                    <button key={it.id} type="button" className="ax-tile" data-active={active === it.id} onClick={() => go(it.id)}>
+                      <span className="ax-chip" style={{ backgroundColor: it.accent }}><it.icon size={16} /></span>
+                      {it.short}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

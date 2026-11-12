@@ -4,10 +4,17 @@
    Terang = default (krem + kartu putih). Gelap = varian arang dengan aksen sama.
    ========================================================================== */
 
+/* ---------- FONT (self-hosted, lisensi OFL di /public/fonts/licenses) ---------- */
+@font-face { font-family: 'Artha Display'; src: url('/fonts/BricolageGrotesque-Bold.woff') format('woff'); font-weight: 500 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Artha Sans'; src: url('/fonts/InstrumentSans-Regular.woff') format('woff'); font-weight: 400 500; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Artha Sans'; src: url('/fonts/InstrumentSans-Bold.woff') format('woff'); font-weight: 600 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Artha Mono'; src: url('/fonts/JetBrainsMono-Regular.woff') format('woff'); font-weight: 400 500; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Artha Mono'; src: url('/fonts/JetBrainsMono-Bold.woff') format('woff'); font-weight: 600 900; font-style: normal; font-display: swap; }
+
 /* ---------- TOKEN: TEMA TERANG (DEFAULT) ---------- */
 :root {
   color-scheme: light;
-  --sidebar-w: 13.5rem;
+  --sidebar-w: 12.5rem;
 
   --bg-primary: #fff4dc;     /* krem hangat */
   --bg-surface: #ffffff;     /* kartu */
@@ -39,9 +46,9 @@
   --text-muted: #6a655a;
   --text-inverted: #14141a;
 
-  --font-heading: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
-  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: 'Artha Display', 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'Artha Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+  --font-body: 'Artha Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   --radius-xs: 6px;
   --radius-sm: 8px;
@@ -84,20 +91,32 @@
 
 /* ---------- BASE ---------- */
 @layer base {
+  html { font-size: 93.75%; } /* 15px: seluruh skala rem (teks & spasi) ikut ~6% lebih padat, tetap menghormati pengaturan font browser */
   body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
     font-family: var(--font-body);
+    font-weight: 500;
     margin: 0;
     -webkit-font-smoothing: antialiased;
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }
-  h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); font-weight: 800; letter-spacing: -0.02em; }
+  h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); font-weight: 800; letter-spacing: -0.025em; line-height: 1.1; }
+  h1, h2, h3 { -webkit-text-stroke: .4px currentColor; } /* sedikit lebih "black" dari Bold */
   :focus-visible { outline: 3px solid var(--accent-blue); outline-offset: 2px; }
 }
+/* Ciri khas: judul halaman diberi stabilo (marker) di bawah teks */
+h2[class*="text-2xl"], h2[class*="text-xl"] {
+  width: fit-content; padding: 0 .2em; margin-left: -.2em;
+  background-image: linear-gradient(transparent 62%, var(--accent-sand) 62%, var(--accent-sand) 92%, transparent 92%);
+}
+:root[data-theme="dark"] h2[class*="text-2xl"], :root[data-theme="dark"] h2[class*="text-xl"] {
+  background-image: linear-gradient(transparent 62%, var(--accent-sand-dark) 62%, var(--accent-sand-dark) 92%, transparent 92%);
+}
 .font-heading { font-family: var(--font-heading); }
-.font-num, .font-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+.font-num { font-family: var(--font-heading); font-weight: 800; font-variant-numeric: tabular-nums lining-nums; letter-spacing: -0.02em; }
+.font-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; font-weight: 600; }
 .hidden { display: none !important; }
 
 /* ==========================================================================
@@ -127,8 +146,8 @@
   /* ----- Tombol ----- */
   .brutal-btn {
     display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
-    font-family: var(--font-heading); font-weight: 700; font-size: .85rem; line-height: 1.2;
-    padding: .55rem 1rem;
+    font-family: var(--font-heading); font-weight: 800; font-size: .82rem; line-height: 1.15; letter-spacing: -0.01em;
+    padding: .45rem .85rem;
     border: 2px solid var(--border-color);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-md);
@@ -159,8 +178,8 @@
     border-radius: var(--radius-sm);
     box-shadow: var(--shadow-sm);
     color: var(--text-primary);
-    font-family: var(--font-body); font-size: .9rem;
-    padding: .55rem .8rem; outline: none;
+    font-family: var(--font-body); font-weight: 600; font-size: .88rem;
+    padding: .45rem .7rem; outline: none;
     transition: border-color .12s, box-shadow .12s, background-color .12s;
   }
   .brutal-input:focus, .brutal-select:focus, .brutal-textarea:focus {
@@ -171,15 +190,15 @@
   .brutal-input::placeholder { color: var(--text-muted); }
   .brutal-input-num { font-family: var(--font-mono); font-size: 1.05rem; font-weight: 600; letter-spacing: -0.02em; }
   .brutal-label {
-    display: block; font-family: var(--font-heading); font-weight: 700; font-size: .72rem;
+    display: block; font-family: var(--font-heading); font-weight: 800; font-size: .68rem;
     text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); margin-bottom: .3rem;
   }
 
   /* ----- Badge (pil) ----- */
   .brutal-badge {
     display: inline-flex; align-items: center; gap: .3rem;
-    font-family: var(--font-mono); font-size: .7rem; font-weight: 700;
-    padding: .12rem .55rem; border: 2px solid var(--border-color); border-radius: 999px;
+    font-family: var(--font-mono); font-size: .66rem; font-weight: 800;
+    padding: .1rem .5rem; border: 2px solid var(--border-color); border-radius: 999px;
     text-transform: uppercase; letter-spacing: .03em;
     background-color: var(--bg-surface); color: var(--text-primary);
   }
@@ -202,8 +221,8 @@
   /* ----- Navigasi ----- */
   .nav-item {
     display: flex; align-items: center; gap: .65rem; width: 100%;
-    padding: .5rem .7rem; border: 2px solid transparent; border-radius: var(--radius-md);
-    font-family: var(--font-heading); font-weight: 700; font-size: .84rem;
+    padding: .42rem .65rem; border: 2px solid transparent; border-radius: var(--radius-md);
+    font-family: var(--font-heading); font-weight: 800; font-size: .82rem;
     color: var(--text-primary); cursor: pointer; text-align: left;
     transition: background-color .12s ease, transform .08s ease;
   }

@@ -43,7 +43,7 @@ export function AutopilotFields({ kind, draft, onChange, ...ctx }: { kind: Autop
   const word = kind === 'goal_topup' ? 'target tabungan' : kind === 'pay_bill' ? 'tagihan' : 'utang';
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div>
         <label className="brutal-label">{kind === 'goal_topup' ? 'Target Sinking Fund' : kind === 'pay_bill' ? 'Tagihan yang dibayar' : 'Utang yang dicicil'}</label>
         <select className="brutal-select text-sm" value={draft.targetId} onChange={e => pick(e.target.value)} required>
@@ -51,7 +51,7 @@ export function AutopilotFields({ kind, draft, onChange, ...ctx }: { kind: Autop
           {targets.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2.5">
         <div>
           <label className="brutal-label">Akun sumber dana</label>
           <select className="brutal-select text-sm" value={draft.sourceId || accs[0]?.id || ''} onChange={e => set({ sourceId: e.target.value })}>
@@ -65,7 +65,7 @@ export function AutopilotFields({ kind, draft, onChange, ...ctx }: { kind: Autop
         </div>
       </div>
       {kind === 'goal_topup' && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2.5">
           <div>
             <label className="brutal-label">Siklus</label>
             <select className="brutal-select text-sm" value={draft.cycle} onChange={e => set({ cycle: e.target.value as BillCycle })}>
@@ -99,14 +99,14 @@ export function AutopilotList({ ledgerId, accounts, goals, bills, debts, version
   const runNow = async () => { setRunning(true); try { await onRun(); } finally { setRunning(false); setTick(t => t + 1); } };
 
   return (
-    <NeoCard className="p-4 space-y-3">
+    <NeoCard className="p-3 space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h3 className="font-heading font-bold flex items-center gap-2 text-[var(--text-primary)]"><Rocket className="w-5 h-5" />Aturan Autopilot ({rules.length})</h3>
         <NeoButton accent="sage" onClick={runNow} disabled={running} className="flex items-center gap-1 text-xs"><Play className="w-4 h-4" />{running ? 'Menjalankan…' : 'Jalankan sekarang'}</NeoButton>
       </div>
       <ul className="space-y-2">
         {rules.map(r => (
-          <li key={r.id} className="border-2 border-[var(--border-color)] rounded-md px-3 py-2 bg-[var(--bg-elevated)] flex items-start justify-between gap-3" style={{ opacity: r.isActive ? 1 : 0.6 }}>
+          <li key={r.id} className="border-2 border-[var(--border-color)] rounded-md px-3 py-2 bg-[var(--bg-elevated)] flex items-start justify-between gap-2.5" style={{ opacity: r.isActive ? 1 : 0.6 }}>
             <div className="min-w-0 space-y-0.5">
               <div className="font-bold text-sm text-[var(--text-primary)] truncate">{KIND_LABEL[r.kind]}: {nameOf(r.kind, r.targetId) ?? <span className="text-[#c2334d]">target dihapus</span>}</div>
               <div className="text-xs text-[var(--text-secondary)]">

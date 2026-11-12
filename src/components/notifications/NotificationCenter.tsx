@@ -193,7 +193,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           className="absolute right-0 mt-2.5 w-[330px] sm:w-[410px] max-w-[calc(100vw-1.5rem)] bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[4px_4px_0px_#000] z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
         >
           {/* Header Panel Notifikasi */}
-          <div className="p-3.5 bg-[var(--bg-elevated)] border-b-2 border-[var(--border-color)] flex items-center justify-between gap-2">
+          <div className="p-3 bg-[var(--bg-elevated)] border-b-2 border-[var(--border-color)] flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <div className="p-1 rounded-[var(--radius-sm)] bg-[var(--accent-sand)] text-black border border-black shadow-[1px_1px_0px_#000]">
                 <Bell className="w-3.5 h-3.5" />
@@ -273,7 +273,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                   <div
                     key={notif.id}
                     onClick={() => handleNotificationClick(notif)}
-                    className={`p-3 sm:p-3.5 transition-colors cursor-pointer group flex items-start gap-3 relative ${
+                    className={`p-3 sm:p-3.5 transition-colors cursor-pointer group flex items-start gap-2.5 relative ${
                       isUnread
                         ? 'bg-[var(--bg-elevated)] border-l-4 border-l-[var(--accent-sand)]'
                         : 'hover:bg-[var(--bg-elevated)]/60 opacity-80 hover:opacity-100'
