@@ -1,19 +1,17 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Plus, 
-  PieChart as PieIcon, 
-  Coins, 
-  Building2, 
-  Layers, 
-  Pencil, 
-  Trash2, 
-  ExternalLink, 
-  RefreshCw, 
-  Check, 
+import {
+  PieChart as PieIcon,
+  TrendingUp,
+  TrendingDown,
+  Plus,
+  Coins,
+  Building2,
+  Layers,
+  Pencil,
+  Trash2,
+  RefreshCw,
+  Check,
   X,
-  Calculator,
   AlertCircle
 } from 'lucide-react';
 import type { Ledger, InvestmentAsset, InvestmentAssetType } from '../types';
@@ -229,295 +227,136 @@ export function InvestmentPortfolioView({
 
   return (
     <div className="space-y-3 w-full">
-      {/* Header Halaman */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b-2 border-[var(--border-subtle)] pb-4">
+      <div className="ax-pagehead">
         <div>
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-[var(--accent-sand)]" />
-            <h2 className="font-heading font-bold text-xl text-[var(--text-primary)]">
-              Portofolio Investasi
-            </h2>
-          </div>
-          <p className="text-sm text-[var(--text-secondary)]">
-            Pantau pertumbuhan aset, nilai pasar, return, dan diversifikasi di <b>{currentLedger.name}</b>.
-          </p>
+          <h2>Portofolio Investasi</h2>
+          <p>Pantau nilai pasar, return, dan diversifikasi aset di <b>{currentLedger.name}</b></p>
         </div>
-      </div>
-
-      {/* SCORECARDS PORTOFOLIO UTAMA */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-        <div className="brutal-card p-3 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-sand)] space-y-1">
-          <span className="text-[10px] font-mono uppercase text-[var(--text-secondary)] font-bold">Total Nilai Pasar</span>
-          <p className="font-mono font-bold text-lg sm:text-xl text-[var(--text-primary)] tracking-tight">
-            {formatRupiah(summary.totalCurrentValue)}
-          </p>
-          <span className="text-[10px] text-[var(--text-muted)] font-mono block">Valuasi portofolio terkini</span>
-        </div>
-
-        <div className="brutal-card p-3 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-blue)] space-y-1">
-          <span className="text-[10px] font-mono uppercase text-[var(--text-secondary)] font-bold">Modal Pembelian</span>
-          <p className="font-mono font-bold text-lg sm:text-xl text-[var(--accent-blue-light)] tracking-tight">
-            {formatRupiah(summary.totalCapital)}
-          </p>
-          <span className="text-[10px] text-[var(--text-muted)] font-mono block">Total modal disetor (cost)</span>
-        </div>
-
-        <div className="brutal-card p-3 bg-[var(--bg-surface)] border-l-8 space-y-1" style={{
-          borderLeftColor: summary.netGainLoss >= 0 ? 'var(--accent-sage)' : 'var(--accent-terracotta)'
-        }}>
-          <span className="text-[10px] font-mono uppercase text-[var(--text-secondary)] font-bold">Keuntungan / Kerugian</span>
-          <p className={`font-mono font-bold text-lg sm:text-xl tracking-tight ${
-            summary.netGainLoss >= 0 ? 'text-[var(--accent-sage-light)]' : 'text-[var(--accent-terracotta-light)]'
-          }`}>
-            {summary.netGainLoss >= 0 ? '+' : ''}{formatRupiah(summary.netGainLoss)}
-          </p>
-          <span className="text-[10px] font-mono font-bold block" style={{
-            color: summary.netGainLoss >= 0 ? 'var(--accent-sage-light)' : 'var(--accent-terracotta-light)'
-          }}>
-            {summary.netGainLoss >= 0 ? '▲' : '▼'} {summary.netGainLossPercent.toFixed(2)}% ROI
-          </span>
-        </div>
-
-        <div className="brutal-card p-3 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-lavender)] space-y-1">
-          <span className="text-[10px] font-mono uppercase text-[var(--text-secondary)] font-bold">Total Instrumen</span>
-          <p className="font-mono font-bold text-lg sm:text-xl text-[var(--text-primary)]">
-            {summary.assetCount} <span className="text-xs font-normal text-[var(--text-muted)]">Aset</span>
-          </p>
-          <span className="text-[10px] text-[var(--text-muted)] font-mono block">
-            {summary.breakdown.length} kelas aset berbeda
-          </span>
-        </div>
-      </div>
-
-      {/* DIVERSIFIKASI & ALOKASI ASET (STACKED BAR & LEGEND) */}
-      <div className="brutal-card p-3.5 bg-[var(--bg-surface)] space-y-3">
-        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
-          <div className="flex items-center gap-2">
-            <PieIcon className="w-4 h-4 text-[var(--accent-sand)]" />
-            <h3 className="font-heading font-bold text-sm text-[var(--text-primary)]">
-              Alokasi & Diversifikasi Aset
-            </h3>
-          </div>
-          <span className="text-xs font-mono text-[var(--text-muted)]">
-            Persentase dari total Rp {formatRupiah(summary.totalCurrentValue)}
-          </span>
-        </div>
-
-        {summary.totalCurrentValue === 0 ? (
-          <p className="text-xs text-[var(--text-muted)] italic">Belum ada aset investasi terdaftar.</p>
-        ) : (
-          <div className="space-y-3">
-            {/* Visual Stacked Bar */}
-            <div className="h-6 w-full rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] overflow-hidden flex shadow-[var(--shadow-xs)]">
-              {summary.breakdown.map((item, idx) => (
-                <div
-                  key={item.type}
-                  style={{ width: `${item.percentage}%`, backgroundColor: item.color }}
-                  className="h-full relative group transition-all"
-                  title={`${item.label}: ${item.percentage.toFixed(1)}% (${formatRupiah(item.currentValue)})`}
-                />
-              ))}
-            </div>
-
-            {/* Chips Legend */}
-            <div className="flex flex-wrap gap-2 pt-1">
-              {summary.breakdown.map(item => (
-                <div
-                  key={item.type}
-                  className="px-2.5 py-1 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] flex items-center gap-2 text-xs"
-                >
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                  <span className="font-bold text-[var(--text-primary)]">{item.label}</span>
-                  <span className="font-mono text-[var(--accent-sand-light)]">{item.percentage.toFixed(1)}%</span>
-                  <span className="font-mono text-[10px] text-[var(--text-muted)]">({formatRupiah(item.currentValue)})</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* FILTER INSTRUMEN (SEGMENTED TABS) */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-        <button
-          type="button"
-          onClick={() => setSelectedType('all')}
-          className={`px-3 py-1.5 text-xs font-heading font-bold rounded-[var(--radius-sm)] border-2 transition-all whitespace-nowrap ${
-            selectedType === 'all'
-              ? 'bg-[var(--accent-sand)] text-[#111] border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-              : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]'
-          }`}
-        >
-          Semua ({investments.length})
+        <button type="button" onClick={openAddModal} className="brutal-btn brutal-btn-lavender">
+          <Plus className="w-4 h-4" />Catat aset
         </button>
+      </div>
 
+      {/* RINGKASAN + ALOKASI */}
+      <section className="ax-dash">
+        <div className="ax-b s8 ax-panel ax-hero lav">
+          <div className="ax-hero-head">
+            <div className="ax-eyebrow" style={{ marginTop: 0 }}><Coins className="w-3.5 h-3.5" />Total nilai pasar</div>
+            <span className="ax-badge-s">{summary.netGainLoss >= 0 ? '▲' : '▼'} {summary.netGainLossPercent.toFixed(2)}% ROI</span>
+          </div>
+          <div className="ax-big" style={{ marginBottom: 10 }}>{formatRupiah(summary.totalCurrentValue)}</div>
+          <div className="ax-stats">
+            <div className="ax-stat" title="Total modal disetor (cost)">
+              <span><Layers className="w-3 h-3" />Modal pembelian</span>
+              <b>{formatRupiah(summary.totalCapital)}</b>
+            </div>
+            <div className="ax-stat">
+              <span>{summary.netGainLoss >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}Untung / rugi</span>
+              <b className={summary.netGainLoss >= 0 ? 'ok' : 'bad'}>{summary.netGainLoss >= 0 ? '+' : ''}{formatRupiah(summary.netGainLoss)}</b>
+            </div>
+            <div className="ax-stat">
+              <span><Building2 className="w-3 h-3" />Total instrumen</span>
+              <b>{summary.assetCount} aset <small style={{ fontSize: 10, fontWeight: 700 }}>· {summary.breakdown.length} kelas</small></b>
+            </div>
+          </div>
+        </div>
+
+        <div className="ax-b s4 ax-panel ax-alloc">
+          <div className="ax-ph" style={{ margin: 0 }}>
+            <h3><span className="ax-ic" style={{ background: 'var(--accent-sand)' }}><PieIcon className="w-3.5 h-3.5" /></span>Alokasi aset</h3>
+          </div>
+          {summary.totalCurrentValue === 0 ? (
+            <p className="ax-empty">Belum ada aset investasi terdaftar.</p>
+          ) : (
+            <>
+              <div className="ax-alloc-bar" role="img" aria-label="Komposisi alokasi aset">
+                {summary.breakdown.map(item => (
+                  <i key={item.type} style={{ width: `${item.percentage}%`, backgroundColor: item.color }}
+                    title={`${item.label}: ${item.percentage.toFixed(1)}% (${formatRupiah(item.currentValue)})`} />
+                ))}
+              </div>
+              <div className="ax-list">
+                {summary.breakdown.map(item => (
+                  <div key={item.type} className="ax-alloc-row">
+                    <i style={{ backgroundColor: item.color }} />
+                    <b>{item.label}</b>
+                    <span>{item.percentage.toFixed(1)}% · {formatRupiah(item.currentValue)}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </section>
+
+      {/* FILTER INSTRUMEN */}
+      <div className="ax-chipset scroll" role="radiogroup" aria-label="Filter instrumen">
+        <button type="button" role="radio" aria-checked={selectedType === 'all'} onClick={() => setSelectedType('all')}>Semua ({investments.length})</button>
         {Object.entries(ASSET_TYPE_LABELS).map(([k, meta]) => {
           const count = investments.filter(a => a.type === k).length;
           if (count === 0) return null;
           return (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setSelectedType(k)}
-              className={`px-3 py-1.5 text-xs font-heading font-bold rounded-[var(--radius-sm)] border-2 transition-all whitespace-nowrap ${
-                selectedType === k
-                  ? 'bg-[var(--accent-sand)] text-[#111] border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-                  : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]'
-              }`}
-            >
-              {meta.label} ({count})
-            </button>
+            <button key={k} type="button" role="radio" aria-checked={selectedType === k} onClick={() => setSelectedType(k)}>{meta.label} ({count})</button>
           );
         })}
       </div>
 
-      {/* ASSET CARDS GRID */}
+      {/* KARTU ASET */}
       {filteredAssets.length === 0 ? (
-        <div className="brutal-card p-10 text-center space-y-3 bg-[var(--bg-surface)]">
-          <p className="font-heading font-bold text-sm text-[var(--text-secondary)]">
-            Belum ada instrumen investasi di kategori ini
-          </p>
-          <p className="text-xs text-[var(--text-muted)] font-mono">
-            Mulai bangun portofolio dengan mencatat saham, reksa dana, emas, atau aset lainnya.
-          </p>
-          <button
-            type="button"
-            onClick={openAddModal}
-            className="brutal-btn brutal-btn-sand text-xs py-2 px-3 inline-flex items-center gap-1.5 font-bold"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ Catat Aset Investasi Pertama</span>
-          </button>
+        <div className="ax-panel ax-emptyc">
+          <p>Belum ada instrumen investasi di kategori ini</p>
+          <small>Mulai bangun portofolio dengan mencatat saham, reksa dana, emas, atau aset lainnya.</small>
+          <button type="button" onClick={openAddModal} className="brutal-btn brutal-btn-lavender"><Plus className="w-4 h-4" />Catat aset investasi pertama</button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="ax-acc-grid">
           {filteredAssets.map(asset => {
             const gainLoss = asset.currentValue - asset.initialCapital;
             const gainLossPct = asset.initialCapital > 0 ? (gainLoss / asset.initialCapital) * 100 : 0;
             const meta = ASSET_TYPE_LABELS[asset.type] || ASSET_TYPE_LABELS.other;
-
+            const up = gainLoss >= 0;
+            const openQuick = () => { setQuickUpdateAsset(asset); setQuickValue(String(asset.currentValue)); };
             return (
-              <div
-                key={asset.id}
-                className="brutal-card p-3 sm:p-3 bg-[var(--bg-surface)] space-y-3 flex flex-col justify-between group hover:border-[var(--accent-sand)] transition-all"
-                style={{ borderTopWidth: '5px', borderTopColor: meta.color }}
-              >
-                {/* Header Kartu */}
-                <div className="space-y-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {asset.symbolOrTicker && (
-                          <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)]">
-                            {asset.symbolOrTicker}
-                          </span>
-                        )}
-                        <span className="brutal-badge text-[9px]" style={{ backgroundColor: meta.bg, color: '#111' }}>
-                          {meta.label}
-                        </span>
-                        {asset.platform && (
-                          <span className="text-[10px] font-mono text-[var(--text-muted)]">
-                            via {asset.platform}
-                          </span>
-                        )}
-                      </div>
-                      <h4 className="font-heading font-bold text-sm text-[var(--text-primary)] mt-1">
-                        {asset.name}
-                      </h4>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setQuickUpdateAsset(asset);
-                          setQuickValue(String(asset.currentValue));
-                        }}
-                        className="p-1.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded shadow-[1px_1px_0px_#000] text-[var(--accent-blue-light)] hover:text-[var(--text-primary)] transition-all"
-                        title="Perbarui Nilai Pasar Terkini"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => openEditModal(asset)}
-                        className="p-1.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded shadow-[1px_1px_0px_#000] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
-                        title="Edit Detail Aset"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setAssetToDelete(asset)}
-                        className="p-1.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded shadow-[1px_1px_0px_#000] text-[var(--text-secondary)] hover:text-[var(--accent-terracotta-light)] transition-all"
-                        title="Hapus Aset"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+              <article key={asset.id} className="ax-ac ob static" style={{ '--c': meta.color } as React.CSSProperties}>
+                <div className="ax-ac-h">
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', minWidth: 0 }}>
+                    {asset.symbolOrTicker && <span className="ax-ticker">{asset.symbolOrTicker}</span>}
+                    <span className="ax-tag" style={{ backgroundColor: meta.bg }}>{meta.label}</span>
                   </div>
-
-                  {asset.units !== undefined && (
-                    <p className="text-xs font-mono text-[var(--text-muted)]">
-                      Kepemilikan: <b className="text-[var(--text-secondary)]">{asset.units} unit</b>
-                    </p>
-                  )}
-                </div>
-
-                {/* Values & Return */}
-                <div className="pt-2 border-t border-[var(--border-subtle)] grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Modal Beli</span>
-                    <span className="font-mono font-bold text-sm text-[var(--text-secondary)]">
-                      {formatRupiah(asset.initialCapital)}
-                    </span>
-                  </div>
-
-                  <div className="text-right">
-                    <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase block">Nilai Saat Ini</span>
-                    <span className="font-mono font-bold text-sm text-[var(--text-primary)]">
-                      {formatRupiah(asset.currentValue)}
-                    </span>
+                  <div className="ax-acts">
+                    <button type="button" className="ax-iconbtn" onClick={openQuick} title="Perbarui nilai pasar terkini" aria-label={`Perbarui nilai ${asset.name}`}><RefreshCw className="w-3.5 h-3.5" /></button>
+                    <button type="button" className="ax-iconbtn" onClick={() => openEditModal(asset)} title="Edit detail aset" aria-label={`Edit ${asset.name}`}><Pencil className="w-3.5 h-3.5" /></button>
+                    <button type="button" className="ax-iconbtn del" onClick={() => setAssetToDelete(asset)} title="Hapus aset" aria-label={`Hapus ${asset.name}`}><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
 
-                {/* Return Bar */}
-                <div className="p-2 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] flex items-center justify-between text-xs">
-                  <span className="text-[11px] font-mono text-[var(--text-muted)]">Keuntungan:</span>
-                  <div className="flex items-center gap-1.5 font-mono font-bold">
-                    <span className={gainLoss >= 0 ? 'text-[var(--accent-sage-light)]' : 'text-[var(--accent-terracotta-light)]'}>
-                      {gainLoss >= 0 ? '+' : ''}{formatRupiah(gainLoss)}
-                    </span>
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] ${
-                      gainLoss >= 0 ? 'bg-[var(--accent-sage)] text-[#111]' : 'bg-[var(--accent-terracotta)] text-white'
-                    }`}>
-                      {gainLoss >= 0 ? '▲' : '▼'} {gainLossPct.toFixed(2)}%
-                    </span>
-                  </div>
-                </div>
-
-                {asset.notes && (
-                  <p className="text-[11px] text-[var(--text-muted)] italic truncate">
-                    "{asset.notes}"
+                <div>
+                  <span className="ax-ob-name" style={{ display: 'block', fontSize: 15.5 }} title={asset.name}>{asset.name}</span>
+                  <p className="ax-gnote" style={{ margin: '2px 0 0' }}>
+                    {asset.units !== undefined ? `${asset.units} unit` : ''}{asset.units !== undefined && asset.platform ? ' · ' : ''}{asset.platform ? `via ${asset.platform}` : ''}
                   </p>
-                )}
-
-                <div className="text-[10px] font-mono text-[var(--text-muted)] flex justify-between pt-1">
-                  <span>Update terakhir: {asset.lastUpdated || 'Hari ini'}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQuickUpdateAsset(asset);
-                      setQuickValue(String(asset.currentValue));
-                    }}
-                    className="underline text-[var(--accent-sand)] hover:text-[var(--text-primary)]"
-                  >
-                    Ubah Nilai →
-                  </button>
                 </div>
-              </div>
+
+                <div className="ax-ob-box">
+                  <div><small>Modal beli</small><b>{formatRupiah(asset.initialCapital)}</b></div>
+                  <div><small>Nilai saat ini</small><b className="blu">{formatRupiah(asset.currentValue)}</b></div>
+                </div>
+
+                <div className="ax-ret">
+                  <span>Keuntungan</span>
+                  <span>
+                    <span className={up ? 'pos' : 'neg'}>{up ? '+' : ''}{formatRupiah(gainLoss)}</span>
+                    <span className={`ax-chg ${up ? 'ok' : 'bad'}`}>{up ? '▲' : '▼'} {gainLossPct.toFixed(2)}%</span>
+                  </span>
+                </div>
+
+                {asset.notes && <p className="ax-gnote">"{asset.notes}"</p>}
+
+                <div className="ax-ac-f">
+                  <span>Update: {asset.lastUpdated || 'Hari ini'}</span>
+                  <button type="button" className="ax-link" onClick={openQuick}>Ubah nilai →</button>
+                </div>
+              </article>
             );
           })}
         </div>

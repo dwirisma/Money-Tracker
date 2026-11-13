@@ -12,17 +12,13 @@ import {
   Pie, 
   Cell
 } from 'recharts';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  PieChart as PieIcon, 
-  BarChart3, 
-  Calendar, 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  Download, 
-  CheckCircle2, 
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  PieChart as PieIcon,
+  BarChart3,
+  Download,
   AlertTriangle,
   Layers,
   Sparkles,
@@ -36,7 +32,6 @@ import {
   Bus,
   Utensils,
   Leaf,
-  Sliders,
   ListFilter
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -782,303 +777,105 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
     return sentences.join(' ');
   }, [metrics, categoryBreakdown, formatRupiah, timeRange]);
 
+  const runwayRaw = metrics.financialRunwayMonths;
+  const runwayNum = Number(runwayRaw);
+  const runwayTier = runwayRaw === '∞' || runwayNum >= 6 ? 'ok' : runwayNum >= 3 ? 'mid' : 'low';
+  const runwayLabel = runwayTier === 'ok' ? 'Napas aman' : runwayTier === 'mid' ? 'Cukup' : 'Waspada';
+  const periodTabs: { id: ReportTimeRange; label: string }[] = [
+    { id: 'this_month', label: 'Bulan ini' },
+    { id: 'last_month', label: 'Bulan lalu' },
+    { id: 'this_year', label: 'Tahun ini' },
+    { id: 'all_time', label: 'Semua waktu' },
+    { id: 'custom', label: 'Kustom' }
+  ];
+  const cmpLabel = timeRange === 'this_year' ? 'YoY' : 'MoM';
+
   return (
     <div className="space-y-3 animate-in fade-in duration-200">
       
-      {/* ===================================================================== */}
-      {/* 1. FILTER WAKTU & HEADER LAPORAN (NEO-BRUTALISME)                      */}
-      {/* ===================================================================== */}
-      <section className="brutal-card p-3 sm:p-3 bg-[var(--bg-surface)] flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-[var(--accent-sand)]" />
-            <h2 className="font-heading font-bold text-lg sm:text-xl text-white">
-              Laporan & Analitik Keuangan
-            </h2>
-          </div>
-          <p className="text-xs text-[var(--text-secondary)] font-mono flex items-center gap-1.5">
-            <span>Buku Kas: <strong>{activeLedger?.name || 'Utama'}</strong></span>
-            <span>•</span>
-            <span className="text-[var(--accent-sand-light)]">{dateBounds.label}</span>
-          </p>
+      {/* HEADER + PERIODE */}
+      <div className="ax-pagehead">
+        <div>
+          <h2>Laporan & Analitik</h2>
+          <p>Buku kas <b>{activeLedger?.name || 'Utama'}</b> · {dateBounds.label}</p>
         </div>
-
-        {/* Grup Tombol Filter Waktu */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full md:w-auto">
-          <button
-            type="button"
-            onClick={() => setTimeRange('this_month')}
-            className={`px-3 py-1.5 text-xs font-heading font-bold rounded-[var(--radius-sm)] border-2 transition-all ${
-              timeRange === 'this_month'
-                ? 'bg-[var(--accent-sand)] text-[var(--text-inverted)] border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-color)]'
-            }`}
-          >
-            Bulan Ini
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setTimeRange('last_month')}
-            className={`px-3 py-1.5 text-xs font-heading font-bold rounded-[var(--radius-sm)] border-2 transition-all ${
-              timeRange === 'last_month'
-                ? 'bg-[var(--accent-sand)] text-[var(--text-inverted)] border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-color)]'
-            }`}
-          >
-            Bulan Lalu
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setTimeRange('this_year')}
-            className={`px-3 py-1.5 text-xs font-heading font-bold rounded-[var(--radius-sm)] border-2 transition-all ${
-              timeRange === 'this_year'
-                ? 'bg-[var(--accent-sand)] text-[var(--text-inverted)] border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-color)]'
-            }`}
-          >
-            Tahun Ini
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setTimeRange('all_time')}
-            className={`px-3 py-1.5 text-xs font-heading font-bold rounded-[var(--radius-sm)] border-2 transition-all ${
-              timeRange === 'all_time'
-                ? 'bg-[var(--accent-sand)] text-[var(--text-inverted)] border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-color)]'
-            }`}
-          >
-            Semua Waktu
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setTimeRange('custom')}
-            className={`px-3 py-1.5 text-xs font-heading font-bold rounded-[var(--radius-sm)] border-2 transition-all flex items-center gap-1 ${
-              timeRange === 'custom'
-                ? 'bg-[var(--accent-blue)] text-[var(--text-inverted)] border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-color)]'
-            }`}
-          >
-            <Calendar className="w-3.5 h-3.5" />
-            <span>Kustom</span>
-          </button>
-
-          {/* Tombol Ekspor Excel */}
-          <button
-            type="button"
-            onClick={handleExportData}
-            disabled={filteredTransactions.length === 0}
-            className="px-3 py-1.5 text-xs font-heading font-bold rounded-[var(--radius-sm)] border-2 bg-[var(--bg-elevated)] border-[var(--border-subtle)] hover:border-[var(--accent-sage)] text-[var(--text-secondary)] hover:text-[var(--accent-sage)] transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Ekspor data transaksi terfilter ke Excel"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Ekspor Excel</span>
-          </button>
-        </div>
-      </section>
-
-      {/* Input Tanggal Kustom (Jika Filter Kustom Aktif) */}
+        <button type="button" onClick={handleExportData} disabled={filteredTransactions.length === 0} className="brutal-btn ax-btn-light" title="Ekspor data transaksi terfilter ke Excel">
+          <Download className="w-4 h-4" />Ekspor Excel
+        </button>
+      </div>
+      <div className="ax-chipset scroll" role="radiogroup" aria-label="Periode laporan">
+        {periodTabs.map(t => (
+          <button key={t.id} type="button" role="radio" aria-checked={timeRange === t.id} onClick={() => setTimeRange(t.id)}>{t.label}</button>
+        ))}
+      </div>
       {timeRange === 'custom' && (
-        <div className="brutal-card p-3 bg-[var(--bg-elevated)] flex flex-wrap items-center gap-2.5 text-xs animate-in fade-in duration-150">
-          <span className="font-heading font-bold text-white flex items-center gap-1.5">
-            <Calendar className="w-4 h-4 text-[var(--accent-blue)]" />
-            Pilih Rentang Tanggal:
-          </span>
-          <div className="flex items-center gap-2">
-            <label className="text-[var(--text-secondary)]">Dari:</label>
-            <input
-              type="date"
-              value={customStartDate}
-              onChange={(e) => setCustomStartDate(e.target.value)}
-              className="brutal-input py-1 px-2 text-xs w-auto"
-            />
+        <div className="ax-panel ax-daterange">
+          <div>
+            <label className="brutal-label" htmlFor="rep-from">Dari tanggal</label>
+            <input id="rep-from" type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} className="brutal-input" />
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-[var(--text-secondary)]">Sampai:</label>
-            <input
-              type="date"
-              value={customEndDate}
-              onChange={(e) => setCustomEndDate(e.target.value)}
-              className="brutal-input py-1 px-2 text-xs w-auto"
-            />
+          <div>
+            <label className="brutal-label" htmlFor="rep-to">Sampai tanggal</label>
+            <input id="rep-to" type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} className="brutal-input" />
           </div>
-          <span className="text-[11px] font-mono text-[var(--text-muted)]">
-            ({filteredTransactions.length} transaksi dalam rentang)
-          </span>
+          <span className="ax-sec-sub">{filteredTransactions.length} transaksi dalam rentang</span>
         </div>
       )}
 
-      {/* ===================================================================== */}
-      {/* 2. KARTU RINGKASAN METRIK (SCORECARDS NEO-BRUTALISME)                  */}
-      {/* ===================================================================== */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        
-        {/* KARTU 1: TOTAL PEMASUKAN (HIJAU SAGE KALEM DENGAN MoM) */}
-        <div className="brutal-card p-3.5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-sage)] space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-heading font-bold text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-1.5">
-              <TrendingUp className="w-4 h-4 text-[var(--accent-sage)]" />
-              Total Pemasukan
-            </span>
-            <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] border border-[var(--accent-sage)]">
-              Masuk
-            </span>
+      {/* RINGKASAN METRIK */}
+      <section className="ax-dash">
+        <div className={`ax-b s6 ax-panel ax-hero ${metrics.netCashFlow >= 0 ? 'sage' : 'terra'}`}>
+          <div className="ax-hero-head">
+            <div className="ax-eyebrow" style={{ marginTop: 0 }}><DollarSign className="w-3.5 h-3.5" />Arus kas bersih</div>
+            <span className="ax-badge-s">{metrics.netCashFlow >= 0 ? 'Surplus ✓' : 'Defisit ⚠'}</span>
           </div>
-
-          <div className="flex items-baseline gap-2.5 flex-wrap">
-            <div className="text-xl sm:text-2xl font-heading font-extrabold text-[var(--accent-sage)] font-mono">
-              {formatRupiah(metrics.totalIncome)}
+          <div className="ax-big" style={{ marginBottom: 10 }}>
+            {metrics.netCashFlow >= 0 ? '+' : '-'}{formatRupiah(Math.abs(metrics.netCashFlow))}
+          </div>
+          <div className="ax-stats two">
+            <div className="ax-stat" title="Persentase pemasukan yang tersisa setelah pengeluaran">
+              <span><TrendingUp className="w-3 h-3" />Rasio simpanan</span>
+              <b>{metrics.savingsRate}% <small style={{ fontSize: 10, fontWeight: 700 }}>dari pemasukan</small></b>
             </div>
-            {/* 1. Indikator Komparasi MoM Pemasukan */}
+            <div className="ax-stat" title={`Saldo kas aktif: ${formatRupiah(metrics.totalCashBalance || 0)} | Pengeluaran rata-rata 3 bulan: ${formatRupiah(metrics.avgMonthlyExpense3M || 0)}`}>
+              <span><Hourglass className="w-3 h-3" />Estimasi runway</span>
+              <b className={runwayTier}>{runwayRaw} bulan{runwayRaw !== '∞' ? ` · ${runwayLabel}` : ''}</b>
+            </div>
+          </div>
+        </div>
+
+        <div className="ax-b m6 s3 ax-sc s">
+          <span><TrendingUp className="w-3 h-3" />Total pemasukan</span>
+          <div className="ax-valrow">
+            <b>{formatRupiah(metrics.totalIncome)}</b>
             {metrics.momIncomePercent !== null && metrics.momIncomePercent !== undefined && (
-              <span
-                className={`px-1.5 py-0.5 text-[10px] font-mono font-bold rounded flex items-center gap-1 border shadow-[1px_1px_0px_#000] ${
-                  metrics.momIncomePercent >= 0
-                    ? 'bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] border-[var(--accent-sage)]'
-                    : 'bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)] border-[var(--accent-terracotta)]'
-                }`}
-                title={`Pemasukan periode lalu: ${formatRupiah(metrics.prevIncome || 0)}`}
-              >
-                <span>{metrics.momIncomePercent >= 0 ? '▲' : '▼'}</span>
-                <span>{metrics.momIncomePercent >= 0 ? `+${metrics.momIncomePercent}%` : `${metrics.momIncomePercent}%`}</span>
-                <span className="text-[9px] opacity-75">{timeRange === 'this_year' ? 'YoY' : 'MoM'}</span>
+              <span className={`ax-chg ${metrics.momIncomePercent >= 0 ? 'ok' : 'bad'}`} title={`Pemasukan periode lalu: ${formatRupiah(metrics.prevIncome || 0)}`}>
+                {metrics.momIncomePercent >= 0 ? '▲ +' : '▼ '}{metrics.momIncomePercent}% {cmpLabel}
               </span>
             )}
           </div>
-
-          <p className="text-[11px] text-[var(--text-muted)] font-mono">
-            {metrics.prevIncome !== undefined && metrics.prevIncome > 0 ? (
-              <>Bulan lalu: <strong>{formatRupiah(metrics.prevIncome)}</strong></>
-            ) : (
-              'Dari pos gaji, freelance, dan pendapatan lain'
-            )}
-          </p>
+          <small>{metrics.prevIncome !== undefined && metrics.prevIncome > 0 ? `Periode lalu: ${formatRupiah(metrics.prevIncome)}` : 'Gaji, freelance, dan pendapatan lain'}</small>
         </div>
 
-        {/* KARTU 2: TOTAL PENGELUARAN (MERAH BATA TERRACOTTA DENGAN MoM) */}
-        <div className="brutal-card p-3.5 bg-[var(--bg-surface)] border-l-8 border-l-[var(--accent-terracotta)] space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-heading font-bold text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-1.5">
-              <TrendingDown className="w-4 h-4 text-[var(--accent-terracotta)]" />
-              Total Pengeluaran
-            </span>
-            <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)] border border-[var(--accent-terracotta)]">
-              Keluar
-            </span>
-          </div>
-
-          <div className="flex items-baseline gap-2.5 flex-wrap">
-            <div className="text-xl sm:text-2xl font-heading font-extrabold text-[var(--accent-terracotta-light)] font-mono">
-              {formatRupiah(metrics.totalExpense)}
-            </div>
-            {/* 1. Indikator Komparasi MoM Pengeluaran (Turun = Bagus/Hijau, Naik = Merah) */}
+        <div className="ax-b m6 s3 ax-sc t">
+          <span><TrendingDown className="w-3 h-3" />Total pengeluaran</span>
+          <div className="ax-valrow">
+            <b>{formatRupiah(metrics.totalExpense)}</b>
             {metrics.momExpensePercent !== null && metrics.momExpensePercent !== undefined && (
-              <span
-                className={`px-1.5 py-0.5 text-[10px] font-mono font-bold rounded flex items-center gap-1 border shadow-[1px_1px_0px_#000] ${
-                  metrics.momExpensePercent <= 0
-                    ? 'bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] border-[var(--accent-sage)]'
-                    : 'bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)] border-[var(--accent-terracotta)]'
-                }`}
-                title={`Pengeluaran periode lalu: ${formatRupiah(metrics.prevExpense || 0)}`}
-              >
-                <span>{metrics.momExpensePercent > 0 ? '▲' : '▼'}</span>
-                <span>{metrics.momExpensePercent > 0 ? `+${metrics.momExpensePercent}%` : `${metrics.momExpensePercent}%`}</span>
-                <span className="text-[9px] opacity-75">{timeRange === 'this_year' ? 'YoY' : 'MoM'}</span>
+              <span className={`ax-chg ${metrics.momExpensePercent <= 0 ? 'ok' : 'bad'}`} title={`Pengeluaran periode lalu: ${formatRupiah(metrics.prevExpense || 0)}`}>
+                {metrics.momExpensePercent > 0 ? '▲ +' : '▼ '}{metrics.momExpensePercent}% {cmpLabel}
               </span>
             )}
           </div>
-
-          <p className="text-[11px] text-[var(--text-muted)] font-mono">
-            Rata-rata: <strong>{formatRupiah(metrics.avgDailyExpense)}</strong> / hari
-            {metrics.prevExpense !== undefined && metrics.prevExpense > 0 && (
-              <> • Bulan lalu: <strong>{formatRupiah(metrics.prevExpense)}</strong></>
-            )}
-          </p>
+          <small>Rata-rata {formatRupiah(metrics.avgDailyExpense)} / hari{metrics.prevExpense !== undefined && metrics.prevExpense > 0 ? ` · periode lalu ${formatRupiah(metrics.prevExpense)}` : ''}</small>
         </div>
-
-        {/* KARTU 3: ARUS KAS / NET CASH FLOW (SURPLUS/DEFISIT & FINANCIAL RUNWAY) */}
-        <div className={`brutal-card p-3.5 bg-[var(--bg-surface)] border-l-8 space-y-2 ${
-          metrics.netCashFlow >= 0 ? 'border-l-[var(--accent-sage)]' : 'border-l-[var(--accent-terracotta)]'
-        }`}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-heading font-bold text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-1.5">
-              <DollarSign className="w-4 h-4 text-[var(--accent-sand)]" />
-              Arus Kas Bersih (Net)
-            </span>
-            <span className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded border ${
-              metrics.netCashFlow >= 0
-                ? 'bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] border-[var(--accent-sage)]'
-                : 'bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)] border-[var(--accent-terracotta)]'
-            }`}>
-              {metrics.netCashFlow >= 0 ? 'Surplus ✓' : 'Defisit ⚠'}
-            </span>
-          </div>
-
-          <div className={`text-xl sm:text-2xl font-heading font-extrabold font-mono ${
-            metrics.netCashFlow >= 0 ? 'text-[var(--accent-sage)]' : 'text-[var(--accent-terracotta)]'
-          }`}>
-            {metrics.netCashFlow >= 0 
-              ? `+${formatRupiah(metrics.netCashFlow)}` 
-              : `-${formatRupiah(Math.abs(metrics.netCashFlow))}`}
-          </div>
-
-          {/* Rasio Simpanan & 3. Metrik Financial Runway (Napas Kas) */}
-          <div className="space-y-1 pt-1.5 border-t border-[var(--border-subtle)] text-[11px] font-mono">
-            <div className="flex items-center justify-between">
-              <span className="text-[var(--text-muted)]">Rasio Simpanan:</span>
-              <span className="font-bold text-[var(--accent-sand-light)]">
-                {metrics.savingsRate}% dari pemasukan
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-[var(--text-muted)] flex items-center gap-1">
-                <Hourglass className="w-3 h-3 text-[var(--accent-blue)]" />
-                Estimasi Runway:
-              </span>
-              <span className={`font-bold flex items-center gap-1.5 ${
-                metrics.financialRunwayMonths === '∞' || Number(metrics.financialRunwayMonths) >= 6
-                  ? 'text-[var(--accent-sage)]'
-                  : Number(metrics.financialRunwayMonths) >= 3
-                  ? 'text-[var(--accent-sand-light)]'
-                  : 'text-[var(--accent-terracotta-light)]'
-              }`}
-              title={`Saldo Kas Aktif: ${formatRupiah(metrics.totalCashBalance || 0)} | Pengeluaran Rata-rata 3 Bln: ${formatRupiah(metrics.avgMonthlyExpense3M || 0)}/bln`}
-              >
-                <span>{metrics.financialRunwayMonths} Bulan</span>
-                {metrics.financialRunwayMonths !== '∞' && (
-                  <span className={`text-[9px] px-1 py-0.2 rounded font-normal border ${
-                    Number(metrics.financialRunwayMonths) >= 6
-                      ? 'bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] border-[var(--accent-sage)]/50'
-                      : Number(metrics.financialRunwayMonths) >= 3
-                      ? 'bg-[var(--accent-sand-dark)] text-[var(--accent-sand-light)] border-[var(--accent-sand)]/50'
-                      : 'bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)] border-[var(--accent-terracotta)]/50'
-                  }`}>
-                    {Number(metrics.financialRunwayMonths) >= 6 ? 'Napas Aman' : Number(metrics.financialRunwayMonths) >= 3 ? 'Cukup' : 'Waspada'}
-                  </span>
-                )}
-              </span>
-            </div>
-          </div>
-        </div>
-
       </section>
 
-      {/* HIGHLIGHT INSIGHT CERDAS */}
-      <div className="brutal-card p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] flex items-start gap-2.5">
-        <Sparkles className="w-5 h-5 text-[var(--accent-sand)] shrink-0 mt-0.5" />
-        <div className="text-xs space-y-0.5">
-          <span className="font-heading font-bold text-white uppercase tracking-wider text-[11px]">
-            Insight Finansial Periode Ini:
-          </span>
-          <p className="text-[var(--text-secondary)] leading-relaxed font-body">
-            {insightMessage}
-          </p>
-        </div>
-      </div>
+      {/* INSIGHT */}
+      <p className="ax-ai-tip" style={{ margin: 0 }}>
+        <span aria-hidden="true"><Sparkles className="w-4 h-4" /></span>
+        <span style={{ color: 'inherit', fontWeight: 600 }}><b>Insight periode ini:</b> {insightMessage}</span>
+      </p>
 
       {/* ===================================================================== */}
       {/* 2B. INDIKATOR ANALISIS KESEHATAN FINANSIAL & RASIO VITAL             */}
@@ -1187,7 +984,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       {/* ===================================================================== */}
       {/* 3. VISUALISASI GRAFIK: BAR CHART & DOUGHNUT PIE CHART                  */}
       {/* ===================================================================== */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {/* GRAFIK 1 (BAR CHART): TREN PEMASUKAN VS PENGELUARAN */}
         <div className="brutal-card p-3.5 bg-[var(--bg-surface)] flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
@@ -1689,7 +1486,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       {/* ===================================================================== */}
       {/* 4. DETAIL TABEL: RINCIAN KATEGORI & TOP 5 PENGELUARAN TERBESAR         */}
       {/* ===================================================================== */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-3">
 
         {/* TABEL RINCIAN SEMUA KATEGORI PENGELUARAN */}
         <div className="lg:col-span-2 brutal-card p-3.5 bg-[var(--bg-surface)] space-y-3">

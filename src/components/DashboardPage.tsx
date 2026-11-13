@@ -207,7 +207,7 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
       </section>
 
       {/* AI INSIGHT */}
-      <div className="ax-b s12">
+      <div className="ax-b s8">
         <AiInsightCard
           currentLedger={currentLedger || { id: 'active', name: ledgerName, createdAt: Date.now() }}
           transactions={transactions}
@@ -246,7 +246,7 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
       </section>
 
       {/* TREN 6 BULAN */}
-      <section className="ax-b s8 ax-panel">
+      <section className="ax-b s12 ax-panel">
         <div className="ax-ph">
           <h3><span className="ax-ic" style={{ background: 'var(--accent-blue)' }}><TrendingUp className="w-3.5 h-3.5" /></span>Tren 6 Bulan</h3>
           <div className="ax-leg">

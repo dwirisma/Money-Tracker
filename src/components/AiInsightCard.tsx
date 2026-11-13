@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Sparkles, RefreshCw } from 'lucide-react';
 import type { Account, Bill, Debt, Goal, Ledger, Transaction } from '../types';
 import { formatRupiah } from '../utils/calculator';
@@ -12,6 +12,18 @@ interface Props {
   bills: Bill[];
   debts: Debt[];
   accounts: Account[];
+}
+
+const TAGS = [
+  { label: 'Pengeluaran', color: 'var(--accent-terracotta)' },
+  { label: 'Tabungan', color: 'var(--accent-sand)' },
+  { label: 'Kewajiban', color: 'var(--accent-blue)' },
+  { label: 'Aksi', color: 'var(--accent-sage)' }
+];
+
+function splitEmoji(b: string): { icon: string; text: string } {
+  const m = b.match(/^(\p{Extended_Pictographic}\uFE0F?)\s*([\s\S]*)$/u);
+  return m ? { icon: m[1], text: m[2] } : { icon: '✦', text: b };
 }
 
 interface InsightData {
@@ -214,52 +226,34 @@ Kembalikan jawaban HANYA dalam format JSON valid:
   const currentData = insight || computeLocalInsight();
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border-2 border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] p-3.5 shadow-[var(--shadow-md)] transition-colors">
-      {/* Background subtle glow */}
-      <div className="absolute -top-12 -right-12 w-32 h-32 bg-amber-400/10 dark:bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
-
-      {/* Header Card */}
-      <div className="flex items-center justify-between mb-4 pb-3 border-b border-[var(--border-subtle)]">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">💡</span>
-          <h3 className="font-heading font-black text-sm sm:text-lg tracking-wide text-[var(--text-primary)]">
-            AI Insight
-          </h3>
-          <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-400/15 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-400/30">
-            <Sparkles className="w-2.5 h-2.5" />
-            Gemini
-          </span>
-        </div>
-
-        <button
-          type="button"
-          onClick={generateAiInsight}
-          disabled={loading}
-          title="Perbarui insight"
-          className="p-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all active:scale-95 disabled:opacity-50"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-amber-500' : ''}`} />
+    <section className="ax-ai" aria-live="polite">
+      <div className="ax-ph">
+        <h3>
+          <span className="ax-ic" style={{ background: 'var(--accent-sand)' }}><Sparkles className="w-3.5 h-3.5" /></span>
+          AI Insight
+          <span className="ax-badge-s">{currentData.source === 'ai' ? 'Gemini' : 'Analisis lokal'}</span>
+        </h3>
+        <button type="button" className="ax-iconbtn" onClick={generateAiInsight} disabled={loading} title="Perbarui insight" aria-label="Perbarui insight">
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
-      {/* Bullets List Dinamis & Natural */}
-      <div className="space-y-3 text-sm sm:text-sm leading-relaxed">
-        {currentData.bullets.map((b, idx) => (
-          <div key={idx} className="flex items-start gap-2.5">
-            <p className="text-[var(--text-primary)] font-medium">
-              {b}
-            </p>
-          </div>
-        ))}
-
-        {/* Optional smart tip */}
-        {currentData.extraTip && (
-          <div className="pt-2 mt-2 border-t border-[var(--border-subtle)] flex items-start gap-2 text-xs text-[var(--text-secondary)]">
-            <span className="text-amber-500 font-bold shrink-0">✦</span>
-            <p className="italic">{currentData.extraTip}</p>
-          </div>
-        )}
+      <div className="ax-ai-grid" data-loading={loading}>
+        {currentData.bullets.map((b, idx) => {
+          const { icon, text } = splitEmoji(b);
+          const tag = TAGS[idx % TAGS.length];
+          return (
+            <article key={idx} className="ax-ai-tile" style={{ '--tag': tag.color } as CSSProperties}>
+              <div className="ax-ai-top"><span className="ax-ai-ic" aria-hidden="true">{icon}</span><em>{tag.label}</em></div>
+              <p>{text}</p>
+            </article>
+          );
+        })}
       </div>
-    </div>
+
+      {currentData.extraTip && (
+        <p className="ax-ai-tip"><span aria-hidden="true">✦</span>{currentData.extraTip}</p>
+      )}
+    </section>
   );
 }

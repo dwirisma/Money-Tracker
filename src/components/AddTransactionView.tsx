@@ -1,21 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  ArrowRightLeft, 
-  Calculator, 
-  Calendar, 
-  Camera as ScanCamera, 
-  Check, 
-  Plus, 
-  Settings2, 
+import {
+  TrendingUp,
+  TrendingDown,
+  ArrowRightLeft,
+  Calculator,
+  Camera as ScanCamera,
+  Check,
+  Plus,
+  Settings2,
   Settings,
   Pencil,
   RotateCcw,
   Sliders,
   PieChart,
-  Tag, 
-  Trash2, 
+  Tag,
+  Trash2,
   X,
   History,
   AlertCircle
@@ -344,500 +343,233 @@ export function AddTransactionView({
   }
 
   return (
-    <div className="space-y-3 w-full">
-      {/* Header Halaman */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b-2 border-[var(--border-subtle)] pb-4">
+    <div className="ax-add">
+      <div className="ax-pagehead">
         <div>
-          <h2 className="font-heading font-bold text-xl text-[var(--text-primary)]">
-            Tambah Transaksi & Transfer
-          </h2>
-          <p className="text-sm text-[var(--text-secondary)]">
-            Catat arus kas masuk, keluar, atau mutasi antar akun di <b>{currentLedger.name}</b>.
-          </p>
+          <h2>Catat Transaksi</h2>
+          <p>Arus kas masuk, keluar, atau pindah antar akun di <b>{currentLedger.name}</b></p>
         </div>
+        <button type="button" onClick={() => onNavigate('history_transaction')} className="brutal-btn ax-btn-light">
+          <History className="w-4 h-4" />Riwayat
+        </button>
+      </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={() => onNavigate('history_transaction')}
-            className="brutal-btn brutal-btn-ghost text-xs py-2 px-3 flex items-center gap-1.5"
-          >
-            <History className="w-4 h-4 text-[var(--accent-blue)]" />
-            <span>Buka Riwayat Transaksi</span>
+      {/* TAB JENIS TRANSAKSI */}
+      <div className="ax-seg" role="tablist" aria-label="Jenis transaksi">
+        {([
+          ['expense', 'Pengeluaran', TrendingDown],
+          ['income', 'Pemasukan', TrendingUp],
+          ['transfer', 'Transfer', ArrowRightLeft]
+        ] as const).map(([k, label, Icon]) => (
+          <button key={k} type="button" role="tab" aria-selected={activeTab === k} data-on={activeTab === k} data-k={k} onClick={() => setActiveTab(k)}>
+            <Icon className="w-4 h-4 shrink-0" />{label}
           </button>
-        </div>
+        ))}
       </div>
 
-      {/* 3 TAB SELECTOR UTAMA (PENGELUARAN, PEMASUKAN, TRANSFER) */}
-      <div className="grid grid-cols-3 p-1.5 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[var(--shadow-sm)] gap-1">
-        <button
-          type="button"
-          onClick={() => setActiveTab('expense')}
-          className={`py-2.5 px-3 rounded-[var(--radius-sm)] font-heading font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all ${
-            activeTab === 'expense'
-              ? 'bg-[var(--accent-terracotta)] text-[var(--text-inverted)] border-2 border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
-          }`}
-        >
-          <TrendingDown className="w-4 h-4 shrink-0" />
-          <span>Pengeluaran</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('income')}
-          className={`py-2.5 px-3 rounded-[var(--radius-sm)] font-heading font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all ${
-            activeTab === 'income'
-              ? 'bg-[var(--accent-sage)] text-[var(--text-inverted)] border-2 border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
-          }`}
-        >
-          <TrendingUp className="w-4 h-4 shrink-0" />
-          <span>Pemasukan</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('transfer')}
-          className={`py-2.5 px-3 rounded-[var(--radius-sm)] font-heading font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all ${
-            activeTab === 'transfer'
-              ? 'bg-[var(--accent-blue)] text-[var(--text-inverted)] border-2 border-[var(--border-color)] shadow-[2px_2px_0px_#000]'
-              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
-          }`}
-        >
-          <ArrowRightLeft className="w-4 h-4 shrink-0" />
-          <span>Transfer</span>
-        </button>
-      </div>
-
-      {/* FORM AREA */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Kolom Kiri: Form Utama */}
-        <div className="lg:col-span-8 space-y-3">
+      <div className="ax-addgrid">
+        {/* KOLOM UTAMA: FORM */}
+        <div className="ax-panel">
           {activeTab !== 'transfer' ? (
-            /* =================== FORM PENGELUARAN / PEMASUKAN =================== */
-            <div className="brutal-card p-3.5 bg-[var(--bg-surface)] space-y-3">
-              <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-                <div className="flex items-center gap-2">
-                  <Tag className="w-4 h-4 text-[var(--accent-sand)]" />
+            <form onSubmit={handleSubmitTransaction} className="ax-form">
+              {/* Scan struk (khusus pengeluaran) */}
+              {activeTab === 'expense' && (
+                <div className="ax-ph" style={{ margin: 0 }}>
+                  <h3><span className="ax-ic" style={{ background: 'var(--accent-lavender)' }}><ScanCamera className="w-3.5 h-3.5" /></span>Input pengeluaran</h3>
                   <div>
-                    <h3 className="font-heading font-bold text-sm text-[var(--text-primary)]">
-                      Input {activeTab === 'expense' ? 'Pengeluaran' : 'Pemasukan'}
-                    </h3>
-                    <p className="text-[10px] font-mono text-[var(--accent-sage-light)]">Buku Kas: {currentLedger.name}</p>
-                  </div>
-                </div>
-
-                {/* Tombol AI Scan Struk (Khusus Pengeluaran) */}
-                {activeTab === 'expense' && (
-                  <div>
-                    <input 
-                      ref={receiptInputRef} 
-                      type="file" 
-                      accept="image/*" 
-                      capture="environment" 
-                      className="hidden" 
-                      onChange={handleReceiptFile} 
-                    />
-                    <button 
-                      type="button" 
-                      onClick={() => receiptInputRef.current?.click()} 
-                      disabled={isScanning} 
-                      className="brutal-btn brutal-btn-lavender text-[11px] py-1 px-2.5 flex items-center gap-1 font-bold !shadow-[1.5px_1.5px_0px_#000] shrink-0"
-                      title="Pindai foto struk belanja dengan Gemini AI"
-                    >
-                      <ScanCamera className="w-3.5 h-3.5" />
-                      <span>{isScanning ? 'Membaca…' : 'Scan Struk'}</span>
+                    <input ref={receiptInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleReceiptFile} />
+                    <button type="button" onClick={() => receiptInputRef.current?.click()} disabled={isScanning} className="brutal-btn brutal-btn-lavender !py-1.5 !px-3 text-[11px]" title="Pindai foto struk belanja dengan Gemini AI">
+                      <ScanCamera className="w-3.5 h-3.5" />{isScanning ? 'Membaca…' : 'Scan Struk'}
                     </button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
-              {/* Banner Preview Foto Struk yang Dianalisis */}
               {receiptPreview && activeTab === 'expense' && (
-                <div className="p-3 bg-[var(--bg-elevated)] border-2 border-black dark:border-white/20 rounded-xl flex items-center justify-between gap-2.5 shadow-[2px_2px_0px_#000] animate-in fade-in duration-200">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <img
-                      src={receiptPreview}
-                      alt="Struk Belanja"
-                      className="w-12 h-12 object-cover rounded-lg border-2 border-black dark:border-white/20 shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs font-bold text-[var(--text-primary)]">Foto Struk Belanja</span>
-                        <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
-                          isScanning ? 'bg-amber-400 text-black animate-pulse' : 'bg-emerald-500 text-black'
-                        }`}>
-                          {isScanning ? 'Sedang AI Scan…' : '✓ Terbaca Gemini AI'}
-                        </span>
-                      </div>
-                      {scannedResult ? (
-                        <p className="text-[11px] font-mono text-[var(--accent-sand)] truncate mt-0.5">
-                          {scannedResult.merchant ? `${scannedResult.merchant} • ` : ''}{formatRupiah(scannedResult.amount)}
-                        </p>
-                      ) : (
-                        <p className="text-[11px] font-mono text-[var(--text-muted)] truncate mt-0.5">
-                          {isScanning ? 'Membaca rincian toko & total nominal...' : 'Data otomatis terisi di bawah'}
-                        </p>
-                      )}
-                    </div>
+                <div className="ax-scan">
+                  <img src={receiptPreview} alt="Struk Belanja" />
+                  <div>
+                    <b>Foto struk · {isScanning ? 'sedang dibaca AI…' : '✓ terbaca Gemini'}</b>
+                    <small>
+                      {scannedResult
+                        ? `${scannedResult.merchant ? `${scannedResult.merchant} • ` : ''}${formatRupiah(scannedResult.amount)}`
+                        : isScanning ? 'Membaca rincian toko & total nominal...' : 'Data otomatis terisi di bawah'}
+                    </small>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setReceiptPreview(null);
-                      setScannedResult(null);
-                    }}
-                    className="p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--accent-terracotta)] hover:bg-[var(--bg-surface)] transition-all"
-                    title="Hapus foto struk"
-                  >
+                  <button type="button" className="ax-iconbtn" title="Hapus foto struk" aria-label="Hapus foto struk" onClick={() => { setReceiptPreview(null); setScannedResult(null); }}>
                     <X className="w-4 h-4" />
                   </button>
                 </div>
               )}
 
-              <form onSubmit={handleSubmitTransaction} className="space-y-3">
-                {/* Field Nominal dengan Kalkulator */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="brutal-label mb-0 flex items-center gap-1.5">
-                      <Calculator className="w-3.5 h-3.5 text-[var(--accent-sand)]" />
-                      Nominal Transaksi
-                    </label>
-                    <span className="text-[10px] font-mono text-[var(--accent-sand)]">
-                      Bisa hitung ekspresi (cth: 50000+15000)
-                    </span>
-                  </div>
+              {/* NOMINAL */}
+              <div className="ax-amt" data-kind={activeTab}>
+                <label className="ax-fl" htmlFor="tx-amount-input">
+                  <span><Calculator className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Nominal {activeTab === 'expense' ? 'pengeluaran' : 'pemasukan'}</span>
+                </label>
+                <div className="ax-amt-row">
+                  <span>Rp</span>
+                  <input id="tx-amount-input" type="text" inputMode="text" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} onBlur={handleAmountBlur} placeholder="0" required />
+                </div>
+                {calcNotice && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{calcNotice}</div>}
+                <div className="ax-qs" aria-label="Tambah nominal cepat">
+                  {[10000, 20000, 50000, 100000, 500000].map(amt => (
+                    <button key={amt} type="button" onClick={() => addQuickAmount(amt)}>+{amt >= 1000 ? `${amt / 1000}k` : amt}</button>
+                  ))}
+                </div>
+                <p className="ax-hint">Bisa hitung langsung, contoh: 50000+15000</p>
+              </div>
 
-                  <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden focus-within:border-[var(--accent-sage)] transition-all">
-                    <span className="px-3.5 py-2 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-sm text-[var(--accent-sand)] flex items-center select-none shrink-0">
-                      Rp
-                    </span>
-                    <input 
-                      id="tx-amount-input"
-                      type="text"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      onBlur={handleAmountBlur}
-                      placeholder="0 atau hitung ekspresi..."
-                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                      required
-                    />
-                  </div>
-
-                  {calcNotice && (
-                    <div className="mt-1.5 p-2 bg-[var(--bg-elevated)] border border-[var(--accent-sand)] rounded-[var(--radius-sm)] text-xs font-mono text-[var(--accent-sand-light)] flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5" />
-                      {calcNotice}
-                    </div>
-                  )}
-
-                  {/* Quick Chips */}
-                  <div className="flex gap-1.5 mt-2 overflow-x-auto pb-1">
-                    {[10000, 20000, 50000, 100000, 500000].map(amt => (
-                      <button
-                        key={amt}
-                        type="button"
-                        onClick={() => addQuickAmount(amt)}
-                        className="px-2 py-0.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded text-[11px] font-mono text-[var(--text-secondary)] whitespace-nowrap"
-                      >
-                        +{amt >= 1000 ? `${amt / 1000}k` : amt}
+              {/* AKUN SUMBER */}
+              <div>
+                <div className="ax-fl"><span>{activeTab === 'expense' ? 'Bayar dari akun' : 'Masuk ke akun'}</span>
+                  <button type="button" onClick={() => onNavigate('module1')}>Kelola akun</button>
+                </div>
+                {accounts.length === 0 ? (
+                  <p className="ax-empty">Belum ada akun di buku kas ini.</p>
+                ) : (
+                  <div className="ax-accs" role="radiogroup" aria-label="Akun">
+                    {accounts.map(acc => (
+                      <button key={acc.id} type="button" role="radio" aria-checked={accountId === acc.id} className="ax-acc" onClick={() => setAccountId(acc.id)}>
+                        <b>{acc.name}</b><small>{formatRupiah(acc.balance)}</small>
                       </button>
                     ))}
                   </div>
+                )}
+              </div>
+
+              {/* KATEGORI */}
+              <div>
+                <div className="ax-fl"><span>Kategori</span>
+                  <button type="button" onClick={() => setIsCategoryModalOpen(true)}><Settings2 className="w-3 h-3 inline mr-1" />Kelola kategori</button>
                 </div>
-
-                {/* Akun Sumber */}
-                <div>
-                  <label className="brutal-label">Akun Sumber ({currentLedger.name})</label>
-                  <select 
-                    value={accountId}
-                    onChange={(e) => setAccountId(e.target.value)}
-                    className="brutal-select"
-                    required
-                  >
-                    {accounts.length === 0 ? (
-                      <option value="">Belum ada akun di buku kas ini</option>
-                    ) : (
-                      accounts.map(acc => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.name} — {formatRupiah(acc.balance)}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-
-                {/* Kategori dengan Button Pengaturan Kategori Langsung */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="brutal-label mb-0">Kategori</label>
-                      <button
-                        type="button"
-                        onClick={() => setIsCategoryModalOpen(true)}
-                        className="text-[11px] font-mono font-bold text-[var(--accent-blue-light)] hover:underline flex items-center gap-1"
-                      >
-                        <Settings2 className="w-3 h-3" />
-                        <span>Kelola Kategori</span>
-                      </button>
-                    </div>
-
-                    <select 
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      className="brutal-select"
-                    >
-                      {(activeTab === 'expense' ? categories.lists.expense : categories.lists.income).map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="brutal-label">Tanggal</label>
-                    <input 
-                      type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      className="brutal-input text-xs"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Catatan */}
-                <div>
-                  <label className="brutal-label">Catatan (Opsional)</label>
-                  <input 
-                    type="text"
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder="Misal: Makan siang kantor, belanja harian..."
-                    className="brutal-input text-sm"
-                  />
-                </div>
-
-                {/* Submit Button */}
-                <button 
-                  type="submit"
-                  disabled={accounts.length === 0}
-                  className={`brutal-btn w-full py-3 text-sm font-bold ${
-                    activeTab === 'income' ? 'brutal-btn-sage' : 'brutal-btn-terracotta'
-                  }`}
-                >
-                  {activeTab === 'income' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                  <span>Simpan {activeTab === 'income' ? 'Pemasukan' : 'Pengeluaran'}</span>
-                </button>
-              </form>
-            </div>
-          ) : (
-            /* =================== FORM TRANSFER ANTAR AKUN =================== */
-            <div className="brutal-card p-3.5 bg-[var(--bg-surface)] border-2 border-[var(--accent-blue)] space-y-3">
-              <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-                <div className="flex items-center gap-2">
-                  <ArrowRightLeft className="w-5 h-5 text-[var(--accent-blue)]" />
-                  <div>
-                    <h3 className="font-heading font-bold text-sm text-[var(--text-primary)]">
-                      Transfer Antar Akun
-                    </h3>
-                    <p className="text-[10px] font-mono text-[var(--accent-blue-light)]">Buku Kas: {currentLedger.name}</p>
-                  </div>
+                <div className="ax-chipset" role="radiogroup" aria-label="Kategori">
+                  {(activeTab === 'expense' ? categories.lists.expense : categories.lists.income).map(c => (
+                    <button key={c} type="button" role="radio" aria-checked={category === c} onClick={() => setCategory(c)}>{c}</button>
+                  ))}
                 </div>
               </div>
 
-              <form onSubmit={handleSubmitTransfer} className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="brutal-label">Akun Asal (Pengirim)</label>
-                    <select 
-                      value={transferSource}
-                      onChange={(e) => setTransferSource(e.target.value)}
-                      className="brutal-select"
-                      required
-                    >
-                      {accounts.length === 0 ? (
-                        <option value="">Belum ada akun di buku ini</option>
-                      ) : (
-                        accounts.map(acc => (
-                          <option key={acc.id} value={acc.id}>
-                            {acc.name} — {formatRupiah(acc.balance)}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="brutal-label">Akun Tujuan (Penerima)</label>
-                    <select 
-                      value={transferDest}
-                      onChange={(e) => setTransferDest(e.target.value)}
-                      className="brutal-select"
-                      required
-                    >
-                      {accounts.length === 0 ? (
-                        <option value="">Belum ada akun di buku ini</option>
-                      ) : (
-                        accounts.map(acc => (
-                          <option key={acc.id} value={acc.id} disabled={acc.id === transferSource}>
-                            {acc.name} {acc.id === transferSource ? '(Akun Asal)' : `— ${formatRupiah(acc.balance)}`}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Nominal Transfer */}
+              {/* TANGGAL + CATATAN */}
+              <div className="ax-two">
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="brutal-label mb-0 flex items-center gap-1.5">
-                      <Calculator className="w-3.5 h-3.5 text-[var(--accent-blue)]" />
-                      Nominal Transfer
-                    </label>
-                    <span className="text-[10px] font-mono text-[var(--accent-blue-light)]">
-                      Bisa hitung ekspresi
-                    </span>
-                  </div>
-
-                  <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden focus-within:border-[var(--accent-blue)] transition-all">
-                    <span className="px-3.5 py-2 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-sm text-[var(--accent-blue)] flex items-center select-none shrink-0">
-                      Rp
-                    </span>
-                    <input 
-                      type="text"
-                      value={transferAmount}
-                      onChange={(e) => setTransferAmount(e.target.value)}
-                      onBlur={handleTransferAmountBlur}
-                      placeholder="0..."
-                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                      required
-                    />
-                  </div>
-
-                  {transferCalcNotice && (
-                    <div className="mt-1.5 p-2 bg-[var(--bg-elevated)] border border-[var(--accent-blue)] rounded-[var(--radius-sm)] text-xs font-mono text-[var(--accent-blue-light)] flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5" />
-                      {transferCalcNotice}
-                    </div>
-                  )}
-
-                  {/* Quick Chips Transfer */}
-                  <div className="flex gap-1.5 mt-2 overflow-x-auto pb-1">
-                    {[50000, 100000, 250000, 500000, 1000000].map(amt => (
-                      <button
-                        key={amt}
-                        type="button"
-                        onClick={() => addQuickTransferAmount(amt)}
-                        className="px-2 py-0.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded text-[11px] font-mono text-[var(--text-secondary)] whitespace-nowrap"
-                      >
-                        +{amt >= 1000 ? `${amt / 1000}k` : amt}
-                      </button>
-                    ))}
+                  <label className="brutal-label" htmlFor="tx-date">Tanggal</label>
+                  <input id="tx-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="brutal-input" required />
+                  <div className="ax-quickdate">
+                    <button type="button" onClick={() => setDate(new Date().toISOString().split('T')[0])}>Hari ini</button>
+                    <button type="button" onClick={() => setDate(new Date(Date.now() - 864e5).toISOString().split('T')[0])}>Kemarin</button>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="brutal-label">Tanggal</label>
-                    <input 
-                      type="date"
-                      value={transferDate}
-                      onChange={(e) => setTransferDate(e.target.value)}
-                      className="brutal-input text-xs"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="brutal-label">Catatan Transfer (Opsional)</label>
-                    <input 
-                      type="text"
-                      value={transferNote}
-                      onChange={(e) => setTransferNote(e.target.value)}
-                      placeholder="Misal: Tarik tunai ATM, topup e-wallet"
-                      className="brutal-input text-sm"
-                    />
-                  </div>
+                <div>
+                  <label className="brutal-label" htmlFor="tx-note">Catatan (opsional)</label>
+                  <input id="tx-note" type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Misal: makan siang kantor" className="brutal-input" />
                 </div>
+              </div>
 
-                <button 
-                  type="submit"
-                  disabled={accounts.length < 2}
-                  className="brutal-btn brutal-btn-blue w-full py-3 text-sm font-bold flex items-center justify-center gap-2"
-                >
-                  <ArrowRightLeft className="w-4 h-4" />
-                  <span>Eksekusi Transfer Antar Akun</span>
+              <div className="ax-sticky">
+                <button type="submit" disabled={accounts.length === 0} data-kind={activeTab} className="brutal-btn ax-submit">
+                  {activeTab === 'income' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                  Simpan {activeTab === 'income' ? 'pemasukan' : 'pengeluaran'}
+                  {evaluateMathExpression(amount).result > 0 ? ` · ${formatRupiah(evaluateMathExpression(amount).result)}` : ''}
                 </button>
-              </form>
-            </div>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleSubmitTransfer} className="ax-form">
+              <div className="ax-xfer">
+                <div>
+                  <label className="brutal-label" htmlFor="tf-src">Dari akun</label>
+                  <select id="tf-src" value={transferSource} onChange={(e) => setTransferSource(e.target.value)} className="brutal-select" required>
+                    {accounts.length === 0 ? <option value="">Belum ada akun di buku ini</option> : accounts.map(acc => (
+                      <option key={acc.id} value={acc.id}>{acc.name} — {formatRupiah(acc.balance)}</option>
+                    ))}
+                  </select>
+                </div>
+                <button type="button" className="ax-swap" title="Tukar akun asal dan tujuan" aria-label="Tukar akun asal dan tujuan" onClick={() => { setTransferSource(transferDest); setTransferDest(transferSource); }}>
+                  <ArrowRightLeft className="w-4 h-4" />
+                </button>
+                <div>
+                  <label className="brutal-label" htmlFor="tf-dst">Ke akun</label>
+                  <select id="tf-dst" value={transferDest} onChange={(e) => setTransferDest(e.target.value)} className="brutal-select" required>
+                    {accounts.length === 0 ? <option value="">Belum ada akun di buku ini</option> : accounts.map(acc => (
+                      <option key={acc.id} value={acc.id} disabled={acc.id === transferSource}>
+                        {acc.name} {acc.id === transferSource ? '(Akun Asal)' : `— ${formatRupiah(acc.balance)}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="ax-amt" data-kind="transfer">
+                <label className="ax-fl" htmlFor="tf-amount"><span><Calculator className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Nominal transfer</span></label>
+                <div className="ax-amt-row">
+                  <span>Rp</span>
+                  <input id="tf-amount" type="text" inputMode="text" autoComplete="off" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} onBlur={handleTransferAmountBlur} placeholder="0" required />
+                </div>
+                {transferCalcNotice && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{transferCalcNotice}</div>}
+                <div className="ax-qs" aria-label="Tambah nominal cepat">
+                  {[50000, 100000, 250000, 500000, 1000000].map(amt => (
+                    <button key={amt} type="button" onClick={() => addQuickTransferAmount(amt)}>+{amt >= 1000 ? `${amt / 1000}k` : amt}</button>
+                  ))}
+                </div>
+                <p className="ax-hint">Bisa hitung langsung, contoh: 250000+50000</p>
+              </div>
+
+              <div className="ax-two">
+                <div>
+                  <label className="brutal-label" htmlFor="tf-date">Tanggal</label>
+                  <input id="tf-date" type="date" value={transferDate} onChange={(e) => setTransferDate(e.target.value)} className="brutal-input" required />
+                </div>
+                <div>
+                  <label className="brutal-label" htmlFor="tf-note">Catatan (opsional)</label>
+                  <input id="tf-note" type="text" value={transferNote} onChange={(e) => setTransferNote(e.target.value)} placeholder="Misal: tarik tunai ATM, top up e-wallet" className="brutal-input" />
+                </div>
+              </div>
+
+              <div className="ax-sticky">
+                <button type="submit" disabled={accounts.length < 2} data-kind="transfer" className="brutal-btn ax-submit">
+                  <ArrowRightLeft className="w-4 h-4" />Eksekusi transfer
+                  {evaluateMathExpression(transferAmount).result > 0 ? ` · ${formatRupiah(evaluateMathExpression(transferAmount).result)}` : ''}
+                </button>
+              </div>
+            </form>
           )}
         </div>
 
-        {/* Kolom Kanan: Rangkuman Cepat Akun & Transaksi Terakhir */}
-        <div className="lg:col-span-4 space-y-3">
-          {/* Akun Saldo Singkat */}
-          <div className="brutal-card p-3 bg-[var(--bg-surface)] space-y-3">
-            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
-              <span className="text-xs font-heading font-bold text-[var(--text-primary)] uppercase">
-                Akun di Buku Ini
-              </span>
-              <button
-                type="button"
-                onClick={() => onNavigate('module1')}
-                className="text-[10px] font-mono text-[var(--accent-sage-light)] hover:underline"
-              >
-                Kelola Akun →
-              </button>
+        {/* KOLOM SAMPING */}
+        <div className="ax-side-col">
+          <section className="ax-panel">
+            <div className="ax-ph">
+              <h3><span className="ax-ic" style={{ background: 'var(--accent-sage)' }}><Tag className="w-3.5 h-3.5" /></span>Akun di buku ini</h3>
+              <button type="button" className="ax-link" onClick={() => onNavigate('module1')}>Kelola →</button>
             </div>
-
-            <div className="space-y-2 max-h-48 overflow-y-auto">
+            <div className="ax-list" style={{ maxHeight: 220, overflowY: 'auto' }}>
               {accounts.map(acc => (
-                <div key={acc.id} className="flex items-center justify-between text-xs p-1.5 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)]">
-                  <span className="font-bold text-[var(--text-primary)] truncate max-w-[120px]">{acc.name}</span>
-                  <span className="font-mono text-[var(--accent-sand-light)]">{formatRupiah(acc.balance)}</span>
-                </div>
+                <div key={acc.id} className="ax-mini"><span>{acc.name}</span><span>{formatRupiah(acc.balance)}</span></div>
               ))}
             </div>
-          </div>
+          </section>
 
-          {/* 3 Transaksi Terakhir di Buku Ini */}
-          <div className="brutal-card p-3 bg-[var(--bg-surface)] space-y-3">
-            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
-              <span className="text-xs font-heading font-bold text-[var(--text-primary)] uppercase">
-                Baru Saja Dicatat
-              </span>
-              <button
-                type="button"
-                onClick={() => onNavigate('history_transaction')}
-                className="text-[10px] font-mono text-[var(--accent-blue-light)] hover:underline"
-              >
-                Semua Riwayat →
-              </button>
+          <section className="ax-panel">
+            <div className="ax-ph">
+              <h3><span className="ax-ic" style={{ background: 'var(--accent-blue)' }}><History className="w-3.5 h-3.5" /></span>Baru saja dicatat</h3>
+              <button type="button" className="ax-link" onClick={() => onNavigate('history_transaction')}>Semua →</button>
             </div>
-
             {recentTransactions.length === 0 ? (
-              <p className="text-xs text-[var(--text-muted)] italic">Belum ada transaksi di buku ini.</p>
+              <p className="ax-empty">Belum ada transaksi di buku ini.</p>
             ) : (
-              <div className="space-y-2">
+              <ul className="ax-list">
                 {recentTransactions.slice(0, 3).map(t => (
-                  <div key={t.id} className="p-2 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-bold text-xs text-[var(--text-primary)] truncate">{t.category || t.type}</p>
-                      <p className="text-[10px] text-[var(--text-muted)]">{t.date}</p>
-                    </div>
-                    <span className={`font-mono text-xs font-bold shrink-0 ${
-                      t.type === 'income' ? 'text-[var(--accent-sage-light)]' : t.type === 'expense' ? 'text-[var(--accent-terracotta-light)]' : 'text-[var(--accent-blue-light)]'
-                    }`}>
+                  <li key={t.id} className="ax-row static">
+                    <span className="ax-row-t"><b>{t.category || t.type}</b><small>{t.date}</small></span>
+                    <span className={`ax-row-v ${t.type === 'income' ? 'pos' : t.type === 'expense' ? 'neg' : 'blu'}`}>
                       {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : '⇄'} {formatRupiah(t.amount)}
                     </span>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
-          </div>
+          </section>
         </div>
       </div>
 

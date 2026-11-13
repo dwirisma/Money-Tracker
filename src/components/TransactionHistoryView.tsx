@@ -1,16 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Search, 
-  Filter, 
-  TrendingUp, 
-  TrendingDown, 
-  ArrowRightLeft, 
-  Pencil, 
-  Trash2, 
-  Calendar, 
-  Plus, 
-  Download, 
-  Tag, 
+import {
+  Search,
+  Filter,
+  TrendingUp,
+  TrendingDown,
+  ArrowRightLeft,
+  Pencil,
+  Trash2,
+  Plus,
+  Tag,
   Wallet,
   ArrowUpDown
 } from 'lucide-react';
@@ -41,6 +39,7 @@ export function TransactionHistoryView({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedAccount, setSelectedAccount] = useState<string>('all');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [showFilters, setShowFilters] = useState(false);
 
   // Categories list extracted from transactions
   const availableCategories = useMemo(() => {
@@ -106,289 +105,165 @@ export function TransactionHistoryView({
     };
   }, [filtered]);
 
+  const activeFilters =
+    (typeFilter !== 'all' ? 1 : 0) + (selectedCategory !== 'all' ? 1 : 0) + (selectedAccount !== 'all' ? 1 : 0) + (searchQuery.trim() ? 1 : 0);
+
+  function resetFilters() {
+    setSearchQuery('');
+    setTypeFilter('all');
+    setSelectedCategory('all');
+    setSelectedAccount('all');
+  }
+
+  // Kelompokkan per tanggal (urutan mengikuti sortOrder) + total harian
+  const groups = useMemo(() => {
+    const out: { date: string; items: Transaction[]; net: number }[] = [];
+    filtered.forEach(t => {
+      const d = t.date || '-';
+      let g = out[out.length - 1];
+      if (!g || g.date !== d) {
+        g = { date: d, items: [], net: 0 };
+        out.push(g);
+      }
+      g.items.push(t);
+      if (t.type === 'income') g.net += t.amount;
+      else if (t.type === 'expense') g.net -= t.amount;
+    });
+    return out;
+  }, [filtered]);
+
+  function dayLabel(d: string): string {
+    const dt = new Date(`${d}T00:00:00`);
+    if (isNaN(dt.getTime())) return d;
+    const iso = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+    const now = new Date();
+    const yest = new Date(now.getTime() - 864e5);
+    const base = dt.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+    if (d === iso(now)) return `Hari ini · ${base}`;
+    if (d === iso(yest)) return `Kemarin · ${base}`;
+    return base;
+  }
+
   return (
-    <div className="space-y-3 w-full">
-      {/* Header Halaman */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b-2 border-[var(--border-subtle)] pb-4">
+    <div className="ax-add">
+      <div className="ax-pagehead">
         <div>
-          <h2 className="font-heading font-bold text-xl text-[var(--text-primary)]">
-            Riwayat Transaksi
-          </h2>
-          <p className="text-sm text-[var(--text-secondary)]">
-            Daftar lengkap seluruh arus kas dan mutasi di buku <b>{currentLedger.name}</b>.
-          </p>
+          <h2>Riwayat Transaksi</h2>
+          <p>Seluruh arus kas dan mutasi di buku <b>{currentLedger.name}</b></p>
         </div>
+        <button type="button" onClick={() => onNavigate('add_transaction')} className="brutal-btn ax-btn-ink">
+          <Plus className="w-4 h-4" />Catat
+        </button>
       </div>
 
-      {/* METRICS SUMMARY KARTU */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-        <div className="brutal-card p-3 bg-[var(--bg-surface)] border-l-4 border-l-[var(--accent-sage)] space-y-1">
-          <span className="text-[10px] font-mono uppercase text-[var(--text-secondary)] font-bold">Total Masuk</span>
-          <p className="font-mono font-bold text-sm sm:text-lg text-[var(--accent-sage-light)] truncate">
-            {formatRupiah(metrics.income)}
-          </p>
+      {/* RINGKASAN (mengikuti filter aktif) */}
+      <div className="ax-stats4">
+        <div className="ax-sc s"><span><TrendingUp className="w-3 h-3" />Total masuk</span><b>{formatRupiah(metrics.income)}</b></div>
+        <div className="ax-sc t"><span><TrendingDown className="w-3 h-3" />Total keluar</span><b>{formatRupiah(metrics.expense)}</b></div>
+        <div className="ax-sc b"><span><Wallet className="w-3 h-3" />Arus kas bersih</span>
+          <b style={{ color: metrics.net >= 0 ? 'var(--accent-sage-light)' : 'var(--accent-terracotta-light)' }}>{metrics.net >= 0 ? '+' : ''}{formatRupiah(metrics.net)}</b>
         </div>
-
-        <div className="brutal-card p-3 bg-[var(--bg-surface)] border-l-4 border-l-[var(--accent-terracotta)] space-y-1">
-          <span className="text-[10px] font-mono uppercase text-[var(--text-secondary)] font-bold">Total Keluar</span>
-          <p className="font-mono font-bold text-sm sm:text-lg text-[var(--accent-terracotta-light)] truncate">
-            {formatRupiah(metrics.expense)}
-          </p>
-        </div>
-
-        <div className="brutal-card p-3 bg-[var(--bg-surface)] border-l-4 border-l-[var(--accent-blue)] space-y-1">
-          <span className="text-[10px] font-mono uppercase text-[var(--text-secondary)] font-bold">Arus Kas Bersih</span>
-          <p className={`font-mono font-bold text-sm sm:text-lg truncate ${
-            metrics.net >= 0 ? 'text-[var(--accent-sage-light)]' : 'text-[var(--accent-terracotta-light)]'
-          }`}>
-            {metrics.net >= 0 ? '+' : ''}{formatRupiah(metrics.net)}
-          </p>
-        </div>
-
-        <div className="brutal-card p-3 bg-[var(--bg-surface)] border-l-4 border-l-[var(--accent-sand)] space-y-1">
-          <span className="text-[10px] font-mono uppercase text-[var(--text-secondary)] font-bold">Jumlah Transaksi</span>
-          <p className="font-mono font-bold text-sm sm:text-lg text-[var(--text-primary)]">
-            {metrics.count} <span className="text-xs font-normal text-[var(--text-muted)]">data</span>
-          </p>
-        </div>
+        <div className="ax-sc y"><span><Tag className="w-3 h-3" />Jumlah transaksi</span><b>{metrics.count} <small>data</small></b></div>
       </div>
 
-      {/* FILTER & PENCARIAN CONTROLS */}
-      <div className="brutal-card p-3 bg-[var(--bg-surface)] space-y-3">
-        {/* Row 1: Search + Quick Type Pills */}
-        <div className="flex flex-col md:flex-row gap-2.5 items-stretch md:items-center justify-between">
-          {/* Search Box */}
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-[var(--text-muted)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari transaksi berdasarkan catatan, nominal, akun..."
-              className="brutal-input text-xs !pl-11 w-full"
-            />
-          </div>
-
-          {/* Type Segmented Buttons */}
-          <div className="flex p-1 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] gap-1 shrink-0 overflow-x-auto">
-            <button
-              type="button"
-              onClick={() => setTypeFilter('all')}
-              className={`px-3 py-1 text-xs font-heading font-bold rounded-[var(--radius-xs)] transition-all ${
-                typeFilter === 'all'
-                  ? 'bg-[var(--accent-sand)] text-[#111] shadow-[1px_1px_0px_#000]'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Semua
-            </button>
-            <button
-              type="button"
-              onClick={() => setTypeFilter('expense')}
-              className={`px-3 py-1 text-xs font-heading font-bold rounded-[var(--radius-xs)] transition-all ${
-                typeFilter === 'expense'
-                  ? 'bg-[var(--accent-terracotta)] text-white shadow-[1px_1px_0px_#000]'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Pengeluaran
-            </button>
-            <button
-              type="button"
-              onClick={() => setTypeFilter('income')}
-              className={`px-3 py-1 text-xs font-heading font-bold rounded-[var(--radius-xs)] transition-all ${
-                typeFilter === 'income'
-                  ? 'bg-[var(--accent-sage)] text-[#111] shadow-[1px_1px_0px_#000]'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Pemasukan
-            </button>
-            <button
-              type="button"
-              onClick={() => setTypeFilter('transfer')}
-              className={`px-3 py-1 text-xs font-heading font-bold rounded-[var(--radius-xs)] transition-all ${
-                typeFilter === 'transfer'
-                  ? 'bg-[var(--accent-blue)] text-white shadow-[1px_1px_0px_#000]'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Transfer
-            </button>
-          </div>
+      {/* FILTER */}
+      <div className="ax-panel ax-filters">
+        <div className="ax-search">
+          <Search className="w-4 h-4" />
+          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Cari catatan, nominal, atau akun..." className="brutal-input" aria-label="Cari transaksi" />
         </div>
-
-        {/* Row 2: Dropdowns Kategori, Akun, & Urutan */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-[var(--border-subtle)] text-xs">
+        <div className="ax-fbar">
+          <div className="ax-seg four" role="tablist" aria-label="Jenis transaksi">
+            {([['all', 'Semua'], ['expense', 'Keluar'], ['income', 'Masuk'], ['transfer', 'Transfer']] as const).map(([k, label]) => (
+              <button key={k} type="button" role="tab" aria-selected={typeFilter === k} data-on={typeFilter === k} data-k={k === 'all' ? 'sand' : k}
+                style={typeFilter === k && k === 'all' ? { background: 'var(--accent-sand)' } : undefined}
+                onClick={() => setTypeFilter(k)}>{label}</button>
+            ))}
+          </div>
+          <button type="button" className="ax-filterbtn" data-on={showFilters || activeFilters > 0} onClick={() => setShowFilters(v => !v)} aria-expanded={showFilters}>
+            <Filter className="w-4 h-4" />Filter{activeFilters > 0 ? ` (${activeFilters})` : ''}
+          </button>
+        </div>
+        <div className="ax-adv" data-open={showFilters}>
           <div>
-            <label className="text-[10px] font-mono text-[var(--text-muted)] uppercase block mb-1">Kategori</label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="brutal-select text-xs py-1.5"
-            >
-              <option value="all">Semua Kategori ({availableCategories.length})</option>
-              {availableCategories.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
+            <label className="brutal-label" htmlFor="h-cat">Kategori</label>
+            <select id="h-cat" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="brutal-select">
+              <option value="all">Semua kategori ({availableCategories.length})</option>
+              {availableCategories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-
           <div>
-            <label className="text-[10px] font-mono text-[var(--text-muted)] uppercase block mb-1">Akun Terkait</label>
-            <select
-              value={selectedAccount}
-              onChange={(e) => setSelectedAccount(e.target.value)}
-              className="brutal-select text-xs py-1.5"
-            >
-              <option value="all">Semua Akun ({accounts.length})</option>
-              {accounts.map(a => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
+            <label className="brutal-label" htmlFor="h-acc">Akun terkait</label>
+            <select id="h-acc" value={selectedAccount} onChange={(e) => setSelectedAccount(e.target.value)} className="brutal-select">
+              <option value="all">Semua akun ({accounts.length})</option>
+              {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </div>
-
           <div>
-            <label className="text-[10px] font-mono text-[var(--text-muted)] uppercase block mb-1">Urutan Tanggal</label>
-            <button
-              type="button"
-              onClick={() => setSortOrder(o => o === 'desc' ? 'asc' : 'desc')}
-              className="brutal-btn text-xs py-1.5 w-full flex items-center justify-center gap-1.5 font-mono"
-            >
-              <ArrowUpDown className="w-3.5 h-3.5" />
-              <span>{sortOrder === 'desc' ? 'Terbaru ke Terlama' : 'Terlama ke Terbaru'}</span>
+            <span className="brutal-label">Urutan tanggal</span>
+            <button type="button" onClick={() => setSortOrder(o => o === 'desc' ? 'asc' : 'desc')} className="brutal-btn w-full" style={{ minHeight: 42 }}>
+              <ArrowUpDown className="w-3.5 h-3.5" />{sortOrder === 'desc' ? 'Terbaru ke terlama' : 'Terlama ke terbaru'}
             </button>
           </div>
         </div>
-      </div>
-
-      {/* DAFTAR TRANSAKSI TABLE / CARDS */}
-      <div className="space-y-3">
-        {filtered.length === 0 ? (
-          <div className="brutal-card p-10 text-center space-y-3 bg-[var(--bg-surface)]">
-            <p className="font-heading font-bold text-sm text-[var(--text-secondary)]">
-              Tidak ada transaksi yang cocok dengan filter
-            </p>
-            <p className="text-xs text-[var(--text-muted)] font-mono">
-              Coba reset filter atau catat transaksi baru.
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery('');
-                setTypeFilter('all');
-                setSelectedCategory('all');
-                setSelectedAccount('all');
-              }}
-              className="brutal-btn brutal-btn-sand text-xs py-2 px-3 inline-flex items-center gap-1 font-bold"
-            >
-              Reset Semua Filter
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {filtered.map(tx => {
-              const sourceName = accountMap.get(tx.accountId) || 'Akun Dihapus';
-              const destName = tx.toAccountId ? (accountMap.get(tx.toAccountId) || 'Akun Dihapus') : null;
-
-              return (
-                <div
-                  key={tx.id}
-                  className="brutal-card p-3 sm:p-3 bg-[var(--bg-surface)] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 group hover:border-[var(--accent-sand)] transition-all"
-                  style={{
-                    borderLeftWidth: '5px',
-                    borderLeftColor: tx.type === 'income' ? 'var(--accent-sage)' : tx.type === 'expense' ? 'var(--accent-terracotta)' : 'var(--accent-blue)'
-                  }}
-                >
-                  {/* Left: Info Transaksi */}
-                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                    <div 
-                      className={`w-9 h-9 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] shadow-[1px_1px_0px_#000] flex items-center justify-center shrink-0 ${
-                        tx.type === 'income' ? 'bg-[var(--accent-sage)] text-[#111]' : tx.type === 'expense' ? 'bg-[var(--accent-terracotta)] text-white' : 'bg-[var(--accent-blue)] text-white'
-                      }`}
-                    >
-                      {tx.type === 'income' ? <TrendingUp className="w-4 h-4" /> : tx.type === 'expense' ? <TrendingDown className="w-4 h-4" /> : <ArrowRightLeft className="w-4 h-4" />}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                        <span className="font-heading font-bold text-sm text-[var(--text-primary)] truncate">
-                          {tx.category || (tx.type === 'transfer' ? 'Transfer Saldo' : 'Lainnya')}
-                        </span>
-                        {tx.type === 'transfer' && (
-                          <span className="brutal-badge text-[9px] bg-[var(--accent-blue-light)] text-[#111]">
-                            Transfer
-                          </span>
-                        )}
-                        {tx.goalId && (
-                          <span className="brutal-badge text-[9px] bg-[var(--accent-sand-light)] text-[#111]">
-                            Alokasi Goal
-                          </span>
-                        )}
-                        {tx.billId && (
-                          <span className="brutal-badge text-[9px] bg-[var(--accent-terracotta-light)] text-white">
-                            Tagihan
-                          </span>
-                        )}
-                        {tx.debtId && (
-                          <span className="brutal-badge text-[9px] bg-[var(--accent-lavender-light)] text-[#111]">
-                            Cicilan Utang
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="text-xs text-[var(--text-secondary)] flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="font-mono text-[11px] text-[var(--text-muted)] flex items-center gap-1">
-                          <Calendar className="w-3 h-3" /> {tx.date}
-                        </span>
-                        <span>•</span>
-                        <span className="font-mono text-[11px] text-[var(--accent-sand-light)]">
-                          {tx.type === 'transfer' ? `${sourceName} → ${destName}` : sourceName}
-                        </span>
-                      </div>
-
-                      {tx.note && (
-                        <p className="text-xs text-[var(--text-muted)] mt-1 italic truncate">
-                          "{tx.note}"
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right: Nominal & Actions */}
-                  <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--border-subtle)]">
-                    <span className={`font-mono font-bold text-sm sm:text-lg ${
-                      tx.type === 'income' ? 'text-[var(--accent-sage-light)]' : tx.type === 'expense' ? 'text-[var(--accent-terracotta-light)]' : 'text-[var(--accent-blue-light)]'
-                    }`}>
-                      {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '⇄'} {formatRupiah(tx.amount)}
-                    </span>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => onEditTransaction(tx)}
-                        className="p-1.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded shadow-[1px_1px_0px_#000] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all active:translate-x-0.5 active:translate-y-0.5"
-                        title="Edit Transaksi"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => onDeleteTransaction(tx)}
-                        className="p-1.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded shadow-[1px_1px_0px_#000] text-[var(--text-secondary)] hover:text-[var(--accent-terracotta-light)] transition-all active:translate-x-0.5 active:translate-y-0.5"
-                        title="Hapus Transaksi"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        {activeFilters > 0 && (
+          <button type="button" className="ax-link" style={{ alignSelf: 'flex-start' }} onClick={resetFilters}>Reset semua filter</button>
         )}
       </div>
+
+      {/* DAFTAR PER TANGGAL */}
+      {filtered.length === 0 ? (
+        <div className="ax-panel ax-emptyc">
+          <p>Tidak ada transaksi yang cocok</p>
+          <small>Coba reset filter atau catat transaksi baru.</small>
+          <button type="button" onClick={resetFilters} className="brutal-btn brutal-btn-sand">Reset semua filter</button>
+        </div>
+      ) : (
+        <div>
+          {groups.map(g => (
+            <section key={g.date} aria-label={dayLabel(g.date)}>
+              <div className="ax-day">
+                {dayLabel(g.date)}
+                {g.net !== 0 && <span className={g.net > 0 ? 'pos' : 'neg'}>{g.net > 0 ? '+' : '-'}{formatRupiah(Math.abs(g.net))}</span>}
+              </div>
+              <div className="ax-txl">
+                {g.items.map(tx => {
+                  const sourceName = accountMap.get(tx.accountId) || 'Akun Dihapus';
+                  const destName = tx.toAccountId ? (accountMap.get(tx.toAccountId) || 'Akun Dihapus') : null;
+                  const bg = tx.type === 'income' ? 'var(--accent-sage)' : tx.type === 'expense' ? 'var(--accent-terracotta)' : 'var(--accent-blue)';
+                  return (
+                    <article key={tx.id} className="ax-tx">
+                      <span className="ax-txi" style={{ background: bg }}>
+                        {tx.type === 'income' ? <TrendingUp className="w-4 h-4" /> : tx.type === 'expense' ? <TrendingDown className="w-4 h-4" /> : <ArrowRightLeft className="w-4 h-4" />}
+                      </span>
+                      <div className="ax-txm">
+                        <b>
+                          {tx.category || (tx.type === 'transfer' ? 'Transfer Saldo' : 'Lainnya')}
+                          {tx.type === 'transfer' && <span className="ax-tag b">Transfer</span>}
+                          {tx.goalId && <span className="ax-tag y">Alokasi Goal</span>}
+                          {tx.billId && <span className="ax-tag t">Tagihan</span>}
+                          {tx.debtId && <span className="ax-tag l">Cicilan Utang</span>}
+                        </b>
+                        <small>{tx.type === 'transfer' ? `${sourceName} → ${destName}` : sourceName}</small>
+                        {tx.note && <em>"{tx.note}"</em>}
+                      </div>
+                      <div className="ax-txr">
+                        <span className={tx.type === 'income' ? 'pos' : tx.type === 'expense' ? 'neg' : 'blu'}>
+                          {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '⇄'} {formatRupiah(tx.amount)}
+                        </span>
+                        <div className="ax-acts">
+                          <button type="button" className="ax-iconbtn" onClick={() => onEditTransaction(tx)} title="Edit transaksi" aria-label="Edit transaksi"><Pencil className="w-3.5 h-3.5" /></button>
+                          <button type="button" className="ax-iconbtn del" onClick={() => onDeleteTransaction(tx)} title="Hapus transaksi" aria-label="Hapus transaksi"><Trash2 className="w-3.5 h-3.5" /></button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
