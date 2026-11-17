@@ -1,19 +1,18 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  Calendar as CalendarIcon, 
-  Clock, 
-  Utensils, 
-  Plus, 
-  Zap, 
-  ShieldCheck, 
-  FileText, 
-  Info, 
-  CalendarCheck, 
-  Sparkles, 
-  RotateCcw, 
+import {
+  Calendar as CalendarIcon,
+  Clock,
+  Utensils,
+  Plus,
+  Zap,
+  ShieldCheck,
+  FileText,
+  Info,
+  CalendarCheck,
+  Sparkles,
+  RotateCcw,
   RefreshCw,
-  Briefcase, 
-  ChevronLeft, 
+  ChevronLeft,
   ChevronRight,
   X,
   Settings,
@@ -22,7 +21,8 @@ import {
   Gift,
   ToggleLeft,
   ToggleRight,
-  Edit3
+  Edit3,
+  Wallet
 } from 'lucide-react';
 import { 
   ShiftDayLog, 
@@ -986,108 +986,65 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
         </div>
       )}
 
-      {/* ===================================================================== */}
-      {/* 1. TOP HEADER & KONTROL NAVIGASI                                       */}
-      {/* ===================================================================== */}
-      <section className="brutal-card p-3 sm:p-3 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] shadow-[var(--shadow-md)] flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
-        
-        {/* Info Judul & Periode */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Briefcase className="w-5 h-5 text-[var(--accent-sand)]" />
-            <h2 className="font-heading font-extrabold text-lg sm:text-xl text-[var(--text-primary)]">
-              Prediksi Gaji & Kalender Shift (Group {selectedGroup})
-            </h2>
-            <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded-[var(--radius-sm)] bg-[var(--accent-sand-dark)] text-[var(--accent-sand-light)] border border-[var(--accent-sand)]">
-              4 Regu 3 Shift (28-Hari)
-            </span>
-          </div>
-          <p className="text-xs text-[var(--text-secondary)] font-mono flex items-center gap-2 flex-wrap">
-            <span>Buku Kas: <strong>{activeLedger?.name || 'Utama'}</strong></span>
-            <span>•</span>
-            <span className="text-[var(--accent-sand-light)]">Periode Cut-Off: <strong>{periodLabel}</strong></span>
+      {/* HEADER */}
+      <div className="ax-pagehead">
+        <div>
+          <h2>Gaji & Kalender Shift</h2>
+          <p>
+            Buku kas <b>{activeLedger?.name || 'Utama'}</b> · Periode cut-off: <b>{periodLabel}</b>
           </p>
         </div>
+        <span className="ax-badge-s" style={{ fontSize: 10 }}>4 Regu · 3 Shift · Siklus 28 hari</span>
+      </div>
 
-        {/* Kontrol Grup Shift & Navigasi Periode */}
-        <div className="flex flex-col items-start sm:items-end gap-2 sm:gap-2.5 w-full lg:w-auto">
-          
-          {/* Baris Atas: Segmented Group Selector */}
-          <div className="inline-flex items-center bg-[var(--bg-elevated)] p-1 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] shadow-[var(--shadow-sm)] text-xs font-mono font-bold">
-            <span className="px-2 text-[10px] text-[var(--text-muted)] uppercase tracking-wider hidden sm:inline">
-              Grup
-            </span>
+      {/* KONTROL: GRUP + PERIODE */}
+      <div className="ax-panel ax-ctl">
+        <div className="ax-grp-l">
+          <b>Grup</b>
+          <div className="ax-chipset" role="radiogroup" aria-label="Pilih grup shift">
             {(['A', 'B', 'C', 'D'] as ShiftGroup[]).map(grp => (
-              <button
-                key={grp}
-                type="button"
-                onClick={() => setSelectedGroup(grp)}
-                className={`px-2.5 py-1 rounded transition-all ${
-                  selectedGroup === grp
-                    ? 'bg-[var(--accent-sand)] text-black font-extrabold shadow-[1px_1px_0px_#000]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)]'
-                }`}
-                title={`Pilih Grup ${grp}`}
-              >
+              <button key={grp} type="button" role="radio" aria-checked={selectedGroup === grp} onClick={() => setSelectedGroup(grp)} title={`Pilih Grup ${grp}`}>
                 Grup {grp}
               </button>
             ))}
           </div>
-
-          {/* Baris Bawah: Navigasi Periode, Reset & Pengaturan */}
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            {/* Unified Period Navigation */}
-            <div className="inline-flex items-center bg-[var(--bg-elevated)] p-1 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] shadow-[var(--shadow-sm)] text-xs font-mono font-bold">
-              <button
-                type="button"
-                onClick={handlePrevPeriod}
-                className="p-1 px-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] rounded transition-colors"
-                title="Periode Cut-Off Sebelumnya"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              <button
-                type="button"
-                onClick={handleResetToCurrentPeriod}
-                className="px-3 py-1 bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded transition-colors hover:bg-[var(--bg-muted)]"
-                title="Kembali ke Periode Cut-Off Aktif Hari Ini"
-              >
-                Bulan Ini
-              </button>
-
-              <button
-                type="button"
-                onClick={handleNextPeriod}
-                className="p-1 px-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] rounded transition-colors"
-                title="Periode Cut-Off Berikutnya"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Reset Jadwal */}
-            <button
-              type="button"
-              onClick={handleResetSchedulePattern}
-              className="p-1.5 sm:p-2 bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[var(--shadow-sm)] transition-colors"
-              title="Reset ke Jadwal Standar Siklus 28-Hari AGC"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-
-            {/* Tombol Pengaturan Khusus Modul Gaji & Shift */}
-            <button
-              type="button"
-              onClick={() => setIsSalarySettingsModalOpen(true)}
-              className="p-1.5 px-3 bg-[var(--accent-sand)] hover:opacity-90 text-black font-bold border-2 border-black rounded-[var(--radius-sm)] shadow-[var(--shadow-sm)] flex items-center gap-1.5 text-xs font-mono transition-transform active:translate-y-0.5"
-              title="Buka Pengaturan Gaji, Auto OT & Tanggal Merah"
-            >
-              <Settings className="w-4 h-4" />
-              <span className="hidden sm:inline">Pengaturan</span>
-            </button>
+        </div>
+        <div className="ax-ctl-r">
+          <div className="ax-nav3">
+            <button type="button" onClick={handlePrevPeriod} title="Periode cut-off sebelumnya" aria-label="Periode sebelumnya"><ChevronLeft className="w-4 h-4" /></button>
+            <button type="button" className="mid" onClick={handleResetToCurrentPeriod} title="Kembali ke periode cut-off aktif hari ini">Bulan ini</button>
+            <button type="button" onClick={handleNextPeriod} title="Periode cut-off berikutnya" aria-label="Periode berikutnya"><ChevronRight className="w-4 h-4" /></button>
           </div>
+          <button type="button" className="ax-iconbtn" onClick={handleResetSchedulePattern} title="Reset ke jadwal standar siklus 28 hari AGC" aria-label="Reset jadwal"><RotateCcw className="w-4 h-4" /></button>
+          <button type="button" className="brutal-btn brutal-btn-sand" onClick={() => setIsSalarySettingsModalOpen(true)} title="Buka pengaturan gaji, auto OT & tanggal merah">
+            <Settings className="w-4 h-4" />Pengaturan
+          </button>
+        </div>
+      </div>
 
+      {/* RINGKASAN PERIODE */}
+      <section className="ax-dash">
+        <div className="ax-b s6 ax-panel ax-hero sage">
+          <div className="ax-hero-head">
+            <div className="ax-eyebrow" style={{ marginTop: 0 }}><Wallet className="w-3.5 h-3.5" />Estimasi take home pay</div>
+            <span className="ax-badge-s">Grup {selectedGroup}</span>
+          </div>
+          <div className="ax-big" style={{ marginBottom: 6 }}>{formatRupiah(salary.netSalary)}</div>
+          <p className="ax-note-h">Penerimaan kas {formatRupiah(salary.cashIncome)} dikurangi potongan {formatRupiah(salary.totalDeductions)}</p>
+          <div className="ax-hero-foot">
+            <span className="ax-pay"><CalendarCheck className="w-3.5 h-3.5" />Gajian: {salary.paydayDate}</span>
+            {salary.isPaydayAdjusted && <span className="ax-pay">⚡ Dimajukan (akhir pekan)</span>}
+          </div>
+        </div>
+        <div className="ax-b m6 s3 ax-sc b">
+          <span><CalendarIcon className="w-3 h-3" />Hari kerja / off</span>
+          <b>{workDaysCount} <small>/ {offDaysCount} off</small></b>
+          <small>{shiftDays.length} hari periode ini</small>
+        </div>
+        <div className="ax-b m6 s3 ax-sc y">
+          <span><Zap className="w-3 h-3" />Lembur & merah</span>
+          <b>{otDaysCount} <small>lembur</small></b>
+          <small>{holidaysCount} tanggal merah</small>
         </div>
       </section>
 
@@ -1948,7 +1905,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
       {/* 4. MODAL POP-UP EDIT HARI (INPUT LEMBUR & CEKLIS MAKAN)                */}
       {/* ===================================================================== */}
       {editingDay && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="ax-modal fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="brutal-card p-3.5 sm:p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 border-2 border-[var(--border-color)] shadow-[var(--shadow-xl)]">
             
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
@@ -2124,7 +2081,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
       {/* 5. MODAL PENGATURAN KHUSUS MODUL GAJI, AUTO OT & TANGGAL MERAH        */}
       {/* ===================================================================== */}
       {isSalarySettingsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="ax-modal fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="brutal-card p-3.5 sm:p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 border-2 border-[var(--border-color)] shadow-[var(--shadow-xl)] max-h-[90vh] overflow-y-auto">
             
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
@@ -2386,7 +2343,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
       {/* 6. MODAL TAMBAH / EDIT KOMPONEN TAMBAHAN GAJI (BONUS / THR / DLL)     */}
       {/* ===================================================================== */}
       {isAddOnModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="ax-modal fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="brutal-card p-3.5 sm:p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 border-2 border-[var(--border-color)] shadow-[var(--shadow-xl)]">
             
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">

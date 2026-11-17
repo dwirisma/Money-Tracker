@@ -578,7 +578,7 @@ export function AddTransactionView({
       {/* =================================================================== */}
       {isCategoryModalOpen && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-[2px]"
+          className="ax-modal fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-[2px]"
           onClick={() => setIsCategoryModalOpen(false)}
         >
           <div 
@@ -868,7 +868,7 @@ export function AddTransactionView({
 
       {/* MODAL SETUP CEPAT GEMINI API UNTUK SCAN STRUK */}
       {showApiKeyModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-sm">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-sm">
           <div className="brutal-card p-3.5 bg-[var(--bg-surface)] border-2 border-black max-w-md w-full space-y-3 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">

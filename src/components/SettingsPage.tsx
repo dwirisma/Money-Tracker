@@ -5,27 +5,13 @@ import {
   Upload, 
   Eye, 
   EyeOff, 
-  Moon, 
   Sun, 
   CheckCircle2, 
   AlertCircle,
   FileJson
 } from 'lucide-react';
 import { useUI } from '../context/UIContext';
-import { NeoButton, NeoCard } from './ui/Neo';
 import { recordBackupTimestamp } from '../services/notificationService';
-
-function Row({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3 py-3 border-t-2 border-[var(--border-subtle)] first:border-t-0">
-      <div className="min-w-0">
-        <div className="font-bold text-sm text-[var(--text-primary)]">{title}</div>
-        <div className="text-xs text-[var(--text-secondary)]">{hint}</div>
-      </div>
-      {children}
-    </div>
-  );
-}
 
 export function SettingsPage() {
   const { theme, privacy, toggleTheme, togglePrivacy } = useUI();
@@ -155,111 +141,92 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="space-y-3 max-w-3xl">
-      <div>
-        <h2 className="font-heading font-bold text-xl text-[var(--text-primary)]">Pengaturan Umum</h2>
-        <p className="text-sm text-[var(--text-secondary)]">Tampilan antarmuka dan pencadangan database offline.</p>
+    <div className="ax-add">
+      <div className="ax-pagehead">
+        <div>
+          <h2>Pengaturan</h2>
+          <p>Tampilan antarmuka dan pencadangan database offline.</p>
+        </div>
       </div>
 
-      {/* 1. Pengaturan Tampilan */}
-      <NeoCard className="p-3">
-        <h3 className="font-heading font-bold mb-1 text-[var(--text-primary)]">Tampilan</h3>
-        <Row title="Tema" hint={theme === 'dark' ? 'Gelap (Dark Charcoal)' : 'Terang (Krem Sand Pastel)'}>
-          <NeoButton onClick={toggleTheme} className="flex items-center gap-2 text-xs">
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            {theme === 'dark' ? 'Pakai Terang' : 'Pakai Gelap'}
-          </NeoButton>
-        </Row>
-        <Row title="Mode Privasi" hint="Menyensor semua nominal menjadi Rp •••••••">
-          <NeoButton onClick={togglePrivacy} aria-pressed={privacy} className="flex items-center gap-2 text-xs">
-            {privacy ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            {privacy ? 'Tampilkan' : 'Sembunyikan'}
-          </NeoButton>
-        </Row>
-      </NeoCard>
-
-      {/* 2. Cadangkan & Pulihkan Database (JSON) */}
-      <NeoCard className="p-3 space-y-3">
-        <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-2.5">
-          <div className="flex items-center gap-2">
-            <Database className="w-5 h-5 text-[var(--accent-sand)]" />
-            <div>
-              <h3 className="font-heading font-bold text-[var(--text-primary)]">
-                Cadangkan & Pulihkan Database
-              </h3>
-              <p className="text-xs text-[var(--text-secondary)] font-mono">
-                Format file cadangan JSON mandiri untuk keamanan data offline Anda
-              </p>
-            </div>
+      <div className="ax-dash">
+        {/* TAMPILAN */}
+        <section className="ax-b s6 ax-panel">
+          <div className="ax-ph">
+            <h3><span className="ax-ic" style={{ background: 'var(--accent-sand)' }}><Sun className="w-3.5 h-3.5" /></span>Tampilan</h3>
           </div>
-          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
-            {dataSummary.keyCount} Tabel ({dataSummary.sizeKb} KB)
-          </span>
-        </div>
+          <div className="ax-themes" role="group" aria-label="Pilih tema">
+            <button type="button" className="ax-theme" aria-pressed={theme === 'light'} onClick={() => { if (theme !== 'light') toggleTheme(); }}>
+              <span className="ax-theme-pv" aria-hidden="true">
+                <i style={{ background: '#c4ebd3' }} />
+                <div style={{ background: '#fff4dc' }}><b style={{ background: '#ffc933' }} /><b style={{ background: '#fff', width: '70%' }} /></div>
+              </span>
+              <span>Terang <em>{theme === 'light' ? 'Aktif' : 'Pilih'}</em></span>
+            </button>
+            <button type="button" className="ax-theme" aria-pressed={theme === 'dark'} onClick={() => { if (theme !== 'dark') toggleTheme(); }}>
+              <span className="ax-theme-pv" aria-hidden="true">
+                <i style={{ background: '#1f1f27' }} />
+                <div style={{ background: '#16161c' }}><b style={{ background: '#ffc933' }} /><b style={{ background: '#292933', width: '70%' }} /></div>
+              </span>
+              <span>Gelap <em>{theme === 'dark' ? 'Aktif' : 'Pilih'}</em></span>
+            </button>
+          </div>
+          <div className="ax-setrow">
+            <div>
+              <b>Mode privasi</b>
+              <small>Menyensor semua nominal menjadi Rp •••••••</small>
+            </div>
+            <button type="button" role="switch" aria-checked={privacy} className="ax-sw" onClick={togglePrivacy}>
+              <i />{privacy ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}{privacy ? 'Aktif' : 'Mati'}
+            </button>
+          </div>
+        </section>
 
-        <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-          Simpan seluruh data buku kas, rekening, transaksi, target tabungan, tagihan, serta pengaturan kalender shift ke dalam file <strong>JSON</strong> di perangkat Anda. Anda dapat mengunduh berkas cadangan kapan saja atau memulihkannya ke peramban lain.
+        {/* RINGKASAN DATA */}
+        <section className="ax-b s6 ax-panel ax-hero blue">
+          <div className="ax-hero-head">
+            <div className="ax-eyebrow" style={{ marginTop: 0 }}><Database className="w-3.5 h-3.5" />Data tersimpan di perangkat ini</div>
+            <span className="ax-badge-s">JSON</span>
+          </div>
+          <div className="ax-big" style={{ marginBottom: 6 }}>{dataSummary.keyCount} <span style={{ fontSize: '.4em', opacity: .75 }}>tabel · {dataSummary.sizeKb} KB</span></div>
+          <p className="ax-note-h">Buku kas, rekening, transaksi, target, tagihan, dan pengaturan kalender shift tersimpan lokal. Cadangkan secara berkala.</p>
+        </section>
+      </div>
+
+      {/* CADANGAN & PEMULIHAN */}
+      <section className="ax-panel">
+        <div className="ax-ph">
+          <h3><span className="ax-ic" style={{ background: 'var(--accent-blue)' }}><Database className="w-3.5 h-3.5" /></span>Cadangkan & pulihkan database</h3>
+        </div>
+        <p className="ax-sec-sub" style={{ marginBottom: 10 }}>
+          Simpan seluruh data ke file <b>JSON</b> di perangkat Anda dan pulihkan kapan saja, termasuk di perangkat lain.
         </p>
 
-        {/* Notifikasi Status Backup / Restore */}
         {backupStatus && (
-          <div className={`p-3 rounded-[var(--radius-sm)] border-2 text-xs font-mono flex items-center gap-2 ${
-            backupStatus.type === 'success'
-              ? 'bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] border-[var(--accent-sage)]'
-              : 'bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)] border-[var(--accent-terracotta)]'
-          }`}>
+          <div className={`ax-status ${backupStatus.type === 'success' ? 'ok' : 'err'}`} role="status" style={{ marginBottom: 10 }}>
             {backupStatus.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
             <span>{backupStatus.message}</span>
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-          {/* Tombol Unduh Cadangan JSON */}
-          <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] space-y-2">
-            <div className="flex items-center gap-2 text-xs font-heading font-bold text-[var(--text-primary)]">
-              <Download className="w-4 h-4 text-[var(--accent-sand)]" />
-              <span>Cadangkan Data (Export)</span>
-            </div>
-            <p className="text-[11px] text-[var(--text-secondary)]">
-              Unduh seluruh database ke file JSON lokal sebagai arsip aman.
-            </p>
-            <NeoButton 
-              accent="sand" 
-              onClick={handleExportBackup} 
-              className="w-full text-xs font-bold flex items-center justify-center gap-1.5 py-2 !shadow-[2px_2px_0px_#000]"
-            >
-              <FileJson className="w-3.5 h-3.5 text-black" />
-              <span className="text-black">Unduh Cadangan JSON</span>
-            </NeoButton>
+        <div className="ax-bkgrid">
+          <div className="ax-bk">
+            <h4><Download className="w-4 h-4" />Cadangkan data (export)</h4>
+            <p>Unduh seluruh database ke file JSON lokal sebagai arsip aman.</p>
+            <button type="button" onClick={handleExportBackup} className="brutal-btn brutal-btn-sand">
+              <FileJson className="w-4 h-4" />Unduh cadangan JSON
+            </button>
           </div>
-
-          {/* Tombol Pulihkan Data JSON */}
-          <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] space-y-2">
-            <div className="flex items-center gap-2 text-xs font-heading font-bold text-[var(--text-primary)]">
-              <Upload className="w-4 h-4 text-[var(--accent-blue)]" />
-              <span>Pulihkan Data (Import)</span>
-            </div>
-            <p className="text-[11px] text-[var(--text-secondary)]">
-              Pilih file JSON cadangan untuk memulihkan seluruh data buku kas.
-            </p>
-            <input 
-              ref={fileInputRef} 
-              type="file" 
-              accept=".json,application/json" 
-              className="hidden" 
-              onChange={handleImportBackup} 
-            />
-            <NeoButton 
-              accent="blue" 
-              onClick={() => fileInputRef.current?.click()} 
-              className="w-full text-xs font-bold flex items-center justify-center gap-1.5 py-2 !shadow-[2px_2px_0px_#000]"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              <span>Pilih File JSON</span>
-            </NeoButton>
+          <div className="ax-bk">
+            <h4><Upload className="w-4 h-4" />Pulihkan data (import)</h4>
+            <p>Pilih file JSON cadangan untuk memulihkan seluruh data. Data yang ada akan ditimpa.</p>
+            <input ref={fileInputRef} type="file" accept=".json,application/json" className="hidden" onChange={handleImportBackup} />
+            <button type="button" onClick={() => fileInputRef.current?.click()} className="brutal-btn brutal-btn-blue">
+              <Upload className="w-4 h-4" />Pilih file JSON
+            </button>
           </div>
         </div>
-      </NeoCard>
+      </section>
     </div>
   );
 }

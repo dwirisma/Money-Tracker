@@ -181,7 +181,7 @@ export function AccountDetailModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 sm:p-3 backdrop-blur-sm overflow-y-auto">
+    <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 sm:p-3 backdrop-blur-sm overflow-y-auto">
       <div className="brutal-card bg-[var(--bg-surface)] border-2 border-black dark:border-slate-700 max-w-2xl w-full my-auto space-y-3 p-3.5 sm:p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in-95 duration-150">
         
         {/* Modal Header */}

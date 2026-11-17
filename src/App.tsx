@@ -123,6 +123,9 @@ import { evaluateMathExpression, formatRupiah } from './utils/calculator';
 import { useUI } from './context/UIContext';
 import { AppNav } from './components/layout/AppNav';
 import { HeaderTools } from './components/layout/HeaderTools';
+import { AllocateGoalModal } from './components/GoalModals';
+import { PayBillModal, PayDebtModal } from './components/PaymentModals';
+import { EditTransactionModal, DeleteTransactionModal } from './components/TransactionModals';
 import { AutomationsView } from './components/AutomationsView';
 import { GoalsView } from './components/GoalsView';
 import { ObligationsView } from './components/ObligationsView';
@@ -2522,7 +2525,7 @@ export default function App() {
       {/* MODAL 0: BUAT BUKU KAS BARU (NEW LEDGER MODAL)                      */}
       {/* =================================================================== */}
       {isAddLedgerOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
@@ -2615,7 +2618,7 @@ export default function App() {
       {/* MODAL 0B: EDIT BUKU KAS (EDIT LEDGER MODAL)                         */}
       {/* =================================================================== */}
       {editingLedger && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
@@ -2703,7 +2706,7 @@ export default function App() {
       {/* MODAL 0C: KONFIRMASI HAPUS BUKU KAS (DELETE LEDGER MODAL)           */}
       {/* =================================================================== */}
       {ledgerToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start gap-2.5">
               <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
@@ -2750,7 +2753,7 @@ export default function App() {
       {/* MODAL 1: TAMBAH AKUN BARU KE BUKU KAS AKTIF                         */}
       {/* =================================================================== */}
       {isAddAccountOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div>
@@ -2862,7 +2865,7 @@ export default function App() {
       {/* MODAL 2: EDIT AKUN                                                  */}
       {/* =================================================================== */}
       {editingAccount && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
@@ -2969,260 +2972,47 @@ export default function App() {
       {/* MODAL 3: EDIT TRANSAKSI / TRANSFER (DENGAN SINKRONISASI ATOMIK)     */}
       {/* =================================================================== */}
       {editingTx && (
-        <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <div>
-                <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
-                  {editingTx.type === 'transfer' ? (
-                    <>
-                      <ArrowRightLeft className="w-5 h-5 text-[var(--accent-blue)]" />
-                      <span>Edit Transfer Saldo</span>
-                    </>
-                  ) : (
-                    <>
-                      <Pencil className="w-5 h-5 text-[var(--accent-sand)]" />
-                      <span>{editingTx.goalId ? 'Edit Alokasi Target' : 'Edit Transaksi'}</span>
-                    </>
-                  )}
-                </h3>
-                {editingTx.goalId && (
-                  <p className="text-[10px] font-mono text-[var(--accent-sand-light)] mt-0.5">
-                    🎯 Perubahan nominal akan meng-update saldo kas dan dana target secara serentak
-                  </p>
-                )}
-              </div>
-              <button 
-                onClick={() => setEditingTx(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEditedTransaction} className="space-y-3">
-              {editingTx.type !== 'transfer' ? (
-                <div className="flex p-0.5 bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)]">
-                  <button
-                    type="button"
-                    onClick={() => setEditTxType('expense')}
-                    className={`flex-1 py-1 text-xs font-heading font-bold rounded-[var(--radius-sm)] transition-all ${
-                      editTxType === 'expense' 
-                        ? 'bg-[var(--accent-terracotta)] text-[var(--text-inverted)] shadow-[2px_2px_0px_#000]' 
-                        : 'text-[var(--text-secondary)]'
-                    }`}
-                  >
-                    Pengeluaran
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditTxType('income')}
-                    className={`flex-1 py-1 text-xs font-heading font-bold rounded-[var(--radius-sm)] transition-all ${
-                      editTxType === 'income' 
-                        ? 'bg-[var(--accent-sage)] text-[var(--text-inverted)] shadow-[2px_2px_0px_#000]' 
-                        : 'text-[var(--text-secondary)]'
-                    }`}
-                  >
-                    Pemasukan
-                  </button>
-                </div>
-              ) : (
-                <div className="p-2.5 bg-[var(--bg-elevated)] border border-[var(--accent-blue)] rounded-[var(--radius-sm)] flex items-center gap-2 text-xs font-mono text-[var(--accent-blue-light)]">
-                  <ArrowRightLeft className="w-4 h-4 shrink-0" />
-                  <span>Mengedit transfer antar akun di {currentLedger.name}</span>
-                </div>
-              )}
-
-              <div>
-                <label className="brutal-label">
-                  {editingTx.type === 'transfer' ? 'Nominal Transfer Baru' : 'Nominal Baru'}
-                </label>
-                <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden">
-                  <span className="px-3.5 py-2 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-sm text-[var(--accent-sand)] flex items-center select-none shrink-0">
-                    Rp
-                  </span>
-                  <input 
-                    type="text"
-                    value={editTxAmount}
-                    onChange={(e) => setEditTxAmount(e.target.value)}
-                    onBlur={handleEditTxAmountBlur}
-                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                    required
-                  />
-                </div>
-                {editCalcNotice && (
-                  <p className="text-xs font-mono text-[var(--accent-sand)] mt-1">{editCalcNotice}</p>
-                )}
-              </div>
-
-              {editingTx.type === 'transfer' ? (
-                <>
-                  <div>
-                    <label className="brutal-label">Akun Asal (Pengirim)</label>
-                    <select 
-                      value={editTxAccountId}
-                      onChange={(e) => setEditTxAccountId(e.target.value)}
-                      className="brutal-select"
-                      required
-                    >
-                      {accounts.map(acc => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.name} — {formatRupiah(acc.balance)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="brutal-label">Akun Tujuan (Penerima)</label>
-                    <select 
-                      value={editTxToAccountId}
-                      onChange={(e) => setEditTxToAccountId(e.target.value)}
-                      className="brutal-select"
-                      required
-                    >
-                      {accounts.map(acc => (
-                        <option key={acc.id} value={acc.id} disabled={acc.id === editTxAccountId}>
-                          {acc.name} {acc.id === editTxAccountId ? '(Tidak boleh sama)' : `(${formatRupiah(acc.balance)})`}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <label className="brutal-label">Akun Sumber</label>
-                    <select 
-                      value={editTxAccountId}
-                      onChange={(e) => setEditTxAccountId(e.target.value)}
-                      className="brutal-select"
-                      required
-                    >
-                      {accounts.map(acc => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.name} — {formatRupiah(acc.balance)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="brutal-label">Kategori</label>
-                    <input 
-                      type="text"
-                      value={editTxCategory}
-                      onChange={(e) => setEditTxCategory(e.target.value)}
-                      className="brutal-input text-xs"
-                      required
-                    />
-                  </div>
-                </>
-              )}
-
-              <div>
-                <label className="brutal-label">Tanggal</label>
-                <input 
-                  type="date"
-                  value={editTxDate}
-                  onChange={(e) => setEditTxDate(e.target.value)}
-                  className="brutal-input text-xs"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="brutal-label">Catatan</label>
-                <input 
-                  type="text"
-                  value={editTxNote}
-                  onChange={(e) => setEditTxNote(e.target.value)}
-                  className="brutal-input text-sm"
-                />
-              </div>
-
-              <div className="p-3 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-[11px] text-[var(--text-secondary)] font-mono">
-                ℹ️ Sistem otomatis menghitung <strong>selisih nominal</strong> dan merefleksikan saldo akun secara akurat lewat transaksi atomik.
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
-                <button 
-                  type="button" 
-                  onClick={() => setEditingTx(null)}
-                  className="brutal-btn brutal-btn-ghost text-xs"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className={`brutal-btn text-xs ${editingTx.type === 'transfer' ? 'brutal-btn-blue' : 'brutal-btn-sage'}`}
-                >
-                  Simpan Perubahan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <EditTransactionModal
+          tx={editingTx}
+          ledgerName={currentLedger.name}
+          accounts={accounts}
+          type={editTxType}
+          onTypeChange={setEditTxType}
+          amount={editTxAmount}
+          onAmountChange={setEditTxAmount}
+          onAmountBlur={handleEditTxAmountBlur}
+          calcNotice={editCalcNotice}
+          accountId={editTxAccountId}
+          onAccountChange={setEditTxAccountId}
+          toAccountId={editTxToAccountId}
+          onToAccountChange={setEditTxToAccountId}
+          category={editTxCategory}
+          onCategoryChange={setEditTxCategory}
+          date={editTxDate}
+          onDateChange={setEditTxDate}
+          note={editTxNote}
+          onNoteChange={setEditTxNote}
+          onSubmit={handleSaveEditedTransaction}
+          onClose={() => setEditingTx(null)}
+        />
       )}
-
       {/* =================================================================== */}
       {/* MODAL KONFIRMASI HAPUS TRANSAKSI                                    */}
       {/* =================================================================== */}
       {txToDelete && (
-        <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-2.5">
-              <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-heading font-bold text-lg text-white">Hapus Transaksi?</h3>
-                <p className="text-sm text-[var(--text-secondary)]">
-                  Anda akan menghapus transaksi <strong className="text-white">"{txToDelete.category || txToDelete.type}"</strong> sebesar <strong className="font-mono text-white">{formatRupiah(txToDelete.amount)}</strong> di <span className="text-[var(--accent-sand)]">{currentLedger.name}</span>.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs font-mono text-[var(--accent-sand-light)] space-y-1">
-              <p><strong>ℹ️ Pengembalian Saldo Otomatis:</strong></p>
-              <p>
-                {txToDelete.type === 'expense' && `Saldo akun sumber akan bertambah kembali (+${formatRupiah(txToDelete.amount)}).`}
-                {txToDelete.type === 'income' && `Saldo akun akan otomatis dikurangi kembali (-${formatRupiah(txToDelete.amount)}).`}
-                {txToDelete.type === 'transfer' && 'Saldo akun asal dikembalikan dan saldo akun tujuan dikurangi.'}
-              </p>
-              {txToDelete.goalId && (
-                <p className="text-[var(--accent-sand)] font-bold pt-1 border-t border-[var(--border-subtle)]">
-                  🎯 Sinkronisasi Modul 2: Transaksi ini adalah alokasi target. Dana terkumpul pada target terkait akan otomatis dikurangi sebesar {formatRupiah(txToDelete.amount)}.
-                </p>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2.5 pt-2">
-              <button 
-                type="button" 
-                onClick={() => setTxToDelete(null)}
-                className="brutal-btn brutal-btn-ghost text-xs"
-              >
-                Batal
-              </button>
-              <button 
-                type="button" 
-                onClick={confirmExecuteDeleteTx}
-                className="brutal-btn brutal-btn-terracotta text-xs flex items-center gap-1.5"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Ya, Hapus Sekarang</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        <DeleteTransactionModal
+          tx={txToDelete}
+          accountName={accounts.find(x => x.id === txToDelete.accountId)?.name}
+          onClose={() => setTxToDelete(null)}
+          onConfirm={confirmExecuteDeleteTx}
+        />
       )}
 
       {/* =================================================================== */}
       {/* MODAL KONFIRMASI HAPUS AKUN                                         */}
       {/* =================================================================== */}
       {accountToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start gap-2.5">
               <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
@@ -3265,7 +3055,7 @@ export default function App() {
       {/* MODAL 4: BUAT TARGET BARU (WISHLIST & SINKING FUNDS)                */}
       {/* =================================================================== */}
       {isAddGoalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div>
@@ -3478,179 +3268,30 @@ export default function App() {
       {/* MODAL 5: ALOKASIKAN DANA KE GOAL (DENGAN SINKRONISASI SALDO ATOMIK) */}
       {/* =================================================================== */}
       {allocatingGoal && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <div>
-                <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
-                  <Coins className="w-5 h-5 text-[var(--accent-sand)]" />
-                  Alokasikan Dana
-                </h3>
-                <p className="text-[11px] font-mono text-[var(--accent-sand-light)]">Target: {allocatingGoal.name}</p>
-              </div>
-              <button 
-                type="button"
-                onClick={() => setAllocatingGoal(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Preview Progres Target Saat Ini */}
-            <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] space-y-1.5 font-mono text-xs">
-              <div className="flex justify-between text-[var(--text-secondary)]">
-                <span>Terkumpul: <strong>{formatRupiah(allocatingGoal.currentAmount)}</strong></span>
-                <span>Target: <strong>{formatRupiah(allocatingGoal.targetAmount)}</strong></span>
-              </div>
-              <div className="brutal-progress-container h-2.5">
-                <div 
-                  className="brutal-progress-bar"
-                  style={{
-                    width: `${Math.min(100, Math.round((allocatingGoal.currentAmount / allocatingGoal.targetAmount) * 100))}%`,
-                    backgroundColor: 'var(--accent-sand)'
-                  }}
-                />
-              </div>
-              <p className="text-[11px] text-[var(--accent-sand-light)] text-right">
-                Sisa target: {formatRupiah(Math.max(0, allocatingGoal.targetAmount - allocatingGoal.currentAmount))}
-              </p>
-            </div>
-
-            <form onSubmit={handleExecuteAllocation} className="space-y-3">
-              {/* Akun Sumber Pengambilan Dana */}
-              <div>
-                <label className="brutal-label">
-                  Akun Sumber Dana {allocatingGoal.type === 'sinking_fund' ? '(Wajib Dipotong)' : '(Opsional)'}
-                </label>
-                <select
-                  value={allocSourceAccount}
-                  onChange={(e) => setAllocSourceAccount(e.target.value)}
-                  className="brutal-select"
-                  required={allocatingGoal.type === 'sinking_fund'}
-                >
-                  {allocatingGoal.type === 'wishlist' && (
-                    <option value="">(Catat progres tabungan saja, tanpa potong kas)</option>
-                  )}
-                  {accounts.map(acc => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.name} — Saldo: {formatRupiah(acc.balance)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Nominal Alokasi */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="brutal-label mb-0">Nominal yang Disisihkan</label>
-                  <span className="text-[10px] font-mono text-[var(--accent-sand)]">Mendukung kalkulator</span>
-                </div>
-
-                <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden focus-within:border-[var(--accent-sand)] transition-all">
-                  <span className="px-3.5 py-2 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-sm text-[var(--accent-sand)] flex items-center select-none shrink-0">
-                    Rp
-                  </span>
-                  <input 
-                    type="text"
-                    value={allocAmount}
-                    onChange={(e) => setAllocAmount(e.target.value)}
-                    onBlur={handleAllocAmountBlur}
-                    placeholder="0 atau hitung ekspresi..."
-                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                    required
-                  />
-                </div>
-
-                {allocCalcNotice && (
-                  <p className="text-xs font-mono text-[var(--accent-sand)] mt-1">{allocCalcNotice}</p>
-                )}
-
-                {/* Quick Chips */}
-                <div className="flex gap-1.5 mt-2 overflow-x-auto pb-1">
-                  {[50000, 100000, 250000, 500000, 1000000].map(amt => (
-                    <button
-                      key={amt}
-                      type="button"
-                      onClick={() => {
-                        const cur = parseInt(allocAmount.replace(/[^\d]/g, '') || '0', 10);
-                        setAllocAmount((cur + amt).toString());
-                      }}
-                      className="px-2 py-0.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded text-[11px] font-mono text-[var(--text-secondary)] whitespace-nowrap"
-                    >
-                      +{amt >= 1000000 ? `${amt / 1000000}jt` : `${amt / 1000}k`}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const rem = Math.max(0, allocatingGoal.targetAmount - allocatingGoal.currentAmount);
-                      setAllocAmount(rem.toString());
-                    }}
-                    className="px-2 py-0.5 bg-[var(--accent-sand-dark)] hover:bg-[var(--bg-muted)] border border-[var(--accent-sand)] rounded text-[11px] font-mono text-[var(--accent-sand-light)] whitespace-nowrap font-bold"
-                  >
-                    Isi Sisa
-                  </button>
-                </div>
-              </div>
-
-              {/* Tanggal & Catatan Alokasi */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="brutal-label">Tanggal</label>
-                  <input 
-                    type="date"
-                    value={allocDate}
-                    onChange={(e) => setAllocDate(e.target.value)}
-                    className="brutal-input text-xs"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="brutal-label">Catatan (Opsional)</label>
-                  <input 
-                    type="text"
-                    value={allocNote}
-                    onChange={(e) => setAllocNote(e.target.value)}
-                    placeholder="Misal: Sisihan gaji bulan ini"
-                    className="brutal-input text-xs"
-                  />
-                </div>
-              </div>
-
-              {/* Info Sinkronisasi Atomik */}
-              <div className="p-3 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-[11px] font-mono text-[var(--text-secondary)] space-y-0.5">
-                <p className="text-[var(--accent-sand)] font-bold">ℹ️ Sinkronisasi Saldo Kas:</p>
-                <p>Uang akan dipotong dari saldo akun kas dan dicatat sebagai transaksi pengeluaran alokasi agar aset kas tetap akurat.</p>
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-2">
-                <button 
-                  type="button" 
-                  onClick={() => setAllocatingGoal(null)}
-                  className="brutal-btn brutal-btn-ghost text-xs"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className="brutal-btn brutal-btn-sand text-xs flex items-center gap-1.5"
-                >
-                  <Coins className="w-4 h-4" />
-                  <span>Eksekusi Alokasi Dana</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <AllocateGoalModal
+          goal={allocatingGoal}
+          accounts={accounts}
+          sourceAccount={allocSourceAccount}
+          onSourceChange={setAllocSourceAccount}
+          amount={allocAmount}
+          onAmountChange={setAllocAmount}
+          onAmountBlur={handleAllocAmountBlur}
+          onSetAmount={setAllocAmount}
+          calcNotice={allocCalcNotice}
+          date={allocDate}
+          onDateChange={setAllocDate}
+          note={allocNote}
+          onNoteChange={setAllocNote}
+          onSubmit={handleExecuteAllocation}
+          onClose={() => setAllocatingGoal(null)}
+        />
       )}
 
       {/* =================================================================== */}
       {/* MODAL 6: EDIT TARGET (WISHLIST & SINKING FUNDS)                     */}
       {/* =================================================================== */}
       {editingGoal && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
@@ -3765,7 +3406,7 @@ export default function App() {
       {/* MODAL 7: KONFIRMASI HAPUS TARGET                                    */}
       {/* =================================================================== */}
       {goalToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start gap-2.5">
               <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
@@ -3841,7 +3482,7 @@ export default function App() {
         const sourceAcc = accounts.find(a => a.id === goal.sourceAccountId);
 
         return (
-          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+          <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
             <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2">
               
               {/* Header Modal */}
@@ -4076,7 +3717,7 @@ export default function App() {
       {/* MODAL 9: TAMBAH TAGIHAN RUTIN BARU (NEW BILL MODAL)                 */}
       {/* =================================================================== */}
       {isAddBillOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div>
@@ -4354,140 +3995,28 @@ export default function App() {
       {/* MODAL 10: BAYAR SEKARANG (PAY BILL MODAL) DENGAN AUTO-RENEWAL        */}
       {/* =================================================================== */}
       {payingBill && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2 border-[var(--accent-blue)]">
-            <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <div>
-                <span className="brutal-badge text-[9px] brutal-badge-blue mb-1">
-                  PEMBAYARAN {payingBill.cycle === 'yearly' ? 'TAHUNAN' : 'BULANAN'}
-                </span>
-                <h3 className="font-heading font-bold text-lg text-white">
-                  Bayar Tagihan: {payingBill.name}
-                </h3>
-                <p className="text-xs font-mono text-[var(--text-muted)]">
-                  Jatuh tempo saat ini: <strong className="text-white">{payingBill.nextPaymentDate}</strong>
-                </p>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setPayingBill(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleExecutePayBill} className="space-y-3">
-              {/* Nominal Pembayaran */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="brutal-label mb-0">
-                    {payingBill.pricingType === 'variable' 
-                      ? 'Masukkan Nominal Tagihan Periode Ini' 
-                      : 'Konfirmasi Nominal Pembayaran'}
-                  </label>
-                  <span className="text-[10px] font-mono text-[var(--accent-sand)]">Mendukung kalkulator</span>
-                </div>
-
-                <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden focus-within:border-[var(--accent-blue)] transition-all">
-                  <span className="px-3.5 py-2 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-sm text-[var(--accent-blue-light)] flex items-center select-none shrink-0">
-                    Rp
-                  </span>
-                  <input 
-                    type="text"
-                    value={payBillAmount}
-                    onChange={(e) => handlePayBillAmountCalcChange(e.target.value)}
-                    placeholder="Contoh: 150000 atau 75000+2500"
-                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                    required
-                  />
-                </div>
-                {payBillCalcNotice && (
-                  <p className="text-xs font-mono text-[var(--accent-blue-light)] mt-1">{payBillCalcNotice}</p>
-                )}
-              </div>
-
-              {/* Akun Sumber Pengambilan Kas */}
-              <div>
-                <label className="brutal-label">Pilih Akun Sumber Dana</label>
-                <select
-                  value={payBillSourceAccount}
-                  onChange={(e) => setPayBillSourceAccount(e.target.value)}
-                  className="brutal-select text-sm"
-                  required
-                >
-                  <option value="">Pilih akun kas...</option>
-                  {accounts.map(acc => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.name} ({acc.type}) — Saldo: {formatRupiah(acc.balance)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Tanggal & Catatan */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="brutal-label">Tanggal Bayar</label>
-                  <input 
-                    type="date"
-                    value={payBillDate}
-                    onChange={(e) => setPayBillDate(e.target.value)}
-                    className="brutal-input text-xs"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="brutal-label">Catatan</label>
-                  <input 
-                    type="text"
-                    value={payBillNote}
-                    onChange={(e) => setPayBillNote(e.target.value)}
-                    className="brutal-input text-xs"
-                  />
-                </div>
-              </div>
-
-              {/* Info Auto-Renewal Tanggal */}
-              <div className="p-3 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] font-mono space-y-1">
-                <p className="text-[var(--accent-blue-light)] font-bold flex items-center gap-1.5">
-                  <RotateCw className="w-3.5 h-3.5" />
-                  Auto-Renewal Siklus Tanggal:
-                </p>
-                <p>
-                  Setelah pembayaran berhasil, tanggal jatuh tempo akan otomatis dimajukan 
-                  <strong className="text-white"> {payingBill.cycle === 'yearly' ? '1 Tahun' : '1 Bulan'} ke depan</strong>, 
-                  dan total akumulasi yang dibayarkan akan bertambah.
-                </p>
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-2">
-                <button 
-                  type="button" 
-                  onClick={() => setPayingBill(null)}
-                  className="brutal-btn brutal-btn-ghost text-xs"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className="brutal-btn brutal-btn-blue text-xs flex items-center gap-1.5 font-bold"
-                >
-                  <CreditCard className="w-4 h-4" />
-                  <span>Bayar Sekarang</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <PayBillModal
+          bill={payingBill}
+          accounts={accounts}
+          amount={payBillAmount}
+          onAmountChange={handlePayBillAmountCalcChange}
+          calcNotice={payBillCalcNotice}
+          sourceAccount={payBillSourceAccount}
+          onSourceChange={setPayBillSourceAccount}
+          date={payBillDate}
+          onDateChange={setPayBillDate}
+          note={payBillNote}
+          onNoteChange={setPayBillNote}
+          onSubmit={handleExecutePayBill}
+          onClose={() => setPayingBill(null)}
+        />
       )}
 
       {/* =================================================================== */}
       {/* MODAL 11: EDIT TAGIHAN                                              */}
       {/* =================================================================== */}
       {editingBill && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
@@ -4717,7 +4246,7 @@ export default function App() {
       {/* MODAL 12: KONFIRMASI HAPUS TAGIHAN                                  */}
       {/* =================================================================== */}
       {billToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start gap-2.5">
               <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
@@ -4760,7 +4289,7 @@ export default function App() {
       {/* MODAL 13: CATAT UTANG BARU (NEW DEBT MODAL)                         */}
       {/* =================================================================== */}
       {isAddDebtOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div>
@@ -5000,172 +4529,29 @@ export default function App() {
       {/* MODAL 14: BAYAR CICILAN UTANG (PAY DEBT INSTALLMENT MODAL)          */}
       {/* =================================================================== */}
       {payingDebt && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2 border-[var(--accent-terracotta)]">
-            <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <div>
-                <span className="brutal-badge text-[9px] brutal-badge-terracotta mb-1">
-                  PEMBAYARAN CICILAN
-                </span>
-                <h3 className="font-heading font-bold text-lg text-white">
-                  {payingDebt.name}
-                </h3>
-                {payingDebt.lender && (
-                  <p className="text-xs font-mono text-[var(--accent-sand)]">
-                    Pemberi Pinjaman: {payingDebt.lender}
-                  </p>
-                )}
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setPayingDebt(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Banner Status Sisa Utang */}
-            <div className="p-3 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-mono uppercase text-[var(--text-muted)]">Sisa Utang Saat Ini</p>
-                <p className="font-mono font-bold text-lg text-[var(--accent-terracotta-light)]">
-                  {formatRupiah(payingDebt.remainingDebt)}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] font-mono uppercase text-[var(--text-muted)]">Total Awal</p>
-                <p className="font-mono font-semibold text-xs text-white">
-                  {formatRupiah(payingDebt.totalDebt)}
-                </p>
-              </div>
-            </div>
-
-            <form onSubmit={handleExecutePayDebt} className="space-y-3">
-              {/* Nominal Pembayaran Cicilan */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="brutal-label mb-0">Nominal Cicilan yang Dibayar</label>
-                  <span className="text-[10px] font-mono text-[var(--accent-sand)]">Mendukung kalkulator</span>
-                </div>
-
-                <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden focus-within:border-[var(--accent-terracotta)] transition-all">
-                  <span className="px-3.5 py-2 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-sm text-[var(--accent-terracotta-light)] flex items-center select-none shrink-0">
-                    Rp
-                  </span>
-                  <input 
-                    type="text"
-                    value={payDebtAmount}
-                    onChange={(e) => handlePayDebtAmountCalcChange(e.target.value)}
-                    placeholder="Contoh: 500000 atau 250000*2"
-                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                    required
-                  />
-                </div>
-                {payDebtCalcNotice && (
-                  <p className="text-xs font-mono text-[var(--accent-terracotta-light)] mt-1">{payDebtCalcNotice}</p>
-                )}
-
-                {/* Quick Chips Nominal Cicilan */}
-                <div className="flex gap-1.5 mt-2 overflow-x-auto pb-1">
-                  {[250000, 500000, 1000000].map(amt => (
-                    <button
-                      key={amt}
-                      type="button"
-                      onClick={() => {
-                        const cur = parseInt(payDebtAmount.replace(/[^\d]/g, '') || '0', 10);
-                        setPayDebtAmount((cur + amt).toString());
-                      }}
-                      className="px-2 py-0.5 bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border border-[var(--border-subtle)] rounded text-[11px] font-mono text-[var(--text-secondary)] whitespace-nowrap"
-                    >
-                      +{amt >= 1000000 ? `${amt / 1000000}jt` : `${amt / 1000}k`}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPayDebtAmount(String(payingDebt.remainingDebt));
-                    }}
-                    className="px-2 py-0.5 bg-[var(--accent-terracotta-dark)] hover:bg-[var(--bg-muted)] border border-[var(--accent-terracotta)] rounded text-[11px] font-mono text-[var(--accent-terracotta-light)] whitespace-nowrap font-bold"
-                  >
-                    Lunasi Semua Sisa
-                  </button>
-                </div>
-              </div>
-
-              {/* Akun Kas Sumber Dana */}
-              <div>
-                <label className="brutal-label">Pilih Akun Kas Pemotong Saldo</label>
-                <select
-                  value={payDebtSourceAccount}
-                  onChange={(e) => setPayDebtSourceAccount(e.target.value)}
-                  className="brutal-select text-sm"
-                  required
-                >
-                  <option value="">Pilih akun kas...</option>
-                  {accounts.map(acc => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.name} — Saldo: {formatRupiah(acc.balance)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Tanggal & Catatan */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="brutal-label">Tanggal Bayar</label>
-                  <input 
-                    type="date"
-                    value={payDebtDate}
-                    onChange={(e) => setPayDebtDate(e.target.value)}
-                    className="brutal-input text-xs"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="brutal-label">Catatan</label>
-                  <input 
-                    type="text"
-                    value={payDebtNote}
-                    onChange={(e) => setPayDebtNote(e.target.value)}
-                    className="brutal-input text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="p-3 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] font-mono space-y-0.5">
-                <p className="text-[var(--accent-terracotta-light)] font-bold">ℹ️ Integrasi Atomik Transaksi:</p>
-                <p>Nominal cicilan akan langsung memotong saldo akun kas, mencatat transaksi pengeluaran di Firestore, dan mengurangi sisa pokok utang secara serentak.</p>
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-2">
-                <button 
-                  type="button" 
-                  onClick={() => setPayingDebt(null)}
-                  className="brutal-btn brutal-btn-ghost text-xs"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className="brutal-btn brutal-btn-terracotta text-xs flex items-center gap-1.5 font-bold"
-                >
-                  <Banknote className="w-4 h-4" />
-                  <span>Bayar Cicilan</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <PayDebtModal
+          debt={payingDebt}
+          accounts={accounts}
+          amount={payDebtAmount}
+          onAmountChange={handlePayDebtAmountCalcChange}
+          onSetAmount={setPayDebtAmount}
+          calcNotice={payDebtCalcNotice}
+          sourceAccount={payDebtSourceAccount}
+          onSourceChange={setPayDebtSourceAccount}
+          date={payDebtDate}
+          onDateChange={setPayDebtDate}
+          note={payDebtNote}
+          onNoteChange={setPayDebtNote}
+          onSubmit={handleExecutePayDebt}
+          onClose={() => setPayingDebt(null)}
+        />
       )}
 
       {/* =================================================================== */}
       {/* MODAL 15: EDIT UTANG                                                */}
       {/* =================================================================== */}
       {editingDebt && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
@@ -5345,7 +4731,7 @@ export default function App() {
       {/* MODAL 16: KONFIRMASI HAPUS UTANG                                    */}
       {/* =================================================================== */}
       {debtToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start gap-2.5">
               <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
@@ -5394,7 +4780,7 @@ export default function App() {
         const billTransactions = transactions.filter(t => t.billId === bill.id);
 
         return (
-          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+          <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
             <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2">
               
               {/* Header Modal */}
@@ -5624,7 +5010,7 @@ export default function App() {
         const dueStatus = getBillDueStatus(debt.nextPaymentDate);
 
         return (
-          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+          <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
             <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2">
               
               {/* Header Modal */}
@@ -5872,7 +5258,7 @@ export default function App() {
       {/* MODAL 19: BUAT ATURAN OTOMATISASI BARU (NEW AUTOMATION RULE)        */}
       {/* =================================================================== */}
       {isAddAutomationOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div>
@@ -6197,7 +5583,7 @@ export default function App() {
       {/* MODAL 20: EDIT ATURAN OTOMATISASI                                   */}
       {/* =================================================================== */}
       {editingAutomation && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
               <div>
@@ -6424,7 +5810,7 @@ export default function App() {
       {/* MODAL 21: KONFIRMASI HAPUS ATURAN OTOMATISASI                       */}
       {/* =================================================================== */}
       {automationToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
           <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start gap-2.5">
               <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
@@ -6478,7 +5864,7 @@ export default function App() {
           : cycleLabel;
 
         return (
-          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
+          <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
             <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2">
               
               {/* Header Modal */}

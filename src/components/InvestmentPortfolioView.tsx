@@ -367,7 +367,7 @@ export function InvestmentPortfolioView({
       {/* =================================================================== */}
       {(isAddOpen || editingAsset) && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-[2px]"
+          className="ax-modal fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-[2px]"
           onClick={() => { setIsAddOpen(false); setEditingAsset(null); }}
         >
           <div 
@@ -532,7 +532,7 @@ export function InvestmentPortfolioView({
       {/* =================================================================== */}
       {quickUpdateAsset && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-[2px]"
+          className="ax-modal fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-[2px]"
           onClick={() => setQuickUpdateAsset(null)}
         >
           <div 
@@ -592,7 +592,7 @@ export function InvestmentPortfolioView({
       {/* =================================================================== */}
       {assetToDelete && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-[2px]"
+          className="ax-modal fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-[2px]"
           onClick={() => setAssetToDelete(null)}
         >
           <div 
