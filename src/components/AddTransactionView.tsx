@@ -1,3 +1,4 @@
+import { toLocalDateStr } from '../utils/localDate';
 import { freeBalanceText, getFreeBalance } from '../utils/accountBalance';
 import React, { useState, useRef, useEffect } from 'react';
 import {
@@ -68,7 +69,7 @@ export function AddTransactionView({
   const [amount, setAmount] = useState('');
   const [accountId, setAccountId] = useState(accounts[0]?.id || '');
   const [category, setCategory] = useState('Makanan & Minuman');
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => toLocalDateStr(new Date()));
   const [note, setNote] = useState('');
   const [calcNotice, setCalcNotice] = useState<string | null>(null);
 
@@ -77,7 +78,7 @@ export function AddTransactionView({
   const [transferDest, setTransferDest] = useState(accounts[1]?.id || '');
   const [transferAmount, setTransferAmount] = useState('');
   const [transferNote, setTransferNote] = useState('');
-  const [transferDate, setTransferDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [transferDate, setTransferDate] = useState(() => toLocalDateStr(new Date()));
   const [transferCalcNotice, setTransferCalcNotice] = useState<string | null>(null);
 
   // Category & Budget Manager Modal
@@ -458,8 +459,8 @@ export function AddTransactionView({
                   <label className="brutal-label" htmlFor="tx-date">Tanggal</label>
                   <input id="tx-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="brutal-input" required />
                   <div className="ax-quickdate">
-                    <button type="button" onClick={() => setDate(new Date().toISOString().split('T')[0])}>Hari ini</button>
-                    <button type="button" onClick={() => setDate(new Date(Date.now() - 864e5).toISOString().split('T')[0])}>Kemarin</button>
+                    <button type="button" onClick={() => setDate(toLocalDateStr(new Date()))}>Hari ini</button>
+                    <button type="button" onClick={() => setDate(toLocalDateStr(new Date(Date.now() - 864e5)))}>Kemarin</button>
                   </div>
                 </div>
                 <div>

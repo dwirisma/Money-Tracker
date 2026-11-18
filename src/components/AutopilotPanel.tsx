@@ -88,7 +88,7 @@ export function AutopilotFields({ kind, draft, onChange, hideTarget, ...ctx }: {
         </label>
         <div className="ax-amt-row">
           <span>Rp</span>
-          <input id="ap-amount" inputMode="numeric" autoComplete="off" placeholder={kind === 'pay_bill' ? 'Kosong = ikuti tagihan' : '0'}
+          <input id="ap-amount" inputMode="numeric" autoComplete="off" placeholder={kind === 'pay_bill' ? 'Ikuti tagihan' : '0'}
             value={draft.amount} onChange={e => set({ amount: e.target.value })} required={kind !== 'pay_bill'} />
         </div>
         {note && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{note}</div>}
@@ -243,7 +243,7 @@ export function AutopilotList({ ledgerId, accounts, goals, bills, debts, version
 
                 <div>
                   <span className="ax-ob-name" style={{ display: 'block', fontSize: 15.5 }} title={target}>{target ?? <span style={{ color: 'var(--accent-terracotta-light)' }}>target dihapus</span>}</span>
-                  <div className="ax-amt-b">{r.amount > 0 ? <Money value={r.amount} /> : 'Ikuti nominal tagihan'}</div>
+                  <div className="ax-amt-b" style={r.amount > 0 ? undefined : { fontSize: 15 }}>{r.amount > 0 ? <Money value={r.amount} /> : 'Ikuti nominal tagihan'}</div>
                 </div>
 
                 <div className="ax-ob-list">

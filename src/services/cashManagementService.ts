@@ -1,3 +1,4 @@
+import { toLocalDateStr } from '../utils/localDate';
 /**
  * Layanan Firestore untuk Modul 1: Manajemen Kas & Multi-Buku Kas (Ledgers)
  * Mendukung isolasi data per Buku Kas dengan Cloud Firestore & IndexedDB/LocalStorage fallback
@@ -1479,7 +1480,7 @@ export async function allocateFundsToGoal(
       amount: numAmount,
       category: txCategory,
       note: payload.note || `Alokasi tabungan untuk target "${goal.name}"`,
-      date: payload.date || new Date().toISOString().split('T')[0],
+      date: payload.date || toLocalDateStr(new Date()),
       createdAt: Date.now()
     };
 
@@ -1498,7 +1499,7 @@ export async function allocateFundsToGoal(
       amount: numAmount,
       category: `Alokasi: ${goal.name}`,
       note: payload.note || `Alokasi tabungan untuk target "${goal.name}"`,
-      date: payload.date || new Date().toISOString().split('T')[0],
+      date: payload.date || toLocalDateStr(new Date()),
       createdAt: Date.now()
     };
 
@@ -1610,7 +1611,7 @@ export function advancePaymentDate(
   customUnit: CustomIntervalUnit = 'months'
 ): string {
   if (!currentDateStr) {
-    currentDateStr = new Date().toISOString().split('T')[0];
+    currentDateStr = toLocalDateStr(new Date());
   }
   const parts = currentDateStr.split('-');
   let year = parseInt(parts[0], 10) || new Date().getFullYear();
@@ -1675,7 +1676,7 @@ export function stepBackPaymentDate(
   customUnit: CustomIntervalUnit = 'months'
 ): string {
   if (!currentDateStr) {
-    currentDateStr = new Date().toISOString().split('T')[0];
+    currentDateStr = toLocalDateStr(new Date());
   }
   const parts = currentDateStr.split('-');
   let year = parseInt(parts[0], 10) || new Date().getFullYear();
@@ -1853,7 +1854,7 @@ export function getLocalBills(): Bill[] {
       cycle: 'monthly',
       pricingType: 'fixed',
       fixedAmount: 385000,
-      nextPaymentDate: in3Days.toISOString().split('T')[0],
+      nextPaymentDate: toLocalDateStr(in3Days),
       category: 'Tagihan & Utilitas',
       sourceAccountId: 'acc_bca_default',
       totalPaid: 1155000,
@@ -1868,7 +1869,7 @@ export function getLocalBills(): Bill[] {
       cycle: 'monthly',
       pricingType: 'variable',
       lastNominal: 450000,
-      nextPaymentDate: inTomorrow.toISOString().split('T')[0],
+      nextPaymentDate: toLocalDateStr(inTomorrow),
       category: 'Tagihan & Utilitas',
       sourceAccountId: 'acc_bca_default',
       totalPaid: 1650000,
@@ -1883,7 +1884,7 @@ export function getLocalBills(): Bill[] {
       cycle: 'monthly',
       pricingType: 'fixed',
       fixedAmount: 186000,
-      nextPaymentDate: in12Days.toISOString().split('T')[0],
+      nextPaymentDate: toLocalDateStr(in12Days),
       category: 'Hiburan & Hobi',
       sourceAccountId: 'acc_gopay_default',
       totalPaid: 558000,
@@ -2064,7 +2065,7 @@ export async function payBill(
     amount: payAmount,
     category: `Tagihan: ${bill.name}`,
     note: payload.note || `Pembayaran tagihan ${bill.name} (${cycleText})`,
-    date: payload.date || new Date().toISOString().split('T')[0],
+    date: payload.date || toLocalDateStr(new Date()),
     createdAt: Date.now()
   };
 
@@ -2139,7 +2140,7 @@ export function getLocalDebts(): Debt[] {
       lender: 'FIF Group',
       totalDebt: 18500000,
       remainingDebt: 4200000,
-      nextPaymentDate: in3Days.toISOString().split('T')[0],
+      nextPaymentDate: toLocalDateStr(in3Days),
       cycle: 'monthly',
       dueDate: '2027-05-15',
       colorAccent: '#ffc933',
@@ -2154,7 +2155,7 @@ export function getLocalDebts(): Debt[] {
       lender: 'Koperasi Karyawan',
       totalDebt: 5000000,
       remainingDebt: 1500000,
-      nextPaymentDate: inTomorrow.toISOString().split('T')[0],
+      nextPaymentDate: toLocalDateStr(inTomorrow),
       cycle: 'monthly',
       dueDate: '2026-12-31',
       colorAccent: '#6c97ff',
@@ -2339,7 +2340,7 @@ export async function payDebtInstallment(
     amount: payAmount,
     category: `Cicilan: ${debt.name}`,
     note: payload.note || `Pembayaran cicilan untuk "${debt.name}" (${cycleText})`,
-    date: payload.date || new Date().toISOString().split('T')[0],
+    date: payload.date || toLocalDateStr(new Date()),
     createdAt: Date.now()
   };
 
@@ -2647,7 +2648,7 @@ export async function executeSingleAutomation(
   }
 
   // Update saldo akun
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = toLocalDateStr(new Date());
   if (rule.type === 'income') {
     sourceAcc.balance += rule.amount;
   } else if (rule.type === 'expense') {
@@ -3310,7 +3311,15 @@ export interface PayrollRuleParams {
 /** Buat atau perbarui aturan Pemasukan "Payroll Gaji" (nominal, rekening, dan tanggal gajian terdekat). */
 export async function upsertPayrollAutomation(params: PayrollRuleParams): Promise<AutomationRule> {
   const userId = params.userId || DEFAULT_USER_ID;
-  const ruleId = params.existingRuleId || `auto_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  // Cari aturan Payroll yang sudah ada langsung dari penyimpanan (bukan dari props) agar pemanggilan bersamaan tidak membuat aturan ganda.
+  const payrolls = getLocalAutomations().filter(r => r.ledgerId === params.ledgerId && r.type === 'income' && r.name.toLowerCase().includes('payroll'));
+  const ruleId = params.existingRuleId || payrolls[0]?.id || `auto_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  if (payrolls.length > 1) {
+    // Rapikan duplikat: sisakan satu aturan Payroll per buku kas.
+    const dupIds = new Set(payrolls.filter(r => r.id !== ruleId).map(r => r.id));
+    saveLocalAutomations(getLocalAutomations().filter(r => !dupIds.has(r.id)));
+    dupIds.forEach(id => { deleteDoc(doc(db, 'users', userId, 'automations', id)).catch(() => undefined); });
+  }
   const base: AutomationRule = {
     id: ruleId,
     ledgerId: params.ledgerId,

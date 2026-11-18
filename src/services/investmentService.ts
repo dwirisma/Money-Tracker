@@ -1,3 +1,4 @@
+import { toLocalDateStr } from '../utils/localDate';
 /**
  * Layanan Portofolio Investasi Artha
  * Offline-first dengan LocalStorage + sinkronisasi Cloud Firestore
@@ -53,7 +54,7 @@ export function getLocalInvestments(): InvestmentAsset[] {
       currentPricePerUnit: 5725,
       colorAccent: '#6c97ff',
       notes: 'Investasi dividen jangka panjang',
-      lastUpdated: new Date().toISOString().split('T')[0],
+      lastUpdated: toLocalDateStr(new Date()),
       createdAt: Date.now() - 86400000 * 60
     },
     {
@@ -68,7 +69,7 @@ export function getLocalInvestments(): InvestmentAsset[] {
       units: 2140,
       colorAccent: '#2dd4a7',
       notes: 'DCA rutin tanggal 25',
-      lastUpdated: new Date().toISOString().split('T')[0],
+      lastUpdated: toLocalDateStr(new Date()),
       createdAt: Date.now() - 86400000 * 45
     },
     {
@@ -85,7 +86,7 @@ export function getLocalInvestments(): InvestmentAsset[] {
       currentPricePerUnit: 1420000,
       colorAccent: '#ffc933',
       notes: 'Safe haven cadangan keluarga',
-      lastUpdated: new Date().toISOString().split('T')[0],
+      lastUpdated: toLocalDateStr(new Date()),
       createdAt: Date.now() - 86400000 * 90
     },
     {
@@ -100,7 +101,7 @@ export function getLocalInvestments(): InvestmentAsset[] {
       units: 0.0032,
       colorAccent: '#ff7a4d',
       notes: 'High risk high return',
-      lastUpdated: new Date().toISOString().split('T')[0],
+      lastUpdated: toLocalDateStr(new Date()),
       createdAt: Date.now() - 86400000 * 20
     }
   ];
@@ -154,7 +155,7 @@ export async function createInvestmentAsset(
     ...data,
     id: newId,
     createdAt: now,
-    lastUpdated: data.lastUpdated || new Date().toISOString().split('T')[0]
+    lastUpdated: data.lastUpdated || toLocalDateStr(new Date())
   };
 
   // Local write
@@ -186,7 +187,7 @@ export async function updateInvestmentAsset(
   const updated: InvestmentAsset = {
     ...all[index],
     ...updates,
-    lastUpdated: updates.lastUpdated || new Date().toISOString().split('T')[0]
+    lastUpdated: updates.lastUpdated || toLocalDateStr(new Date())
   };
 
   all[index] = updated;
@@ -380,7 +381,8 @@ async function applyEntry(userId: string, input: InvestmentEntryInput): Promise<
   });
   ensureCategory(txType, category);
 
-  await updateInvestmentAsset(userId, asset.id, patch);
+  // Penyimpanan lokal terjadi seketika; sinkron Firestore berjalan di latar belakang agar tidak membuat layar menunggu.
+  updateInvestmentAsset(userId, asset.id, patch).catch(err => console.warn('Sinkron aset ke Firestore tertunda:', err));
 
   const entry: InvestmentEntry = {
     id: `invent_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -410,7 +412,7 @@ async function reverseEntry(userId: string, entry: InvestmentEntry): Promise<voi
     if (entry.capitalDelta) patch.initialCapital = Math.max(0, asset.initialCapital - entry.capitalDelta);
     if (entry.valueDelta) patch.currentValue = Math.max(0, asset.currentValue - entry.valueDelta);
     if (entry.closedAsset) { patch.status = 'active'; patch.closedAt = ''; }
-    await updateInvestmentAsset(userId, asset.id, patch);
+    updateInvestmentAsset(userId, asset.id, patch).catch(err => console.warn('Sinkron aset ke Firestore tertunda:', err));
   }
   if (entry.transactionId) await deleteTransaction(userId, entry.transactionId);
   saveInvestmentEntries(getInvestmentEntries().filter(e => e.id !== entry.id));

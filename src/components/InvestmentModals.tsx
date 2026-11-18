@@ -1,3 +1,4 @@
+import { toLocalDateStr } from '../utils/localDate';
 import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
 import { ArrowDownToLine, Calculator, Check, Coins, Info, Lock, Pencil, Plus, Sprout, Trash2 } from 'lucide-react';
 import type { Account, InvestmentAsset, InvestmentEntry, InvestmentEntryKind } from '../types';
@@ -8,7 +9,7 @@ import { ModalFrame } from './ui/ModalFrame';
 import { calcNoteOf } from './ObligationForms';
 
 const ACC_TYPE: Record<string, string> = { cash: 'Dompet', bank: 'Bank', ewallet: 'E-Wallet', credit_card: 'Kartu Kredit' };
-const today = () => new Date().toISOString().split('T')[0];
+const today = () => toLocalDateStr(new Date());
 const signed = (n: number) => `${n >= 0 ? '+' : '-'}${formatRupiah(Math.abs(n))}`;
 
 export const KIND_META: Record<InvestmentEntryKind, { label: string; short: string; tint: string; Icon: typeof Plus; hint: string }> = {
@@ -179,7 +180,7 @@ export function AssetEntryModal(p: EntryProps) {
       footer={
         <>
           <button type="button" className="brutal-btn brutal-btn-ghost" onClick={p.onClose}>Batal</button>
-          <button type="submit" form={formId} disabled={p.busy || !accountId || amt <= 0} className="brutal-btn brutal-btn-sand">
+          <button type="submit" form={formId} disabled={p.busy || !accountId || amt <= 0 || over} className="brutal-btn brutal-btn-sand">
             <Check className="w-4 h-4" />{p.busy ? 'Menyimpan…' : editing ? 'Simpan perubahan' : 'Simpan'}
           </button>
         </>

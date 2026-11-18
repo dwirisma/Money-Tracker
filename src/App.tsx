@@ -1,3 +1,4 @@
+import { toLocalDateStr } from './utils/localDate';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -284,7 +285,7 @@ export default function App() {
   const [allocatingGoal, setAllocatingGoal] = useState<Goal | null>(null);
   const [allocAmount, setAllocAmount] = useState('');
   const [allocSourceAccount, setAllocSourceAccount] = useState('');
-  const [allocDate, setAllocDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [allocDate, setAllocDate] = useState(() => toLocalDateStr(new Date()));
   const [allocNote, setAllocNote] = useState('');
   const [allocCalcNotice, setAllocCalcNotice] = useState<string | null>(null);
 
@@ -328,7 +329,7 @@ export default function App() {
   const [newBillNextDate, setNewBillNextDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 7);
-    return d.toISOString().split('T')[0];
+    return toLocalDateStr(d);
   });
   const [newBillCategory, setNewBillCategory] = useState('Tagihan & Utilitas');
   const [newBillSourceAccount, setNewBillSourceAccount] = useState('');
@@ -340,7 +341,7 @@ export default function App() {
   const [payingBill, setPayingBill] = useState<Bill | null>(null);
   const [payBillAmount, setPayBillAmount] = useState('');
   const [payBillSourceAccount, setPayBillSourceAccount] = useState('');
-  const [payBillDate, setPayBillDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [payBillDate, setPayBillDate] = useState(() => toLocalDateStr(new Date()));
   const [payBillNote, setPayBillNote] = useState('');
   const [payBillCalcNotice, setPayBillCalcNotice] = useState<string | null>(null);
 
@@ -372,7 +373,7 @@ export default function App() {
   const [newDebtNextDate, setNewDebtNextDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 30);
-    return d.toISOString().split('T')[0];
+    return toLocalDateStr(d);
   });
   const [newDebtCycle, setNewDebtCycle] = useState<BillCycle>('monthly');
   const [newDebtCustomCount, setNewDebtCustomCount] = useState<number>(10);
@@ -386,7 +387,7 @@ export default function App() {
   const [payingDebt, setPayingDebt] = useState<Debt | null>(null);
   const [payDebtAmount, setPayDebtAmount] = useState('');
   const [payDebtSourceAccount, setPayDebtSourceAccount] = useState('');
-  const [payDebtDate, setPayDebtDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [payDebtDate, setPayDebtDate] = useState(() => toLocalDateStr(new Date()));
   const [payDebtNote, setPayDebtNote] = useState('');
   const [payDebtCalcNotice, setPayDebtCalcNotice] = useState<string | null>(null);
 
@@ -432,7 +433,7 @@ export default function App() {
   const [newAutoNextDate, setNewAutoNextDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
+    return toLocalDateStr(d);
   });
   const [newAutoColor, setNewAutoColor] = useState('#2dd4a7');
   const [newAutoNote, setNewAutoNote] = useState('');
@@ -522,7 +523,7 @@ export default function App() {
     if (valid && !valid.includes(txCategory)) setTxCategory(valid[0]);
   }, [txType, txCategory, categories.lists]);
   const [txNote, setTxNote] = useState('');
-  const [txDate, setTxDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [txDate, setTxDate] = useState(() => toLocalDateStr(new Date()));
   const [calcNotice, setCalcNotice] = useState<string | null>(null);
 
   // Form Transfer Baru
@@ -943,7 +944,7 @@ export default function App() {
     setEditTxToAccountId(tx.toAccountId || '');
     setEditTxCategory(tx.category || (tx.type === 'transfer' ? 'Transfer Saldo' : ''));
     setEditTxNote(tx.note || '');
-    setEditTxDate(tx.date || new Date().toISOString().split('T')[0]);
+    setEditTxDate(tx.date || toLocalDateStr(new Date()));
     setEditCalcNotice(null);
   }
 
@@ -1223,7 +1224,7 @@ export default function App() {
     setAllocAmount('');
     const defaultSource = goal.sourceAccountId || (accounts.length > 0 ? accounts[0].id : '');
     setAllocSourceAccount(defaultSource);
-    setAllocDate(new Date().toISOString().split('T')[0]);
+    setAllocDate(toLocalDateStr(new Date()));
     setAllocNote('');
     setAllocCalcNotice(null);
   }
@@ -1507,7 +1508,7 @@ export default function App() {
     setPayingBill(b);
     setPayBillAmount(b.pricingType === 'fixed' && b.fixedAmount ? String(b.fixedAmount) : (b.lastNominal ? String(b.lastNominal) : ''));
     setPayBillSourceAccount(b.sourceAccountId || accounts[0]?.id || '');
-    setPayBillDate(new Date().toISOString().split('T')[0]);
+    setPayBillDate(toLocalDateStr(new Date()));
     const cycleText = getCycleLabel(b.cycle, b.customIntervalCount, b.customIntervalUnit);
     setPayBillNote(`Pembayaran tagihan ${b.name} (${cycleText})`);
     setPayBillCalcNotice(null);
@@ -1685,7 +1686,7 @@ export default function App() {
     setPayingDebt(d);
     setPayDebtAmount('');
     setPayDebtSourceAccount(accounts[0]?.id || '');
-    setPayDebtDate(new Date().toISOString().split('T')[0]);
+    setPayDebtDate(toLocalDateStr(new Date()));
     const cycleText = getCycleLabel(d.cycle, d.customIntervalCount, d.customIntervalUnit);
     setPayDebtNote(`Cicilan utang: ${d.name} (${d.lender || 'Pinjaman'} • ${cycleText})`);
     setPayDebtCalcNotice(null);
@@ -3053,7 +3054,7 @@ export default function App() {
               d.setMonth(d.getMonth() + 1);
             }
             d.setDate(val);
-            setNewAutoNextDate(d.toISOString().split('T')[0]);
+            setNewAutoNextDate(toLocalDateStr(d));
           }}
           customCount={newAutoCustomCount} onCustomCount={setNewAutoCustomCount}
           customUnit={newAutoCustomUnit} onCustomUnit={setNewAutoCustomUnit}

@@ -1,3 +1,4 @@
+import { toLocalDateStr } from '../utils/localDate';
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   PieChart as PieIcon,
@@ -212,7 +213,7 @@ export function InvestmentPortfolioView({
         currentValue: curVal,
         units: isNaN(parsedUnits || NaN) ? undefined : parsedUnits,
         notes: notes.trim() || undefined,
-        lastUpdated: new Date().toISOString().split('T')[0]
+        lastUpdated: toLocalDateStr(new Date())
       });
 
       await onRefreshInvestments();
@@ -241,7 +242,7 @@ export function InvestmentPortfolioView({
         currentValue: curVal,
         units: isNaN(parsedUnits || NaN) ? undefined : parsedUnits,
         notes: notes.trim() || undefined,
-        lastUpdated: new Date().toISOString().split('T')[0]
+        lastUpdated: toLocalDateStr(new Date())
       });
 
       await onRefreshInvestments();
@@ -265,7 +266,7 @@ export function InvestmentPortfolioView({
     try {
       await updateInvestmentAsset(undefined, quickUpdateAsset.id, {
         currentValue: newVal,
-        lastUpdated: new Date().toISOString().split('T')[0]
+        lastUpdated: toLocalDateStr(new Date())
       });
 
       await onRefreshInvestments();

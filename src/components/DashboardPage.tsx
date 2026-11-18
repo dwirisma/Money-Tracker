@@ -247,7 +247,7 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
       </section>
 
       {/* TREN 6 BULAN */}
-      <section className="ax-b s8 ax-panel">
+      <section className="ax-b s8 ax-panel ax-trend">
         <div className="ax-ph">
           <h3><span className="ax-ic" style={{ background: 'var(--accent-blue)' }}><TrendingUp className="w-3.5 h-3.5" /></span>Tren 6 Bulan</h3>
           <div className="ax-leg">
@@ -338,6 +338,51 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
         </div>
       </section>
 
+      {/* SINKING FUNDS */}
+      <section className="ax-b s6 ax-panel">
+        <div className="ax-ph">
+          <h3><span className="ax-ic" style={{ background: 'var(--accent-sand)' }}><Target className="w-3.5 h-3.5" /></span>Sinking Funds Terdekat</h3>
+          <button type="button" className="ax-link" onClick={() => onNavigate('module2')}>Lihat semua →</button>
+        </div>
+        {d.nearGoals.length === 0 ? (
+          <p className="ax-empty">Belum ada target aktif di buku ini. Mulai buat di Sinking Funds!</p>
+        ) : (
+          <ul className="ax-list">
+            {d.nearGoals.map(g => {
+              const pct = Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100));
+              return (
+                <li key={g.id}>
+                  <button type="button" className="ax-goal" onClick={() => onNavigate('module2')}>
+                    <span className="ax-goal-h"><b>{g.name}</b><em>{pct}%</em></span>
+                    <span className="brutal-progress-container"><span className="brutal-progress-bar" style={{ width: `${pct}%`, display: 'block' }} /></span>
+                    <small>{formatRupiah(g.currentAmount)} / {formatRupiah(g.targetAmount)}{g.deadline ? ` • Deadline: ${g.deadline}` : ''}</small>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      {/* PORTOFOLIO INVESTASI */}
+      <section className="ax-b s6 ax-panel ax-inv">
+        <div className="ax-ph">
+          <h3><span className="ax-ic" style={{ background: 'var(--accent-lavender)' }}><Coins className="w-3.5 h-3.5" /></span>Portofolio Investasi</h3>
+          <button type="button" className="ax-link" onClick={() => onNavigate('investments')}>Detail →</button>
+        </div>
+        <div className="ax-eyebrow dim">Nilai pasar portofolio</div>
+        <div className="ax-inv-n"><Money value={d.invSummary.totalCurrentValue} /></div>
+        <div className="ax-kv"><span>Total modal beli</span><b>{formatRupiah(d.invSummary.totalCapital)}</b></div>
+        <div className="ax-kv"><span>Return investasi</span>
+          <b className={d.invSummary.netGainLoss >= 0 ? 'pos' : 'neg'}>
+            {d.invSummary.netGainLoss >= 0 ? '+' : ''}{formatRupiah(d.invSummary.netGainLoss)} ({d.invSummary.netGainLossPercent.toFixed(2)}%)
+          </b>
+        </div>
+        <button type="button" className="brutal-btn brutal-btn-sand ax-wide" onClick={() => onNavigate('investments')}>
+          Buka Portofolio Investasi<ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </section>
+
       {/* TAGIHAN MENDATANG */}
       <section className="ax-b s6 ax-panel">
         <div className="ax-ph">
@@ -396,51 +441,6 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
             ))}
           </ul>
         )}
-      </section>
-
-      {/* SINKING FUNDS */}
-      <section className="ax-b s6 ax-panel">
-        <div className="ax-ph">
-          <h3><span className="ax-ic" style={{ background: 'var(--accent-sand)' }}><Target className="w-3.5 h-3.5" /></span>Sinking Funds Terdekat</h3>
-          <button type="button" className="ax-link" onClick={() => onNavigate('module2')}>Lihat semua →</button>
-        </div>
-        {d.nearGoals.length === 0 ? (
-          <p className="ax-empty">Belum ada target aktif di buku ini. Mulai buat di Sinking Funds!</p>
-        ) : (
-          <ul className="ax-list">
-            {d.nearGoals.map(g => {
-              const pct = Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100));
-              return (
-                <li key={g.id}>
-                  <button type="button" className="ax-goal" onClick={() => onNavigate('module2')}>
-                    <span className="ax-goal-h"><b>{g.name}</b><em>{pct}%</em></span>
-                    <span className="brutal-progress-container"><span className="brutal-progress-bar" style={{ width: `${pct}%`, display: 'block' }} /></span>
-                    <small>{formatRupiah(g.currentAmount)} / {formatRupiah(g.targetAmount)}{g.deadline ? ` • Deadline: ${g.deadline}` : ''}</small>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-
-      {/* PORTOFOLIO INVESTASI */}
-      <section className="ax-b s6 ax-panel ax-inv">
-        <div className="ax-ph">
-          <h3><span className="ax-ic" style={{ background: 'var(--accent-lavender)' }}><Coins className="w-3.5 h-3.5" /></span>Portofolio Investasi</h3>
-          <button type="button" className="ax-link" onClick={() => onNavigate('investments')}>Detail →</button>
-        </div>
-        <div className="ax-eyebrow dim">Nilai pasar portofolio</div>
-        <div className="ax-inv-n"><Money value={d.invSummary.totalCurrentValue} /></div>
-        <div className="ax-kv"><span>Total modal beli</span><b>{formatRupiah(d.invSummary.totalCapital)}</b></div>
-        <div className="ax-kv"><span>Return investasi</span>
-          <b className={d.invSummary.netGainLoss >= 0 ? 'pos' : 'neg'}>
-            {d.invSummary.netGainLoss >= 0 ? '+' : ''}{formatRupiah(d.invSummary.netGainLoss)} ({d.invSummary.netGainLossPercent.toFixed(2)}%)
-          </b>
-        </div>
-        <button type="button" className="brutal-btn brutal-btn-sand ax-wide" onClick={() => onNavigate('investments')}>
-          Buka Portofolio Investasi<ArrowRight className="w-3.5 h-3.5" />
-        </button>
       </section>
     </div>
   );

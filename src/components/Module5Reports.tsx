@@ -1,3 +1,4 @@
+import { toLocalDateStr } from '../utils/localDate';
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   BarChart, 
@@ -106,14 +107,14 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
     if (timeRange === 'this_month') {
       const firstDay = new Date(currentYear, currentMonth, 1);
       const lastDay = new Date(currentYear, currentMonth + 1, 0);
-      start = firstDay.toISOString().split('T')[0];
-      end = lastDay.toISOString().split('T')[0];
+      start = toLocalDateStr(firstDay);
+      end = toLocalDateStr(lastDay);
       label = `Bulan Ini (${now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })})`;
     } else if (timeRange === 'last_month') {
       const firstDay = new Date(currentYear, currentMonth - 1, 1);
       const lastDay = new Date(currentYear, currentMonth, 0);
-      start = firstDay.toISOString().split('T')[0];
-      end = lastDay.toISOString().split('T')[0];
+      start = toLocalDateStr(firstDay);
+      end = toLocalDateStr(lastDay);
       const prevDate = new Date(currentYear, currentMonth - 1, 1);
       label = `Bulan Lalu (${prevDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })})`;
     } else if (timeRange === 'this_year') {
@@ -235,14 +236,14 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       const prevMonthDate = new Date(currentYear, currentMonth - 1, 1);
       const py = prevMonthDate.getFullYear();
       const pm = prevMonthDate.getMonth();
-      prevStart = new Date(py, pm, 1).toISOString().split('T')[0];
-      prevEnd = new Date(py, pm + 1, 0).toISOString().split('T')[0];
+      prevStart = toLocalDateStr(new Date(py, pm, 1));
+      prevEnd = toLocalDateStr(new Date(py, pm + 1, 0));
     } else if (timeRange === 'last_month') {
       const twoMonthsAgoDate = new Date(currentYear, currentMonth - 2, 1);
       const py = twoMonthsAgoDate.getFullYear();
       const pm = twoMonthsAgoDate.getMonth();
-      prevStart = new Date(py, pm, 1).toISOString().split('T')[0];
-      prevEnd = new Date(py, pm + 1, 0).toISOString().split('T')[0];
+      prevStart = toLocalDateStr(new Date(py, pm, 1));
+      prevEnd = toLocalDateStr(new Date(py, pm + 1, 0));
     } else if (timeRange === 'this_year') {
       prevStart = `${currentYear - 1}-01-01`;
       prevEnd = `${currentYear - 1}-12-31`;
@@ -299,7 +300,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
 
     const threeMonthsAgo = new Date();
     threeMonthsAgo.setDate(threeMonthsAgo.getDate() - 90);
-    const threeMonthsAgoStr = threeMonthsAgo.toISOString().split('T')[0];
+    const threeMonthsAgoStr = toLocalDateStr(threeMonthsAgo);
 
     const past3MTxs = transactions.filter(t => 
       t.ledgerId === activeLedger?.id && 

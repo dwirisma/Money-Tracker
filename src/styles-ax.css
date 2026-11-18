@@ -12,7 +12,7 @@
 .ax-item[data-active=true]{background:var(--ink);color:var(--bg-surface);box-shadow:var(--shadow-sm)}
 :root[data-theme=dark] .ax-item[data-active=true]{background:var(--accent-sand);color:#14141a}
 .ax-collapse{margin-top:auto;display:flex;align-items:center;gap:8px;justify-content:center;padding:8px;border:2px dashed var(--border-subtle);border-radius:12px;background:none;color:var(--text-secondary);font:800 11px var(--font-heading);cursor:pointer}
-.ax-side[data-collapsed=true] .ax-item span,.ax-side[data-collapsed=true] .ax-brand div,.ax-side[data-collapsed=true] .ax-grp,.ax-side[data-collapsed=true] .ax-collapse span{display:none}
+.ax-side[data-collapsed=true] .ax-item>span:not(.ax-chip),.ax-side[data-collapsed=true] .ax-brand div,.ax-side[data-collapsed=true] .ax-grp,.ax-side[data-collapsed=true] .ax-collapse span{display:none}
 .ax-side[data-collapsed=true] .ax-item{justify-content:center;padding:5px}.ax-side[data-collapsed=true] .ax-brand{justify-content:center}
 /* tab bar mobile */
 .ax-tabbar{position:fixed;left:10px;right:10px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:40;display:grid;grid-template-columns:repeat(5,1fr);align-items:center;background:var(--bg-surface);border:2px solid var(--border-color);border-radius:22px;box-shadow:var(--shadow-md);padding:5px 4px}
@@ -783,3 +783,12 @@ body:has(.ax-modal){overflow:hidden}
 .ax-ent .b small{font:700 10.5px/1.35 var(--font-mono);color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis}
 .ax-ent .v{flex:none;font:800 13px var(--font-heading);white-space:nowrap}
 .ax-ent .a{flex:none;display:inline-flex;gap:2px}
+
+/* ===== Perbaikan tampilan (umpan balik) ===== */
+/* Saldo Akun di Dashboard: tinggi dibatasi (sekitar 6 akun), sisanya digulir, agar kartu Tren tidak ikut memanjang. */
+@media(min-width:1024px){.ax-sa{max-height:268px;overflow-y:auto;padding-right:4px;overscroll-behavior:contain}}
+.ax-trend{display:flex;flex-direction:column}
+.ax-trend .ax-chart{flex:1 1 200px;min-height:200px;height:auto}
+/* Tooltip grafik komposisi tampil di atas label "Total keluar" di tengah donat. */
+.ax-rpie-c .recharts-wrapper{position:relative;z-index:2}
+.ax-rpie-t{z-index:1}

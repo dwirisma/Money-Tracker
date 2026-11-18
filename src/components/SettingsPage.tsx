@@ -1,3 +1,4 @@
+import { toLocalDateStr } from '../utils/localDate';
 import React, { useState, useRef } from 'react';
 import { 
   Database, 
@@ -62,7 +63,7 @@ export function SettingsPage() {
 
       const blob = new Blob([JSON.stringify(backupPayload, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
-      const nowStr = new Date().toISOString().split('T')[0];
+      const nowStr = toLocalDateStr(new Date());
       const link = document.createElement('a');
       link.href = url;
       link.download = `artha-database-backup-${nowStr}.json`;

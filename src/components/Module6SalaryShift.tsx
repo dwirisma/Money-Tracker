@@ -174,10 +174,10 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   };
   const [payrollStored, setPayrollStored] = useState<{ enabled: boolean; accountId: string } | null>(readPayroll);
   useEffect(() => { setPayrollStored(readPayroll()); }, [activeLedger?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  /** Belum pernah diatur: aktif bila Anda sudah punya aturan Payroll (migrasi dari tombol lama). */
+  /** Belum pernah diatur: aktif bila Anda sudah punya aturan "Payroll" buatan tombol lama. Aturan pemasukan lain tidak disentuh. */
   const payrollAuto = useMemo(() => {
     if (payrollStored) return payrollStored;
-    const existing = automations.find(a => a.ledgerId === activeLedger?.id && a.type === 'income' && a.name.toLowerCase().includes('gaji'));
+    const existing = automations.find(a => a.ledgerId === activeLedger?.id && a.type === 'income' && a.name.toLowerCase().includes('payroll'));
     const bank = accounts.find(a => a.type === 'bank' && !a.isArchived);
     return { enabled: !!existing, accountId: existing?.sourceAccountId || bank?.id || accounts[0]?.id || '' };
   }, [payrollStored, automations, accounts, activeLedger?.id]);
@@ -964,7 +964,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
     if (!activeLedger || !payrollAuto.enabled || !payrollAuto.accountId) return;
     if (!(sal.netSalary > 0) || sal.paydayDate < todayStr()) return;
     if (upcomingSnapshot()?.key !== key) return;
-    const existing = automations.find(a => a.ledgerId === activeLedger.id && a.type === 'income' && a.name.toLowerCase().includes('gaji'));
+    const existing = automations.find(a => a.ledgerId === activeLedger.id && a.type === 'income' && a.name.toLowerCase().includes('payroll'));
     await upsertPayrollAutomation({
       ledgerId: activeLedger.id,
       targetAccountId: payrollAuto.accountId,
@@ -1026,6 +1026,18 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
       if (up) await syncPayrollRule(up.salary, up.key);
     })();
   }, [activeLedger?.id, settingsLoaded, historiesLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sinkron aturan Payroll untuk tanggal gajian terdekat setelah semua data siap (hanya bila nilainya berubah).
+  const payrollSigRef = useRef('');
+  useEffect(() => {
+    if (!activeLedger || !settingsLoaded || !historiesLoaded || !payrollAuto.enabled || !payrollAuto.accountId) return;
+    const up = upcomingSnapshot();
+    if (!up) return;
+    const sig = `${activeLedger.id}|${up.key}|${up.salary.netSalary}|${up.salary.paydayDate}|${payrollAuto.accountId}|${automations.length}`;
+    if (payrollSigRef.current === sig) return;
+    payrollSigRef.current = sig;
+    void syncPayrollRule(up.salary, up.key);
+  }, [activeLedger?.id, settingsLoaded, historiesLoaded, payrollAuto.enabled, payrollAuto.accountId, automations.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mengedit periode (kalender atau komponen tambahan): simpan ulang arsipnya, atau perbarui aturan Payroll bila periode itu belum diarsipkan.
   useEffect(() => {
