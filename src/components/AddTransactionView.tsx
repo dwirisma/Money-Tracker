@@ -7,6 +7,9 @@ import {
   ArrowRightLeft,
   Calculator,
   Camera as ScanCamera,
+  FileUp,
+  FileText,
+  RefreshCw,
   Check,
   Plus,
   Settings2,
@@ -25,10 +28,10 @@ import type { Account, Ledger, Transaction } from '../types';
 import { evaluateMathExpression, formatRupiah } from '../utils/calculator';
 import { useCategories, LOCKED_CATEGORY } from '../hooks/useCategories';
 import { getCategoryBudgets, saveCategoryBudgets, type CategoryBudgetMap } from '../services/budgetService';
-import { scanReceipt } from '../services/receiptScanService';
-import { getGeminiKey, getGeminiModel, saveGeminiSettings } from '../services/geminiSettings';
+import { scanReceipt, formatFileSize, type ReceiptData } from '../services/receiptScanService';
 import type { ModuleId } from './layout/navConfig';
 import { ModalFrame } from './ui/ModalFrame';
+import { CameraCaptureModal } from './CameraCaptureModal';
 
 interface Props {
   currentLedger: Ledger;
@@ -113,14 +116,21 @@ export function AddTransactionView({
     return () => window.removeEventListener('open-tx-tab-settings', handleOpenSettings);
   }, []);
 
-  // AI Scan Struk
-  const receiptInputRef = useRef<HTMLInputElement>(null);
-  const [isScanning, setIsScanning] = useState(false);
+  // AI Scan Struk & Upload Dokumen
+  const uploadDocInputRef = useRef<HTMLInputElement>(null);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [isDraggingReceipt, setIsDraggingReceipt] = useState(false);
+  const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle');
+  const [scanError, setScanError] = useState<string | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
-  const [scannedResult, setScannedResult] = useState<{ amount: number; merchant?: string | null } | null>(null);
-  const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
-  const [inputApiKey, setInputApiKey] = useState<string>('');
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [receiptFileInfo, setReceiptFileInfo] = useState<{
+    name: string;
+    sizeLabel: string;
+    kind: 'image' | 'document';
+    file: File;
+  } | null>(null);
+  const [scannedResult, setScannedResult] = useState<ReceiptData | null>(null);
+  const isScanning = scanStatus === 'scanning';
 
   // Sync default account when accounts change
   useEffect(() => {
@@ -179,32 +189,64 @@ export function AddTransactionView({
     setTransferAmount((cur + val).toString());
   }
 
-  // Handle Scan Struk
-  async function processReceiptFile(file: File, keyToUse?: string) {
-    const key = keyToUse || getGeminiKey();
-    if (!key) {
-      setPendingFile(file);
-      setShowApiKeyModal(true);
-      return;
+  // Bersihkan preview objectURL saat unmount atau berganti
+  useEffect(() => {
+    return () => {
+      if (receiptPreview) URL.revokeObjectURL(receiptPreview);
+    };
+  }, [receiptPreview]);
+
+  function clearReceiptScan() {
+    if (receiptPreview) URL.revokeObjectURL(receiptPreview);
+    setReceiptPreview(null);
+    setReceiptFileInfo(null);
+    setScannedResult(null);
+    setScanError(null);
+    setScanStatus('idle');
+  }
+
+  // Handle Scan Struk (Foto Kamera, Galeri, atau Dokumen PDF)
+  async function processReceiptFile(file: File) {
+    const isPdfOrDoc =
+      file.type === 'application/pdf' ||
+      file.type === 'text/plain' ||
+      file.type === 'text/csv' ||
+      /\.(pdf|txt|csv)$/i.test(file.name);
+
+    const kind: 'image' | 'document' = isPdfOrDoc ? 'document' : 'image';
+
+    if (receiptPreview) URL.revokeObjectURL(receiptPreview);
+    if (kind === 'image') {
+      setReceiptPreview(URL.createObjectURL(file));
+    } else {
+      setReceiptPreview(null);
     }
 
-    const previewUrl = URL.createObjectURL(file);
-    setReceiptPreview(previewUrl);
-    setIsScanning(true);
+    setReceiptFileInfo({
+      name: file.name || (kind === 'document' ? 'dokumen-struk.pdf' : 'foto-struk.jpg'),
+      sizeLabel: formatFileSize(file.size),
+      kind,
+      file,
+    });
+    setScannedResult(null);
+    setScanError(null);
+    setScanStatus('scanning');
 
     try {
-      const r = await scanReceipt(file, categories.lists.expense, { apiKey: key, model: getGeminiModel() });
+      const r = await scanReceipt(file, categories.lists.expense);
       setActiveTab('expense');
       setAmount(String(r.amount));
       if (r.date) setDate(r.date);
       if (r.category) setCategory(r.category);
       if (r.note) setNote(r.note);
-      setScannedResult({ amount: r.amount, merchant: r.note });
-      showToast(`Struk terbaca! Rp ${r.amount.toLocaleString('id-ID')} (${r.note || 'Belanja'})`, 'success');
+      setScannedResult(r);
+      setScanStatus('success');
+      showToast(`Struk terbaca! Rp ${r.amount.toLocaleString('id-ID')} (${r.note || r.merchantName || 'Belanja'})`, 'success');
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Gagal membaca struk.', 'error');
-    } finally {
-      setIsScanning(false);
+      const msg = err instanceof Error ? err.message : 'Gagal membaca struk atau dokumen.';
+      setScanError(msg);
+      setScanStatus('error');
+      showToast(msg, 'error');
     }
   }
 
@@ -215,20 +257,25 @@ export function AddTransactionView({
     await processReceiptFile(file);
   }
 
-  async function handleSaveApiKeyAndScan(e: React.FormEvent) {
+  function handleReceiptDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
-    const trimmed = inputApiKey.trim();
-    if (!trimmed) {
-      showToast('API Key tidak boleh kosong', 'error');
-      return;
+    e.stopPropagation();
+    setIsDraggingReceipt(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (file) {
+      void processReceiptFile(file);
     }
-    saveGeminiSettings(trimmed, getGeminiModel());
-    setShowApiKeyModal(false);
-    showToast('Kunci Gemini tersimpan!', 'success');
-    if (pendingFile) {
-      const f = pendingFile;
-      setPendingFile(null);
-      await processReceiptFile(f, trimmed);
+  }
+
+  function handleFormPaste(e: React.ClipboardEvent<HTMLFormElement>) {
+    if (activeTab !== 'expense') return;
+    const files = e.clipboardData?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+        e.preventDefault();
+        void processReceiptFile(file);
+      }
     }
   }
 
@@ -374,34 +421,148 @@ export function AddTransactionView({
         {/* KOLOM UTAMA: FORM */}
         <div className="ax-panel">
           {activeTab !== 'transfer' ? (
-            <form onSubmit={handleSubmitTransaction} className="ax-form">
-              {/* Scan struk (khusus pengeluaran) */}
+            <form onSubmit={handleSubmitTransaction} onPaste={handleFormPaste} className="ax-form">
+              {/* Scan kamera atau upload dokumen struk (khusus pengeluaran) */}
               {activeTab === 'expense' && (
-                <div className="ax-ph" style={{ margin: 0 }}>
-                  <h3><span className="ax-ic" style={{ background: 'var(--accent-lavender)' }}><ScanCamera className="w-3.5 h-3.5" /></span>Input pengeluaran</h3>
-                  <div>
-                    <input ref={receiptInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleReceiptFile} />
-                    <button type="button" onClick={() => receiptInputRef.current?.click()} disabled={isScanning} className="brutal-btn brutal-btn-lavender !py-1.5 !px-3 text-[11px]" title="Pindai foto struk belanja dengan Gemini AI">
-                      <ScanCamera className="w-3.5 h-3.5" />{isScanning ? 'Membaca…' : 'Scan Struk'}
-                    </button>
+                <div
+                  className={`ax-scanbar ${isDraggingReceipt ? 'drag' : ''}`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDraggingReceipt(true);
+                  }}
+                  onDragLeave={() => setIsDraggingReceipt(false)}
+                  onDrop={handleReceiptDrop}
+                >
+                  <input
+                    ref={uploadDocInputRef}
+                    type="file"
+                    accept="image/*,application/pdf,.pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.txt,.csv"
+                    className="hidden"
+                    onChange={handleReceiptFile}
+                  />
+
+                  <div className="ax-scanbar-top">
+                    <h3>
+                      <span className="ax-ic" style={{ background: 'var(--accent-lavender)' }}>
+                        <ScanCamera className="w-3.5 h-3.5" />
+                      </span>
+                      Input pengeluaran
+                    </h3>
+
+                    <div className="ax-scan-btns">
+                      <button
+                        type="button"
+                        onClick={() => setIsCameraModalOpen(true)}
+                        disabled={isScanning}
+                        className="brutal-btn brutal-btn-lavender !py-1.5 !px-3 text-[11px]"
+                        title="Buka kamera langsung untuk memotret struk"
+                      >
+                        <ScanCamera className="w-3.5 h-3.5" />
+                        <span>Kamera</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => uploadDocInputRef.current?.click()}
+                        disabled={isScanning}
+                        className="brutal-btn brutal-btn-sand !py-1.5 !px-3 text-[11px]"
+                        title="Upload foto galeri atau dokumen invoice PDF"
+                      >
+                        <FileUp className="w-3.5 h-3.5" />
+                        <span>Upload / PDF</span>
+                      </button>
+                    </div>
                   </div>
+
+                  <p className="ax-scan-hint">
+                    Ambil foto struk via <b>Kamera</b>, upload <b>Foto / PDF</b>, tarik file ke sini, atau tekan <b>Ctrl+V</b> untuk tempel screenshot.
+                  </p>
                 </div>
               )}
 
-              {receiptPreview && activeTab === 'expense' && (
-                <div className="ax-scan">
-                  <img src={receiptPreview} alt="Struk Belanja" />
-                  <div>
-                    <b>Foto struk · {isScanning ? 'sedang dibaca AI…' : '✓ terbaca Gemini'}</b>
-                    <small>
-                      {scannedResult
-                        ? `${scannedResult.merchant ? `${scannedResult.merchant} • ` : ''}${formatRupiah(scannedResult.amount)}`
-                        : isScanning ? 'Membaca rincian toko & total nominal...' : 'Data otomatis terisi di bawah'}
-                    </small>
+              {receiptFileInfo && activeTab === 'expense' && (
+                <div className={`ax-scan ${scanStatus === 'error' ? 'err' : scanStatus === 'success' ? 'ok' : ''}`}>
+                  <div className="ax-scan-main">
+                    {receiptFileInfo.kind === 'image' && receiptPreview ? (
+                      <img src={receiptPreview} alt="Struk Belanja" />
+                    ) : (
+                      <div className="ax-scan-doc" aria-hidden="true">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                    )}
+
+                    <div className="ax-scan-body">
+                      <b>
+                        {scanStatus === 'scanning' && (
+                          <span className="inline-flex items-center gap-1.5">
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            AI sedang membaca {receiptFileInfo.kind === 'document' ? 'dokumen' : 'foto struk'}…
+                          </span>
+                        )}
+                        {scanStatus === 'success' && (
+                          <span>
+                            ✓ Terbaca AI · {receiptFileInfo.name} ({receiptFileInfo.sizeLabel})
+                          </span>
+                        )}
+                        {scanStatus === 'error' && (
+                          <span className="inline-flex items-center gap-1.5">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                            Gagal membaca {receiptFileInfo.name}
+                          </span>
+                        )}
+                      </b>
+
+                      <small>
+                        {scanStatus === 'scanning' && 'Mendeteksi merchant, tanggal, kategori, dan total pembayaran...'}
+                        {scanStatus === 'success' && scannedResult && (
+                          <>
+                            {scannedResult.merchantName ? `${scannedResult.merchantName} • ` : ''}
+                            {formatRupiah(scannedResult.amount)}
+                            {scannedResult.paymentMethod ? ` • ${scannedResult.paymentMethod}` : ''}
+                            {' · Form di bawah terisi otomatis (silakan cek ulang)'}
+                          </>
+                        )}
+                        {scanStatus === 'error' && (scanError || 'File tidak terbaca. Silakan coba lagi.')}
+                      </small>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {scanStatus === 'error' && (
+                        <button
+                          type="button"
+                          className="brutal-btn brutal-btn-sand !py-1 !px-2.5 text-[11px]"
+                          onClick={() => void processReceiptFile(receiptFileInfo.file)}
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          Coba lagi
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="ax-iconbtn"
+                        title="Hapus file struk"
+                        aria-label="Hapus file struk"
+                        onClick={clearReceiptScan}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  <button type="button" className="ax-iconbtn" title="Hapus foto struk" aria-label="Hapus foto struk" onClick={() => { setReceiptPreview(null); setScannedResult(null); }}>
-                    <X className="w-4 h-4" />
-                  </button>
+
+                  {scanStatus === 'success' && scannedResult?.items && scannedResult.items.length > 0 && (
+                    <div className="ax-scan-items">
+                      <span>Rincian terbaca ({scannedResult.items.length} item):</span>
+                      <div>
+                        {scannedResult.items.map((item, idx) => (
+                          <span key={idx} className="ax-scan-pill">
+                            {item.qty && item.qty > 1 ? `${item.qty}× ` : ''}
+                            {item.name}
+                            {item.price > 0 ? ` · ${formatRupiah(item.price)}` : ''}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -731,35 +892,12 @@ export function AddTransactionView({
         );
       })()}
 
-      {/* MODAL SETUP CEPAT GEMINI API UNTUK SCAN STRUK */}
-      {showApiKeyModal && (
-        <ModalFrame
-          title="Aktifkan Gemini AI Scanner"
-          subtitle="Scan struk otomatis"
-          icon={<ScanCamera className="w-4 h-4" />}
-          tint="var(--accent-lavender)"
-          onClose={() => setShowApiKeyModal(false)}
-          footer={
-            <>
-              <button type="button" className="brutal-btn brutal-btn-ghost" onClick={() => setShowApiKeyModal(false)}>Batal</button>
-              <button type="submit" form="gemini-key-form" disabled={!inputApiKey.trim()} className="brutal-btn brutal-btn-sand"><Check className="w-4 h-4" />Simpan & scan sekarang</button>
-            </>
-          }
-        >
-          <form id="gemini-key-form" onSubmit={handleSaveApiKeyAndScan} className="ax-form">
-            <p className="ax-sec-sub" style={{ margin: 0 }}>
-              Fitur scan struk otomatis ditenagai oleh <b>Google Gemini Flash AI Vision</b>. Masukkan API Key Google AI Studio Anda untuk membaca struk belanja.
-            </p>
-            <div>
-              <label className="brutal-label" htmlFor="gemini-key">API Key</label>
-              <input id="gemini-key" type="password" className="brutal-input" placeholder="AIzaSy..." value={inputApiKey}
-                onChange={e => setInputApiKey(e.target.value)} autoFocus autoComplete="off" />
-              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="ax-link" style={{ display: 'inline-block', marginTop: 8 }}>
-                🔗 Dapatkan API Key gratis di Google AI Studio →
-              </a>
-            </div>
-          </form>
-        </ModalFrame>
+      {/* MODAL KAMERA LANGSUNG SCAN STRUK */}
+      {isCameraModalOpen && (
+        <CameraCaptureModal
+          onCaptureFile={(file) => void processReceiptFile(file)}
+          onClose={() => setIsCameraModalOpen(false)}
+        />
       )}
     </div>
   );

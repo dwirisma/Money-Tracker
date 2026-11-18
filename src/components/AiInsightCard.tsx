@@ -2,8 +2,6 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { Sparkles, RefreshCw } from 'lucide-react';
 import type { Account, Bill, Debt, Goal, Ledger, Transaction } from '../types';
 import { formatRupiah } from '../utils/calculator';
-import { getGeminiKey, getGeminiModel } from '../services/geminiSettings';
-import { GoogleGenAI } from '@google/genai';
 
 interface Props {
   currentLedger: Ledger;
@@ -143,13 +141,6 @@ export function AiInsightCard({
     setLoading(true);
     const local = computeLocalInsight();
 
-    const apiKey = getGeminiKey();
-    if (!apiKey) {
-      setInsight(local);
-      setLoading(false);
-      return;
-    }
-
     try {
       const now = new Date();
       const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -163,46 +154,26 @@ export function AiInsightCard({
         .slice(0, 3)
         .join(', ');
 
-      const prompt = `Anda adalah penasihat keuangan pribadi cerdas di aplikasi "Artha".
-Buku Kas: ${currentLedger.name}
-Pemasukan bulan ini: ${formatRupiah(totalIn)}
-Pengeluaran bulan ini: ${formatRupiah(totalOut)}
-Daftar target tabungan aktif: ${activeGoalNames || 'Belum ada'}
-Jumlah tagihan rutin: ${bills.length}, Jumlah cicilan utang: ${debts.length}
-
-TUGAS PENTING:
-Berikan analisa keuangan yang luwes, santai, tajam, kontekstual, dan tidak kaku (jangan pakai template robotik berulang-ulang). Berikan 3 hingga 4 poin utama yang beragam dan relevan dengan data di atas:
-1. Analisis pola pengeluaran atau kesehatan arus kas
-2. Progres tabungan atau motivasi pencapaian target
-3. Mitigasi kewajiban / tagihan / utang
-4. Rekomendasi aksi taktis minggu ini
-
-Kembalikan jawaban HANYA dalam format JSON valid:
-{
-  "bullets": [
-    "💡 [Poin 1: Analisis pengeluaran / kebiasaan belanja]",
-    "📈 [Poin 2: Analisis tabungan / motivasi target]",
-    "⚡ [Poin 3: Analisis kewajiban / tagihan / mitigasi]",
-    "🎯 [Poin 4: Saran langkah taktis]"
-  ],
-  "extraTip": "[Satu kalimat tips cerdas hemat/investasi maksimal 15 kata]"
-}`;
-
-      const ai = new GoogleGenAI({ apiKey });
-      const modelName = getGeminiModel() || 'gemini-2.5-flash';
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json'
-        }
+      const response = await fetch('/api/gemini/insight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ledgerName: currentLedger.name,
+          totalInFormatted: formatRupiah(totalIn),
+          totalOutFormatted: formatRupiah(totalOut),
+          activeGoalNames,
+          billsCount: bills.length,
+          debtsCount: debts.length,
+        }),
       });
 
-      const responseText = response.text || '';
-      const cleanJson = responseText.replace(/```(?:json)?/gi, '').trim();
-      const parsed = JSON.parse(cleanJson);
+      if (!response.ok) {
+        setInsight(local);
+        return;
+      }
 
-      if (Array.isArray(parsed.bullets) && parsed.bullets.length > 0) {
+      const parsed = await response.json();
+      if (Array.isArray(parsed?.bullets) && parsed.bullets.length > 0) {
         setInsight({
           bullets: parsed.bullets,
           extraTip: parsed.extraTip || local.extraTip,

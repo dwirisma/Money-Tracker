@@ -1,11 +1,23 @@
 import type { ButtonHTMLAttributes, HTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
 import { formatRupiah } from '../../utils/calculator';
 
-type Accent = 'sage' | 'blue' | 'terracotta' | 'sand' | 'lavender';
+type Accent = 'sage' | 'blue' | 'terracotta' | 'sand' | 'lavender' | 'dark' | 'pink';
+type CardTone = 'yellow' | 'pink' | 'mint' | 'coral' | 'blue' | 'white';
 const cx = (...p: Array<string | false | undefined>) => p.filter(Boolean).join(' ');
 
-export function NeoCard({ interactive, elevated, className, ...rest }: HTMLAttributes<HTMLDivElement> & { interactive?: boolean; elevated?: boolean }) {
-  return <div {...rest} className={cx(elevated ? 'brutal-card-elevated' : 'brutal-card', interactive && 'brutal-card-interactive', className)} />;
+export function NeoCard({ 
+  interactive, 
+  elevated, 
+  tone,
+  className, 
+  ...rest 
+}: HTMLAttributes<HTMLDivElement> & { 
+  interactive?: boolean; 
+  elevated?: boolean; 
+  tone?: CardTone;
+}) {
+  const toneClass = tone ? `brutal-card-${tone}` : (elevated ? 'brutal-card-elevated' : 'brutal-card');
+  return <div {...rest} className={cx(toneClass, interactive && 'brutal-card-interactive', className)} />;
 }
 
 export function NeoButton({ accent, ghost, className, type = 'button', ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { accent?: Accent; ghost?: boolean }) {

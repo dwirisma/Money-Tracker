@@ -142,9 +142,7 @@ import { AutopilotList, AutopilotFields, AutopilotRuleModal, submitAutopilot, em
 import { getAutopilotRules } from './services/autopilotService';
 import type { AutopilotKind } from './services/autopilotService';
 import { SixMonthReport } from './components/SixMonthReport';
-import { scanReceipt } from './services/receiptScanService';
-import { getGeminiKey, getGeminiModel } from './services/geminiSettings';
-import { Camera as ScanCamera, PiggyBank as ApPiggy, Receipt as ApReceipt, Landmark as ApLandmark } from 'lucide-react';
+import { PiggyBank as ApPiggy, Receipt as ApReceipt, Landmark as ApLandmark } from 'lucide-react';
 import { runAutopilot, type AutopilotResult } from './services/autopilotService';
 import { useCategories } from './hooks/useCategories';
 import type { ModuleId } from './components/layout/navConfig';
@@ -166,35 +164,6 @@ export default function App() {
   const { toggleMobileDrawer } = useUI(); // langganan tema/privasi/drawer
   const [investments, setInvestments] = useState<InvestmentAsset[]>([]);
   const categories = useCategories();
-
-  // Scan Struk (AI): isi form transaksi dari foto struk; pengguna tetap memeriksa sebelum menyimpan
-  const receiptInputRef = useRef<HTMLInputElement>(null);
-  const [isScanning, setIsScanning] = useState(false);
-  async function handleReceiptFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    const apiKey = getGeminiKey();
-    if (!apiKey) {
-      showToast('Isi kunci Gemini dulu di Pengaturan > Scan Struk (AI).', 'error');
-      setActiveModule('settings');
-      return;
-    }
-    setIsScanning(true);
-    try {
-      const r = await scanReceipt(file, categories.lists.expense, { apiKey, model: getGeminiModel() });
-      setTxType('expense');
-      setTxAmount(String(r.amount));
-      if (r.date) setTxDate(r.date);
-      if (r.category) setTxCategory(r.category);
-      if (r.note) setTxNote(r.note);
-      showToast('Struk terbaca. Periksa lagi sebelum menyimpan.', 'info');
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Gagal membaca struk.', 'error');
-    } finally {
-      setIsScanning(false);
-    }
-  }
 
   // Autopilot di dalam modal "Aturan Baru"
   const [apKind, setApKind] = useState<AutopilotKind | null>(null);
