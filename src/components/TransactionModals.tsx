@@ -37,6 +37,7 @@ export function EditTransactionModal(p: EditProps) {
 
   return (
     <ModalFrame
+      top
       title={isTransfer ? 'Ubah Transfer Saldo' : p.tx.goalId ? 'Ubah Alokasi Target' : 'Ubah Transaksi'}
       subtitle={p.tx.goalId ? 'Perubahan nominal akan memperbarui saldo kas dan dana target sekaligus' : `${p.tx.date} · Buku kas ${p.ledgerName}`}
       icon={isTransfer ? <ArrowRightLeft className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
@@ -148,6 +149,7 @@ export function DeleteTransactionModal({ tx, accountName, onClose, onConfirm }: 
   const sign = tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '⇄ ';
   return (
     <ModalFrame
+      top
       title="Hapus Transaksi?"
       subtitle="Tindakan ini tidak dapat dibatalkan"
       icon={<Trash2 className="w-4 h-4" />}

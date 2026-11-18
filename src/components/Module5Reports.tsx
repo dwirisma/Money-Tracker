@@ -38,6 +38,9 @@ import * as XLSX from 'xlsx';
 import { Transaction, Ledger, Account, ReportTimeRange, CategoryExpenseSummary, CashFlowTrendPoint, ReportMetrics } from '../types';
 import { getCategoryBudgets, type CategoryBudgetMap } from '../services/budgetService';
 
+type Tone = 'ok' | 'mid' | 'low';
+const TONE_COLOR: Record<Tone, string> = { ok: 'var(--accent-sage)', mid: 'var(--accent-sand)', low: 'var(--accent-terracotta)' };
+
 interface Module5ReportsProps {
   transactions: Transaction[];
   activeLedger: Ledger | null;
@@ -665,7 +668,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       const net = inc - exp;
       return (
         <div className="bg-[var(--bg-surface)] border-2 border-[var(--border-color)] p-3 rounded-[var(--radius-sm)] shadow-[4px_4px_0px_#000] text-xs space-y-1.5 font-mono">
-          <p className="font-heading font-bold text-white text-sm border-b border-[var(--border-subtle)] pb-1">
+          <p className="font-heading font-bold text-[var(--text-primary)] text-sm border-b border-[var(--border-subtle)] pb-1">
             {label}
           </p>
           <div className="flex items-center justify-between gap-3 text-[var(--accent-sage)]">
@@ -682,7 +685,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
             </span>
             <span>{formatRupiah(exp)}</span>
           </div>
-          <div className="flex items-center justify-between gap-3 pt-1 border-t border-[var(--border-subtle)] font-bold text-white">
+          <div className="flex items-center justify-between gap-3 pt-1 border-t border-[var(--border-subtle)] font-bold text-[var(--text-primary)]">
             <span>Net Arus Kas:</span>
             <span className={net >= 0 ? 'text-[var(--accent-sage)]' : 'text-[var(--accent-terracotta)]'}>
               {net >= 0 ? `+${formatRupiah(net)}` : `-${formatRupiah(Math.abs(net))}`}
@@ -699,7 +702,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       const data = payload[0].payload as CategoryExpenseSummary;
       return (
         <div className="bg-[var(--bg-surface)] border-2 border-[var(--border-color)] p-3 rounded-[var(--radius-sm)] shadow-[4px_4px_0px_#000] text-xs space-y-1 font-mono">
-          <p className="font-heading font-bold text-white flex items-center gap-1.5">
+          <p className="font-heading font-bold text-[var(--text-primary)] flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 border border-black inline-block" style={{ backgroundColor: data.color }} />
             {data.category}
           </p>
@@ -708,7 +711,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
           </p>
           <div className="flex items-center justify-between gap-2.5 text-[var(--text-secondary)] text-[11px] pt-1 border-t border-[var(--border-subtle)]">
             <span>Porsi Pengeluaran:</span>
-            <span className="font-bold text-white">{data.percentage}%</span>
+            <span className="font-bold text-[var(--text-primary)]">{data.percentage}%</span>
           </div>
           <p className="text-[10px] text-[var(--text-muted)]">
             {data.count} Transaksi
@@ -878,158 +881,85 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       </p>
 
       {/* ===================================================================== */}
-      {/* 2B. INDIKATOR ANALISIS KESEHATAN FINANSIAL & RASIO VITAL             */}
+      {/* 2B. ANALISIS KESEHATAN FINANSIAL & RASIO VITAL                        */}
       {/* ===================================================================== */}
-      <section className="brutal-card p-3.5 bg-[var(--bg-surface)] space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b-2 border-[var(--border-subtle)] pb-3">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-[var(--accent-sage)]" />
+      {(() => {
+        const sTone: Tone = metrics.savingsRate >= 20 ? 'ok' : metrics.savingsRate >= 10 ? 'mid' : 'low';
+        const rTone: Tone = financialHealth.runwayMonthsVal >= 6 ? 'ok' : financialHealth.runwayMonthsVal >= 3 ? 'mid' : 'low';
+        const dTone: Tone = financialHealth.dtiRatio <= 20 ? 'ok' : financialHealth.dtiRatio <= 30 ? 'mid' : 'low';
+        const hTone: Tone = financialHealth.totalHealthScore >= 75 ? 'ok' : financialHealth.totalHealthScore >= 45 ? 'mid' : 'low';
+        return (
+          <section className="ax-panel ax-sec">
+            <div className="ax-secthead">
+              <div>
+                <h3><ShieldCheck className="w-5 h-5" style={{ color: 'var(--accent-sage)' }} />Kesehatan Finansial</h3>
+                <p className="ax-sec-sub">Rasio tabungan, kesiapan dana darurat, dan beban utang</p>
+              </div>
+              <span className="ax-tone big" data-tone={hTone}>{financialHealth.totalHealthScore} / 100 · {financialHealth.healthGrade}</span>
+            </div>
+
+            <div className="ax-rgrid c3">
+              <div className="ax-meter" style={{ '--c': TONE_COLOR[sTone] } as React.CSSProperties}>
+                <div className="ax-meter-h"><span><TrendingUp className="w-4 h-4" />Rasio Tabungan</span></div>
+                <div className="ax-meter-v" data-tone={sTone}>{metrics.savingsRate}%</div>
+                <div className="ax-prog"><i style={{ width: `${Math.min(100, Math.max(0, metrics.savingsRate))}%` }} /></div>
+                <div className="ax-meter-f">
+                  <span>Target min. 20% penghasilan</span>
+                  <span className="ax-tone" data-tone={sTone}>{sTone === 'ok' ? 'Sangat baik' : sTone === 'mid' ? 'Cukup' : 'Perlu ditingkatkan'}</span>
+                </div>
+              </div>
+
+              <div className="ax-meter" style={{ '--c': TONE_COLOR[rTone] } as React.CSSProperties}>
+                <div className="ax-meter-h"><span><Hourglass className="w-4 h-4" />Dana Darurat (Runway)</span></div>
+                <div className="ax-meter-v" data-tone={rTone}>{metrics.financialRunwayMonths} <small>bulan</small></div>
+                <div className="ax-prog"><i style={{ width: `${Math.min(100, (financialHealth.runwayMonthsVal / 6) * 100)}%` }} /></div>
+                <div className="ax-meter-f">
+                  <span>Target 3 - 6 bulan pengeluaran</span>
+                  <span className="ax-tone" data-tone={rTone}>{rTone === 'ok' ? 'Aman prima' : rTone === 'mid' ? 'Cukup aman' : 'Waspada minim'}</span>
+                </div>
+              </div>
+
+              <div className="ax-meter" style={{ '--c': TONE_COLOR[dTone] } as React.CSSProperties}>
+                <div className="ax-meter-h"><span><AlertTriangle className="w-4 h-4" />Beban Cicilan / Utang (DTI)</span></div>
+                <div className="ax-meter-v" data-tone={dTone}>{financialHealth.dtiRatio}%</div>
+                <div className="ax-prog"><i style={{ width: `${Math.min(100, financialHealth.dtiRatio)}%` }} /></div>
+                <div className="ax-meter-f">
+                  <span>Batas maksimal 30% penghasilan</span>
+                  <span className="ax-tone" data-tone={dTone}>
+                    {financialHealth.dtiRatio === 0 ? 'Bebas utang' : dTone === 'ok' ? 'Sangat aman' : dTone === 'mid' ? 'Waspada' : 'Berisiko'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
+
+      {/* ===================================================================== */}
+      {/* 3. GRAFIK: TREN ARUS KAS & KOMPOSISI PENGELUARAN                      */}
+      {/* ===================================================================== */}
+      <section className="ax-rgrid c2">
+        {/* GRAFIK 1 (BAR): TREN PEMASUKAN VS PENGELUARAN */}
+        <div className="ax-panel ax-sec">
+          <div className="ax-secthead">
             <div>
-              <h3 className="font-heading font-bold text-sm text-white">
-                Analisis Kesehatan Finansial & Rasio Vital
-              </h3>
-              <p className="text-xs text-[var(--text-secondary)] font-mono">
-                Evaluasi komprehensif rasio tabungan, kesiapan dana darurat, dan beban utang
-              </p>
+              <h3><BarChart3 className="w-5 h-5" style={{ color: 'var(--accent-sand)' }} />Tren Arus Kas</h3>
+              <p className="ax-sec-sub">{timeRange === 'this_year' || timeRange === 'all_time' ? 'Distribusi per bulan' : 'Pergerakan per hari'}</p>
             </div>
-          </div>
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            <span className="text-xs font-mono text-[var(--text-muted)]">Skor Kesehatan:</span>
-            <span className={`px-2.5 py-1 text-xs font-heading font-extrabold rounded-[var(--radius-sm)] border-2 shadow-[2px_2px_0px_#000] flex items-center gap-1.5 ${financialHealth.healthBadgeBg}`}>
-              <span>{financialHealth.totalHealthScore} / 100</span>
-              <span>•</span>
-              <span>{financialHealth.healthGrade}</span>
-            </span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {/* 1. Rasio Tabungan */}
-          <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-heading font-bold text-white flex items-center gap-1.5">
-                <TrendingUp className="w-4 h-4 text-[var(--accent-sage)]" />
-                Rasio Tabungan (Savings Rate)
-              </span>
-              <span className={`font-mono font-bold text-xs ${metrics.savingsRate >= 20 ? 'text-[var(--accent-sage-light)]' : metrics.savingsRate >= 10 ? 'text-[var(--accent-sand-light)]' : 'text-[var(--accent-terracotta-light)]'}`}>
-                {metrics.savingsRate}%
-              </span>
-            </div>
-            <div className="h-2 w-full bg-[var(--bg-muted)] border border-black rounded-[2px] overflow-hidden">
-              <div 
-                className="h-full bg-[var(--accent-sage)] transition-all duration-300"
-                style={{ width: `${Math.min(100, Math.max(0, metrics.savingsRate))}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between text-[10px] font-mono text-[var(--text-muted)]">
-              <span>Target: Min. 20% Penghasilan</span>
-              <span className={metrics.savingsRate >= 20 ? 'text-emerald-400 font-bold' : metrics.savingsRate >= 10 ? 'text-amber-400 font-bold' : 'text-rose-400 font-bold'}>
-                {metrics.savingsRate >= 20 ? 'Sangat Baik' : metrics.savingsRate >= 10 ? 'Cukup' : 'Perlu Ditingkatkan'}
-              </span>
+            <div className="ax-leg">
+              <span><i style={{ background: 'var(--accent-sage)' }} />Masuk</span>
+              <span><i style={{ background: 'var(--accent-terracotta)' }} />Keluar</span>
             </div>
           </div>
 
-          {/* 2. Kesiapan Dana Darurat */}
-          <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-heading font-bold text-white flex items-center gap-1.5">
-                <Hourglass className="w-4 h-4 text-[var(--accent-blue)]" />
-                Kesiapan Dana Darurat (Runway)
-              </span>
-              <span className={`font-mono font-bold text-xs ${financialHealth.runwayMonthsVal >= 6 ? 'text-[var(--accent-sage-light)]' : financialHealth.runwayMonthsVal >= 3 ? 'text-[var(--accent-sand-light)]' : 'text-[var(--accent-terracotta-light)]'}`}>
-                {metrics.financialRunwayMonths} Bulan
-              </span>
-            </div>
-            <div className="h-2 w-full bg-[var(--bg-muted)] border border-black rounded-[2px] overflow-hidden">
-              <div 
-                className="h-full bg-[var(--accent-blue)] transition-all duration-300"
-                style={{ width: `${Math.min(100, (financialHealth.runwayMonthsVal / 6) * 100)}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between text-[10px] font-mono text-[var(--text-muted)]">
-              <span>Target: 3 - 6 Bulan Pengeluaran</span>
-              <span className={financialHealth.runwayMonthsVal >= 3 ? 'text-blue-400 font-bold' : 'text-rose-400 font-bold'}>
-                {financialHealth.runwayMonthsVal >= 6 ? 'Aman Prima' : financialHealth.runwayMonthsVal >= 3 ? 'Cukup Aman' : 'Waspada Minim'}
-              </span>
-            </div>
-          </div>
-
-          {/* 3. Beban Cicilan & Utang (DTI) */}
-          <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-heading font-bold text-white flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4 text-[var(--accent-terracotta)]" />
-                Beban Cicilan / Utang (DTI)
-              </span>
-              <span className={`font-mono font-bold text-xs ${financialHealth.dtiRatio <= 20 ? 'text-[var(--accent-sage-light)]' : financialHealth.dtiRatio <= 30 ? 'text-[var(--accent-sand-light)]' : 'text-[var(--accent-terracotta-light)]'}`}>
-                {financialHealth.dtiRatio}%
-              </span>
-            </div>
-            <div className="h-2 w-full bg-[var(--bg-muted)] border border-black rounded-[2px] overflow-hidden">
-              <div 
-                className={`h-full transition-all duration-300 ${financialHealth.dtiRatio > 30 ? 'bg-[var(--accent-terracotta)]' : 'bg-[var(--accent-sand)]'}`}
-                style={{ width: `${Math.min(100, financialHealth.dtiRatio)}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between text-[10px] font-mono text-[var(--text-muted)]">
-              <span>Batas Maksimal: 30% Penghasilan</span>
-              <span className={financialHealth.dtiRatio <= 30 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
-                {financialHealth.dtiRatio === 0 ? 'Bebas Utang' : financialHealth.dtiRatio <= 20 ? 'Sangat Aman' : financialHealth.dtiRatio <= 30 ? 'Waspada' : 'Berisiko'}
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================================================================== */}
-      {/* 3. VISUALISASI GRAFIK: BAR CHART & DOUGHNUT PIE CHART                  */}
-      {/* ===================================================================== */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {/* GRAFIK 1 (BAR CHART): TREN PEMASUKAN VS PENGELUARAN */}
-        <div className="brutal-card p-3.5 bg-[var(--bg-surface)] flex flex-col justify-between space-y-3">
-          <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-            <div>
-              <h3 className="font-heading font-bold text-sm text-white flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-[var(--accent-sand)]" />
-                Tren Arus Kas (Pemasukan vs Pengeluaran)
-              </h3>
-              <p className="text-[11px] text-[var(--text-secondary)] font-mono">
-                {timeRange === 'this_year' || timeRange === 'all_time' ? 'Distribusi per bulan' : 'Pergerakan per hari'}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 text-[10px] font-mono">
-              <span className="flex items-center gap-1 text-[var(--accent-sage)]">
-                <span className="w-2.5 h-2.5 bg-[var(--accent-sage)] inline-block border border-black rounded-[2px]" />
-                Masuk
-              </span>
-              <span className="flex items-center gap-1 text-[var(--accent-terracotta)]">
-                <span className="w-2.5 h-2.5 bg-[var(--accent-terracotta)] inline-block border border-black rounded-[2px]" />
-                Keluar
-              </span>
-            </div>
-          </div>
-
-          <div className="h-64 sm:h-72 w-full pt-2">
+          <div className="ax-rchart">
             {trendData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={trendData}
-                  margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
-                >
-                  <CartesianGrid 
-                    strokeDasharray="3 3" 
-                    stroke="rgba(240, 240, 245, 0.08)" 
-                    vertical={false} 
-                  />
-                  <XAxis 
-                    dataKey="label" 
-                    stroke="var(--text-muted)" 
-                    fontSize={11}
-                    tickLine={false}
-                    fontFamily="var(--font-mono)"
-                  />
-                  <YAxis 
-                    stroke="var(--text-muted)" 
+                <BarChart data={trendData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+                  <XAxis dataKey="label" stroke="var(--text-secondary)" fontSize={11} tickLine={false} fontFamily="var(--font-mono)" />
+                  <YAxis
+                    stroke="var(--text-secondary)"
                     fontSize={10}
                     tickLine={false}
                     fontFamily="var(--font-mono)"
@@ -1039,442 +969,201 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
                       return String(val);
                     }}
                   />
-                  <Tooltip content={<CustomBarTooltip />} />
-                  <Bar 
-                    dataKey="income" 
-                    name="Pemasukan" 
-                    fill="var(--accent-sage)" 
-                    stroke="#121316"
-                    strokeWidth={1.5}
-                    radius={[2, 2, 0, 0]}
-                  />
-                  <Bar 
-                    dataKey="expense" 
-                    name="Pengeluaran" 
-                    fill="var(--accent-terracotta)" 
-                    stroke="#121316"
-                    strokeWidth={1.5}
-                    radius={[2, 2, 0, 0]}
-                  />
+                  <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'var(--bg-muted)', opacity: 0.5 }} />
+                  <Bar dataKey="income" name="Pemasukan" fill="var(--accent-sage)" stroke="var(--border-color)" strokeWidth={1.5} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="expense" name="Pengeluaran" fill="var(--accent-terracotta)" stroke="var(--border-color)" strokeWidth={1.5} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center p-4 border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)]">
-                <BarChart3 className="w-10 h-10 text-[var(--text-muted)] mb-2" />
-                <p className="text-xs text-[var(--text-secondary)] font-mono">
-                  Belum ada data transaksi untuk divisualisasikan.
-                </p>
+              <div className="ax-emptyh" style={{ height: '100%', display: 'grid', placeContent: 'center' }}>
+                <p>Belum ada data</p>
+                <small>Belum ada transaksi untuk divisualisasikan.</small>
               </div>
             )}
           </div>
 
-          <div className="pt-2 border-t border-[var(--border-subtle)] text-[11px] font-mono text-[var(--text-muted)] flex items-center justify-between">
-            <span>Total Catatan: {trendData.length} Titik Waktu</span>
-            <span className="text-[var(--accent-sand-light)]">Grafik Interaktif Neo-Brutalisme</span>
-          </div>
+          <p className="ax-sec-sub">{trendData.length} titik waktu tercatat</p>
         </div>
 
-        {/* GRAFIK 2 (DOUGHNUT / PIE CHART): KOMPOSISI PENGELUARAN PER KATEGORI */}
-        <div className="brutal-card p-3.5 bg-[var(--bg-surface)] flex flex-col justify-between space-y-3">
-          <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
+        {/* GRAFIK 2 (DOUGHNUT): KOMPOSISI PENGELUARAN PER KATEGORI */}
+        <div className="ax-panel ax-sec">
+          <div className="ax-secthead">
             <div>
-              <h3 className="font-heading font-bold text-sm text-white flex items-center gap-2">
-                <PieIcon className="w-4 h-4 text-[var(--accent-terracotta)]" />
-                Komposisi Pengeluaran
-              </h3>
-              <p className="text-[11px] text-[var(--text-secondary)] font-mono">
-                Berdasarkan pos dan kategori belanja
-              </p>
+              <h3><PieIcon className="w-5 h-5" style={{ color: 'var(--accent-terracotta)' }} />Komposisi Pengeluaran</h3>
+              <p className="ax-sec-sub">Berdasarkan pos dan kategori belanja</p>
             </div>
-            <span className="text-xs font-mono font-bold text-[var(--accent-terracotta-light)]">
-              {categoryBreakdown.length} Kategori
-            </span>
+            <span className="ax-tone big" data-tone="info">{categoryBreakdown.length} kategori</span>
           </div>
 
-          {/* 2. Klasifikasi Pengeluaran: Kewajiban Rutin vs Gaya Hidup */}
-          <div className="p-3 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] space-y-2">
-            <div className="flex items-center justify-between text-xs font-mono">
-              <span className="font-heading font-bold text-white flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-[var(--accent-blue)]" />
-                <span>Kewajiban Rutin vs Gaya Hidup</span>
-              </span>
-              <span className="text-[10px] font-bold text-[var(--accent-sand-light)]">
-                {metrics.fixedExpensePercent}% : {metrics.variableExpensePercent}%
-              </span>
+          {/* Kewajiban rutin vs gaya hidup */}
+          <div className="ax-split">
+            <div className="ax-split-h">
+              <span><ShieldCheck className="w-3.5 h-3.5" />Kewajiban rutin vs gaya hidup</span>
+              <b>{metrics.fixedExpensePercent}% : {metrics.variableExpensePercent}%</b>
             </div>
-
-            {/* Split Progress Bar Neo-Brutalism */}
-            <div className="h-2 w-full bg-[var(--bg-muted)] border border-black rounded-[2px] overflow-hidden flex">
-              <div 
-                className="h-full bg-[var(--accent-blue)] transition-all duration-300"
-                style={{ width: `${metrics.fixedExpensePercent || 0}%` }}
-                title={`Kewajiban Rutin: ${formatRupiah(metrics.fixedExpenseTotal || 0)} (${metrics.fixedExpensePercent}%)`}
-              />
-              <div 
-                className="h-full bg-[var(--accent-lavender)] transition-all duration-300"
-                style={{ width: `${metrics.variableExpensePercent || 0}%` }}
-                title={`Gaya Hidup / Fleksibel: ${formatRupiah(metrics.variableExpenseTotal || 0)} (${metrics.variableExpensePercent}%)`}
-              />
+            <div className="ax-split-bar">
+              <i style={{ width: `${metrics.fixedExpensePercent || 0}%`, background: 'var(--accent-blue)' }}
+                title={`Kewajiban Rutin: ${formatRupiah(metrics.fixedExpenseTotal || 0)} (${metrics.fixedExpensePercent}%)`} />
+              <i style={{ width: `${metrics.variableExpensePercent || 0}%`, background: 'var(--accent-lavender)' }}
+                title={`Gaya Hidup / Fleksibel: ${formatRupiah(metrics.variableExpenseTotal || 0)} (${metrics.variableExpensePercent}%)`} />
             </div>
-
-            <div className="flex items-center justify-between text-[10px] font-mono flex-wrap gap-2">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 bg-[var(--accent-blue)] inline-block border border-black rounded-[1px]" />
-                <span className="text-[var(--text-secondary)]">Kewajiban (Tagihan/Utang/Alokasi):</span>
-                <span className="font-bold text-white">{formatRupiah(metrics.fixedExpenseTotal || 0)}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 bg-[var(--accent-lavender)] inline-block border border-black rounded-[1px]" />
-                <span className="text-[var(--text-secondary)]">Gaya Hidup / Fleksibel:</span>
-                <span className="font-bold text-white">{formatRupiah(metrics.variableExpenseTotal || 0)}</span>
-              </div>
+            <div className="ax-split-f">
+              <span><i style={{ background: 'var(--accent-blue)' }} />Kewajiban (tagihan, utang, alokasi) <b>{formatRupiah(metrics.fixedExpenseTotal || 0)}</b></span>
+              <span><i style={{ background: 'var(--accent-lavender)' }} />Gaya hidup / fleksibel <b>{formatRupiah(metrics.variableExpenseTotal || 0)}</b></span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
-            {/* Pie Container */}
-            <div className="h-60 sm:h-64 w-full relative flex items-center justify-center">
+          <div className="ax-rpie">
+            <div className="ax-rpie-c">
               {categoryBreakdown.length > 0 ? (
                 <>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Tooltip content={<CustomPieTooltip />} />
-                      <Pie
-                        data={categoryBreakdown}
-                        dataKey="amount"
-                        nameKey="category"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={55}
-                        outerRadius={90}
-                        paddingAngle={3}
-                        stroke="#181b20"
-                        strokeWidth={2.5}
-                      >
+                      <Pie data={categoryBreakdown} dataKey="amount" nameKey="category" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} stroke="var(--border-color)" strokeWidth={2.5}>
                         {categoryBreakdown.map((entry, index) => (
-                          <Cell 
-                            key={`cell-${index}`} 
-                            fill={entry.color} 
-                            cursor="pointer"
-                          />
+                          <Cell key={`cell-${index}`} fill={entry.color} cursor="pointer" />
                         ))}
                       </Pie>
                     </PieChart>
                   </ResponsiveContainer>
-                  
-                  {/* Total Center Text */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                    <span className="text-[9px] uppercase tracking-wider text-[var(--text-muted)] font-mono font-bold">
-                      Total Keluar
-                    </span>
-                    <span className="text-xs font-bold font-mono text-white">
-                      {formatRupiah(metrics.totalExpense)}
-                    </span>
+                  <div className="ax-rpie-t">
+                    <small>Total keluar</small>
+                    <b>{formatRupiah(metrics.totalExpense)}</b>
                   </div>
                 </>
               ) : (
-                <div className="h-full w-full flex flex-col items-center justify-center text-center p-3 border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)]">
-                  <PieIcon className="w-10 h-10 text-[var(--text-muted)] mb-2" />
-                  <p className="text-xs text-[var(--text-secondary)] font-mono">
-                    Tidak ada transaksi pengeluaran.
-                  </p>
+                <div className="ax-emptyh" style={{ width: '100%', height: '100%', display: 'grid', placeContent: 'center' }}>
+                  <p>Belum ada pengeluaran</p>
+                  <small>Tidak ada transaksi pengeluaran.</small>
                 </div>
               )}
             </div>
 
-            {/* Legend / Category List Samping */}
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            <div className="ax-rlist">
               {categoryBreakdown.length > 0 ? (
                 categoryBreakdown.slice(0, 6).map((cat, idx) => (
-                  <div 
-                    key={idx}
-                    className="p-2 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] flex items-center justify-between text-xs hover:border-[var(--border-color)] transition-all"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span 
-                        className="w-3 h-3 rounded-[2px] border border-black shrink-0" 
-                        style={{ backgroundColor: cat.color }} 
-                      />
-                      <span className="font-heading font-bold text-white truncate" title={cat.category}>
-                        {cat.category}
-                      </span>
-                    </div>
-                    <div className="text-right shrink-0 font-mono text-[11px]">
-                      <div className="text-white font-bold">{formatRupiah(cat.amount)}</div>
-                      <div className="text-[var(--text-muted)] text-[10px]">{cat.percentage}%</div>
-                    </div>
+                  <div key={idx} className="ax-catline">
+                    <span className="sw" style={{ background: cat.color }} />
+                    <b title={cat.category}>{cat.category}</b>
+                    <span className="v">{formatRupiah(cat.amount)}<small>{cat.percentage}%</small></span>
                   </div>
                 ))
               ) : (
-                <p className="text-xs text-[var(--text-muted)] font-mono italic">
-                  Kosong
-                </p>
+                <p className="ax-empty">Kosong</p>
               )}
             </div>
           </div>
 
-          <div className="pt-2 border-t border-[var(--border-subtle)] text-[11px] font-mono text-[var(--text-muted)] flex items-center justify-between">
-            <span>Kategori Terbesar: {categoryBreakdown[0]?.category || '-'}</span>
-            <span className="text-[var(--accent-terracotta-light)]">
-              {categoryBreakdown[0] ? `${categoryBreakdown[0].percentage}% pos` : ''}
-            </span>
-          </div>
+          <p className="ax-sec-sub">
+            Kategori terbesar: <b>{categoryBreakdown[0]?.category || '-'}</b>{categoryBreakdown[0] ? ` · ${categoryBreakdown[0].percentage}% pos` : ''}
+          </p>
         </div>
       </section>
 
       {/* ===================================================================== */}
-      {/* 3B. ANALISIS ALOKASI DANA KATEGORI (ATURAN 50/30/20 EXPERT)          */}
+      {/* 3B. ALOKASI DANA 50 / 30 / 20                                         */}
       {/* ===================================================================== */}
-      <section className="brutal-card p-3.5 bg-[var(--bg-surface)] space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b-2 border-[var(--border-subtle)] pb-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-[var(--accent-sand)]" />
-            <div>
-              <h3 className="font-heading font-bold text-sm text-white">
-                Analisis Alokasi Dana Kategori (Metode 50 / 30 / 20)
-              </h3>
-              <p className="text-xs text-[var(--text-secondary)] font-mono">
-                Evaluasi proporsi pengeluaran terhadap standar kesehatan finansial
-              </p>
-            </div>
-          </div>
-          <span className="brutal-badge text-[10px] bg-[var(--accent-sand)] text-[#111] font-bold">
-            Aturan Emas Budgeting
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {/* 1. Kebutuhan Pokok (Needs) */}
-          <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-heading font-bold text-white flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-blue)]" />
-                Kebutuhan Pokok (Needs)
-              </span>
-              <span className={`font-mono font-bold text-xs ${allocation503020.needsPct > 55 ? 'text-[var(--accent-terracotta-light)]' : 'text-[var(--accent-sage-light)]'}`}>
-                {allocation503020.needsPct}% / Target 50%
-              </span>
-            </div>
-            <p className="font-mono font-bold text-lg text-white">
-              {formatRupiah(allocation503020.needs)}
-            </p>
-            <div className="h-2.5 w-full bg-[var(--bg-muted)] border border-black rounded-[2px] overflow-hidden">
-              <div 
-                className="h-full bg-[var(--accent-blue)] transition-all duration-300"
-                style={{ width: `${Math.min(100, allocation503020.needsPct)}%` }}
-              />
-            </div>
-            <p className="text-[10px] font-mono text-[var(--text-muted)]">
-              Tagihan, makanan pokok, transport & cicilan utang
-            </p>
-          </div>
-
-          {/* 2. Keinginan & Gaya Hidup (Wants) */}
-          <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-heading font-bold text-white flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-terracotta)]" />
-                Gaya Hidup (Wants)
-              </span>
-              <span className={`font-mono font-bold text-xs ${allocation503020.wantsPct > 35 ? 'text-[var(--accent-terracotta-light)]' : 'text-[var(--accent-sage-light)]'}`}>
-                {allocation503020.wantsPct}% / Target 30%
-              </span>
-            </div>
-            <p className="font-mono font-bold text-lg text-white">
-              {formatRupiah(allocation503020.wants)}
-            </p>
-            <div className="h-2.5 w-full bg-[var(--bg-muted)] border border-black rounded-[2px] overflow-hidden">
-              <div 
-                className="h-full bg-[var(--accent-terracotta)] transition-all duration-300"
-                style={{ width: `${Math.min(100, allocation503020.wantsPct)}%` }}
-              />
-            </div>
-            <p className="text-[10px] font-mono text-[var(--text-muted)]">
-              Hiburan, makan luar, hobi, belanja fleksibel
-            </p>
-          </div>
-
-          {/* 3. Tabungan & Investasi (Savings) */}
-          <div className="p-3 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-heading font-bold text-white flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-sage)]" />
-                Tabungan & Investasi
-              </span>
-              <span className="font-mono font-bold text-xs text-[var(--accent-sage-light)]">
-                {allocation503020.savingsPct}% / Target 20%
-              </span>
-            </div>
-            <p className="font-mono font-bold text-lg text-[var(--accent-sage-light)]">
-              {formatRupiah(allocation503020.savings)}
-            </p>
-            <div className="h-2.5 w-full bg-[var(--bg-muted)] border border-black rounded-[2px] overflow-hidden">
-              <div 
-                className="h-full bg-[var(--accent-sage)] transition-all duration-300"
-                style={{ width: `${Math.min(100, allocation503020.savingsPct)}%` }}
-              />
-            </div>
-            <p className="text-[10px] font-mono text-[var(--text-muted)]">
-              Alokasi Sinking Funds, portofolio & dana darurat
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================================================================== */}
-      {/* 3C. EXPENSE SOURCES / STATUS ALOKASI BUDGET KATEGORI (GAMBAR 3)       */}
-      {/* ===================================================================== */}
-      <section className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <section className="ax-panel ax-sec">
+        <div className="ax-secthead">
           <div>
-            <h3 className="font-heading font-extrabold text-lg text-[var(--text-primary)]">
-              Expense Sources
-            </h3>
-            <p className="text-xs text-[var(--text-secondary)] font-mono">
-              Monitoring kepatuhan alokasi dana per kategori bulan ini
-            </p>
+            <h3><Sparkles className="w-5 h-5" style={{ color: 'var(--accent-sand)' }} />Alokasi Dana 50 / 30 / 20</h3>
+            <p className="ax-sec-sub">Proporsi pengeluaran terhadap standar kesehatan finansial</p>
+          </div>
+          <span className="ax-tone big" data-tone="mid">Aturan emas budgeting</span>
+        </div>
+
+        <div className="ax-rgrid c3">
+          <div className="ax-meter" style={{ '--c': 'var(--accent-blue)' } as React.CSSProperties}>
+            <div className="ax-meter-h">
+              <span><i className="dot" />Kebutuhan Pokok</span>
+              <span className="ax-tone" data-tone={allocation503020.needsPct > 55 ? 'low' : 'ok'}>{allocation503020.needsPct}% / 50%</span>
+            </div>
+            <div className="ax-meter-v">{formatRupiah(allocation503020.needs)}</div>
+            <div className="ax-prog"><i style={{ width: `${Math.min(100, allocation503020.needsPct)}%` }} /></div>
+            <p className="ax-sec-sub">Tagihan, makanan pokok, transport dan cicilan utang</p>
           </div>
 
-          <div className="flex items-center gap-1 border-b-2 border-black dark:border-white/20 self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={() => setExpenseSourcesTab('overview')}
-              className={`py-1.5 px-3 text-xs font-bold font-heading flex items-center gap-1.5 transition-all ${
-                expenseSourcesTab === 'overview'
-                  ? 'border-b-2 border-black dark:border-white text-[var(--text-primary)] font-extrabold -mb-[2px]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              }`}
-            >
-              <TrendingDown className="w-3.5 h-3.5" />
-              <span>Overview</span>
+          <div className="ax-meter" style={{ '--c': 'var(--accent-terracotta)' } as React.CSSProperties}>
+            <div className="ax-meter-h">
+              <span><i className="dot" />Gaya Hidup</span>
+              <span className="ax-tone" data-tone={allocation503020.wantsPct > 35 ? 'low' : 'ok'}>{allocation503020.wantsPct}% / 30%</span>
+            </div>
+            <div className="ax-meter-v">{formatRupiah(allocation503020.wants)}</div>
+            <div className="ax-prog"><i style={{ width: `${Math.min(100, allocation503020.wantsPct)}%` }} /></div>
+            <p className="ax-sec-sub">Hiburan, makan luar, hobi, belanja fleksibel</p>
+          </div>
+
+          <div className="ax-meter" style={{ '--c': 'var(--accent-sage)' } as React.CSSProperties}>
+            <div className="ax-meter-h">
+              <span><i className="dot" />Tabungan & Investasi</span>
+              <span className="ax-tone" data-tone="ok">{allocation503020.savingsPct}% / 20%</span>
+            </div>
+            <div className="ax-meter-v" data-tone="ok">{formatRupiah(allocation503020.savings)}</div>
+            <div className="ax-prog"><i style={{ width: `${Math.min(100, allocation503020.savingsPct)}%` }} /></div>
+            <p className="ax-sec-sub">Sinking funds, portofolio dan dana darurat</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ===================================================================== */}
+      {/* 3C. EXPENSE SOURCES / STATUS BUDGET PER KATEGORI                      */}
+      {/* ===================================================================== */}
+      <section className="ax-sec">
+        <div className="ax-secthead">
+          <div>
+            <h3>Expense Sources</h3>
+            <p className="ax-sec-sub">Kepatuhan alokasi dana per kategori bulan ini</p>
+          </div>
+          <div className="ax-chipset" role="radiogroup" aria-label="Tampilan expense sources">
+            <button type="button" role="radio" aria-checked={expenseSourcesTab === 'overview'} onClick={() => setExpenseSourcesTab('overview')}>
+              <TrendingDown className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Overview
             </button>
-            <button
-              type="button"
-              onClick={() => setExpenseSourcesTab('detail')}
-              className={`py-1.5 px-3 text-xs font-bold font-heading flex items-center gap-1.5 transition-all ${
-                expenseSourcesTab === 'detail'
-                  ? 'border-b-2 border-black dark:border-white text-[var(--text-primary)] font-extrabold -mb-[2px]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              }`}
-            >
-              <ListFilter className="w-3.5 h-3.5" />
-              <span>Detail</span>
+            <button type="button" role="radio" aria-checked={expenseSourcesTab === 'detail'} onClick={() => setExpenseSourcesTab('detail')}>
+              <ListFilter className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Detail
             </button>
           </div>
         </div>
 
-        {/* Grid Kartu Expense Sources persis seperti Gambar 3 */}
         {expenseSourcesData.length === 0 ? (
-          <div className="p-8 text-center border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)]">
-            <p className="text-xs text-[var(--text-secondary)] font-mono">
-              Belum ada kategori pengeluaran atau alokasi budget yang terdaftar.
-            </p>
+          <div className="ax-emptyh">
+            <p>Belum ada data</p>
+            <small>Belum ada kategori pengeluaran atau alokasi budget yang terdaftar.</small>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+          <div className="ax-esgrid">
             {expenseSourcesData.map((item) => {
               const isExceeded = item.status === 'BUDGET_EXCEEDED';
               const isLimit = item.status === 'LIMIT_REACHED';
               const isOnBudget = item.status === 'ON_BUDGET';
-
+              const tone: Tone | 'flex' = item.status === 'FLEXIBLE' ? 'flex' : isExceeded ? 'low' : isLimit ? 'mid' : 'ok';
               return (
-                <div 
-                  key={item.category}
-                  className="brutal-card p-3 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] space-y-3 shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] transition-all flex flex-col justify-between"
-                >
-                  {/* Top Row: Icon + Category Name */}
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      {renderCategoryIcon(item.category)}
-                      <h4 className="font-heading font-bold text-sm text-[var(--text-primary)] truncate" title={item.category}>
-                        {item.category}
-                      </h4>
-                    </div>
-                    <div className="flex items-center gap-1 text-[11px] font-mono text-[var(--text-muted)]">
-                      <Leaf className="w-3 h-3 text-emerald-500" />
-                      <span className="truncate">{activeLedger?.name || 'Personal'}</span>
+                <div key={item.category} className="ax-es" data-tone={tone}>
+                  <div className="ax-es-h">
+                    <span className="ax-ic">{renderCategoryIcon(item.category)}</span>
+                    <div>
+                      <h4 title={item.category}>{item.category}</h4>
+                      <small><Leaf className="w-3 h-3 inline -mt-0.5 mr-0.5" />{activeLedger?.name || 'Personal'}</small>
                     </div>
                   </div>
 
-                  {/* Middle Rows: Monthly Budget & Spent this Month */}
-                  <div className="space-y-2 py-2 border-y border-[var(--border-subtle)] text-xs font-mono">
-                    <div>
-                      <span className="text-[10px] text-[var(--text-muted)] block uppercase font-bold">
-                        Monthly Budget
-                      </span>
-                      <span className="font-bold text-sm text-[var(--text-primary)]">
-                        {item.budget > 0 ? formatRupiah(item.budget) : 'Fleksibel'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] text-[var(--text-muted)] block uppercase font-bold">
-                        Spent this Month
-                      </span>
-                      <span className="font-bold text-sm text-[var(--text-primary)]">
-                        {formatRupiah(item.spent)}
-                      </span>
-                    </div>
-
-                    {expenseSourcesTab === 'detail' && item.budget > 0 && (
-                      <div className="pt-1 space-y-1">
-                        <div className="h-1.5 w-full bg-[var(--bg-muted)] rounded-full overflow-hidden border border-black/30 dark:border-white/20">
-                          <div 
-                            className={`h-full transition-all duration-300 ${
-                              isExceeded ? 'bg-rose-500' : isLimit ? 'bg-amber-500' : 'bg-emerald-500'
-                            }`}
-                            style={{ width: `${Math.min(100, item.pct)}%` }}
-                          />
-                        </div>
-                        <span className="text-[9px] text-[var(--text-muted)] block">
-                          {item.count} transaksi tercatat
-                        </span>
-                      </div>
-                    )}
+                  <div className="ax-es-kv">
+                    <div><small>Budget bulanan</small><b>{item.budget > 0 ? formatRupiah(item.budget) : 'Fleksibel'}</b></div>
+                    <div><small>Terpakai</small><b>{formatRupiah(item.spent)}</b></div>
                   </div>
 
-                  {/* Bottom Row: Status Badge & Percentage Ring */}
-                  <div className="pt-1 flex items-center justify-between">
+                  {expenseSourcesTab === 'detail' && item.budget > 0 && (
                     <div>
-                      {isOnBudget && (
-                        <span className="text-xs font-mono font-bold text-emerald-500">
-                          {formatRupiah(item.remaining)} Remaining
-                        </span>
-                      )}
-                      {isLimit && (
-                        <span className="text-xs font-mono font-bold text-amber-500">
-                          LIMIT REACHED
-                        </span>
-                      )}
-                      {isExceeded && (
-                        <span className="text-xs font-mono font-bold text-rose-500">
-                          BUDGET EXCEEDED
-                        </span>
-                      )}
-                      {item.status === 'FLEXIBLE' && (
-                        <span className="text-xs font-mono font-bold text-[var(--text-muted)]">
-                          ON BUDGET
-                        </span>
-                      )}
+                      <div className="ax-prog"><i style={{ width: `${Math.min(100, item.pct)}%` }} /></div>
+                      <small className="ax-es-n">{item.count} transaksi tercatat</small>
                     </div>
+                  )}
 
-                    {/* Percentage with circle indicator */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-xs font-mono font-bold text-[var(--text-secondary)]">
-                        {item.budget > 0 ? `${item.pct}%` : '0%'}
-                      </span>
-                      <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
-                        isExceeded 
-                          ? 'border-rose-500 bg-rose-500/20' 
-                          : isLimit 
-                          ? 'border-amber-500 bg-amber-500/20' 
-                          : 'border-emerald-500 bg-emerald-500/20'
-                      }`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${
-                          isExceeded ? 'bg-rose-500' : isLimit ? 'bg-amber-500' : 'bg-emerald-500'
-                        }`} />
-                      </div>
-                    </div>
+                  <div className="ax-es-f">
+                    <span className="ax-tone" data-tone={tone === 'flex' ? 'info' : tone}>
+                      {isOnBudget ? `Sisa ${formatRupiah(item.remaining)}` : isLimit ? 'Batas tercapai' : isExceeded ? 'Melebihi budget' : 'Tanpa batas'}
+                    </span>
+                    <b>{item.budget > 0 ? `${item.pct}%` : '0%'}</b>
                   </div>
                 </div>
               );
@@ -1484,140 +1173,81 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       </section>
 
       {/* ===================================================================== */}
-      {/* 4. DETAIL TABEL: RINCIAN KATEGORI & TOP 5 PENGELUARAN TERBESAR         */}
+      {/* 4. RINCIAN KATEGORI & TOP 5 PENGELUARAN TERBESAR                      */}
       {/* ===================================================================== */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-
-        {/* TABEL RINCIAN SEMUA KATEGORI PENGELUARAN */}
-        <div className="lg:col-span-2 brutal-card p-3.5 bg-[var(--bg-surface)] space-y-3">
-          <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
+      <section className="ax-rgrid c21">
+        {/* RINCIAN SEMUA KATEGORI PENGELUARAN */}
+        <div className="ax-panel ax-sec">
+          <div className="ax-secthead">
             <div>
-              <h3 className="font-heading font-bold text-sm text-white flex items-center gap-2">
-                <Layers className="w-4 h-4 text-[var(--accent-blue)]" />
-                Rincian Alokasi Pengeluaran per Pos
-              </h3>
-              <p className="text-[11px] text-[var(--text-secondary)] font-mono">
-                Persentase dan nominal pengeluaran diurutkan dari yang tertinggi
-              </p>
+              <h3><Layers className="w-5 h-5" style={{ color: 'var(--accent-blue)' }} />Rincian Pengeluaran per Pos</h3>
+              <p className="ax-sec-sub">Diurutkan dari nominal tertinggi</p>
             </div>
-            <span className="text-xs font-mono text-[var(--text-muted)]">
-              {categoryBreakdown.length} Pos Teridentifikasi
-            </span>
+            <span className="ax-tone big" data-tone="info">{categoryBreakdown.length} pos</span>
           </div>
 
           {categoryBreakdown.length === 0 ? (
-            <div className="p-8 text-center border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)]">
-              <p className="text-xs text-[var(--text-secondary)] font-mono">
-                Belum ada pos pengeluaran dalam rentang tanggal terpilih.
-              </p>
+            <div className="ax-emptyh">
+              <p>Belum ada pos pengeluaran</p>
+              <small>Tidak ada pengeluaran dalam rentang tanggal terpilih.</small>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="ax-rlist">
               {categoryBreakdown.map((item, idx) => (
-                <div 
-                  key={idx}
-                  className="p-3 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] space-y-2 hover:border-[var(--border-color)] transition-colors"
-                >
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <span 
-                        className="w-3 h-3 rounded-[2px] border border-black shrink-0" 
-                        style={{ backgroundColor: item.color }} 
-                      />
-                      <span className="font-heading font-bold text-white">
-                        {item.category}
-                      </span>
-                      <span className="text-[10px] font-mono text-[var(--text-muted)]">
-                        ({item.count} transaksi)
-                      </span>
-                    </div>
-                    <div className="text-right font-mono">
-                      <span className="font-bold text-white text-sm">
-                        {formatRupiah(item.amount)}
-                      </span>
-                      <span className="text-xs text-[var(--accent-sand-light)] ml-2">
-                        {item.percentage}%
-                      </span>
-                    </div>
+                <div key={idx} className="ax-catrow" style={{ '--c': item.color } as React.CSSProperties}>
+                  <div className="ax-catrow-t">
+                    <span className="sw" />
+                    <b>{item.category}</b>
+                    <small>{item.count} transaksi</small>
+                    <span className="v">{formatRupiah(item.amount)}<em>{item.percentage}%</em></span>
                   </div>
-
-                  {/* Neo-brutalist Progress Bar */}
-                  <div className="h-2 w-full bg-[var(--bg-muted)] border border-black rounded-[2px] overflow-hidden">
-                    <div 
-                      className="h-full transition-all duration-300"
-                      style={{ 
-                        width: `${Math.min(100, item.percentage)}%`,
-                        backgroundColor: item.color 
-                      }} 
-                    />
-                  </div>
+                  <div className="ax-prog"><i style={{ width: `${Math.min(100, item.percentage)}%` }} /></div>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* TOP 5 PENGELUARAN TUNGGAL TERBESAR (TOP EXPENSES) */}
-        <div className="brutal-card p-3.5 bg-[var(--bg-surface)] space-y-3">
-          <div className="border-b-2 border-[var(--border-subtle)] pb-3">
-            <h3 className="font-heading font-bold text-sm text-white flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-[var(--accent-terracotta)]" />
-              Top 5 Transaksi Terbesar
-            </h3>
-            <p className="text-[11px] text-[var(--text-secondary)] font-mono">
-              Item pengeluaran terbesar periode ini
-            </p>
+        {/* TOP 5 PENGELUARAN TUNGGAL TERBESAR */}
+        <div className="ax-panel ax-sec">
+          <div className="ax-secthead">
+            <div>
+              <h3><AlertTriangle className="w-5 h-5" style={{ color: 'var(--accent-terracotta)' }} />Top 5 Terbesar</h3>
+              <p className="ax-sec-sub">Pengeluaran tunggal terbesar periode ini</p>
+            </div>
           </div>
 
           {topExpenses.length === 0 ? (
-            <div className="p-8 text-center border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)]">
-              <p className="text-xs text-[var(--text-secondary)] font-mono">
-                Tidak ada pengeluaran tercatat.
-              </p>
+            <div className="ax-emptyh">
+              <p>Belum ada pengeluaran</p>
+              <small>Tidak ada pengeluaran tercatat.</small>
             </div>
           ) : (
-            <div className="space-y-2.5">
+            <div className="ax-rlist">
               {topExpenses.map((tx, idx) => {
                 const acc = accounts.find(a => a.id === tx.accountId);
                 return (
-                  <div 
-                    key={tx.id}
-                    className="p-3 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] space-y-1 hover:border-[var(--border-color)] transition-colors"
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-heading font-bold text-white truncate max-w-[140px]" title={tx.note || tx.category}>
-                        {tx.note || tx.category || 'Pengeluaran'}
-                      </span>
-                      <span className="font-mono font-bold text-[var(--accent-terracotta-light)]">
-                        -{formatRupiah(tx.amount)}
-                      </span>
+                  <div key={tx.id} className="ax-top">
+                    <span className="rk">{idx + 1}</span>
+                    <div>
+                      <b title={tx.note || tx.category}>{tx.note || tx.category || 'Pengeluaran'}</b>
+                      <small>{tx.date} · {tx.category} · {acc?.name || 'Kas'}</small>
                     </div>
-                    <div className="flex items-center justify-between text-[10px] font-mono text-[var(--text-muted)]">
-                      <span>{tx.date} • {tx.category}</span>
-                      <span className="text-[var(--text-secondary)] font-bold">{acc?.name || 'Kas'}</span>
-                    </div>
+                    <span className="v">-{formatRupiah(tx.amount)}</span>
                   </div>
                 );
               })}
             </div>
           )}
 
-          {/* Quick Action Link ke Modul 1 */}
           {onNavigateToTab && (
-            <div className="pt-2 border-t border-[var(--border-subtle)]">
-              <button
-                type="button"
-                onClick={() => onNavigateToTab('module1')}
-                className="w-full brutal-btn brutal-btn-ghost text-xs py-2 flex items-center justify-center gap-1.5 font-bold"
-              >
-                <span>Lihat Semua Transaksi di Modul 1</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            <button type="button" onClick={() => onNavigateToTab('module1')} className="brutal-btn brutal-btn-ghost" style={{ width: '100%', justifyContent: 'center' }}>
+              Lihat semua transaksi<ArrowRight className="w-4 h-4" />
+            </button>
           )}
         </div>
-
       </section>
+
 
     </div>
   );

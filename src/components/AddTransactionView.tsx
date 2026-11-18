@@ -26,6 +26,7 @@ import { getCategoryBudgets, saveCategoryBudgets, type CategoryBudgetMap } from 
 import { scanReceipt } from '../services/receiptScanService';
 import { getGeminiKey, getGeminiModel, saveGeminiSettings } from '../services/geminiSettings';
 import type { ModuleId } from './layout/navConfig';
+import { ModalFrame } from './ui/ModalFrame';
 
 interface Props {
   currentLedger: Ledger;
@@ -576,109 +577,72 @@ export function AddTransactionView({
       {/* =================================================================== */}
       {/* MODAL PENGATURAN TAB TRANSAKSI: ALOKASI BUDGET & KELOLA KATEGORI    */}
       {/* =================================================================== */}
-      {isCategoryModalOpen && (
-        <div 
-          className="ax-modal fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-[2px]"
-          onClick={() => setIsCategoryModalOpen(false)}
-        >
-          <div 
-            className="w-full max-w-lg bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)] p-3.5 space-y-3 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150"
-            onClick={e => e.stopPropagation()}
+      {isCategoryModalOpen && (() => {
+        const close = () => setIsCategoryModalOpen(false);
+        const totalPagu = categories.lists.expense.reduce((sum, c) => {
+          const raw = budgetInputs[c] || '';
+          return sum + (parseInt(raw.replace(/[^\d]/g, ''), 10) || 0);
+        }, 0);
+        return (
+          <ModalFrame
+            wide
+            title="Pengaturan Tab Transaksi"
+            subtitle={`Buku kas: ${currentLedger.name}`}
+            icon={<Settings className="w-4 h-4" />}
+            tint="var(--accent-sand)"
+            onClose={close}
+            footer={
+              modalSubTab === 'budget' ? (
+                <>
+                  <button type="button" className="brutal-btn brutal-btn-ghost" onClick={close}>Tutup</button>
+                  <button type="submit" form="budget-form" className="brutal-btn brutal-btn-sand"><Check className="w-4 h-4" />Simpan alokasi budget</button>
+                </>
+              ) : (
+                <button type="button" className="brutal-btn brutal-btn-sand" onClick={close}><Check className="w-4 h-4" />Selesai</button>
+              )
+            }
           >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <div className="flex items-center gap-2">
-                <Settings className="w-5 h-5 text-[var(--accent-sand)]" />
-                <div>
-                  <h3 className="font-heading font-bold text-sm sm:text-lg text-[var(--text-primary)]">
-                    Pengaturan Tab Transaksi
-                  </h3>
-                  <p className="text-[10px] font-mono text-[var(--text-muted)]">
-                    Buku Kas: {currentLedger.name}
-                  </p>
-                </div>
+            <div className="ax-form">
+              <div className="ax-chipset" role="radiogroup" aria-label="Pengaturan transaksi">
+                <button type="button" role="radio" aria-checked={modalSubTab === 'budget'} onClick={() => setModalSubTab('budget')}>
+                  <PieChart className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Alokasi budget (bulanan)
+                </button>
+                <button type="button" role="radio" aria-checked={modalSubTab === 'categories'} onClick={() => setModalSubTab('categories')}>
+                  <Tag className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Kelola kategori
+                </button>
               </div>
-              <button 
-                type="button" 
-                onClick={() => setIsCategoryModalOpen(false)} 
-                className="brutal-btn !p-1.5"
-                title="Tutup"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            {/* Sub-Tab Switcher: Alokasi Budget vs Kelola Kategori */}
-            <div className="grid grid-cols-2 gap-1.5 p-1 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-[var(--radius-sm)]">
-              <button
-                type="button"
-                onClick={() => setModalSubTab('budget')}
-                className={`py-1.5 px-3 rounded text-xs font-heading font-bold flex items-center justify-center gap-1.5 transition-all ${
-                  modalSubTab === 'budget'
-                    ? 'bg-[var(--accent-sand)] text-black border border-black shadow-[1px_1px_0px_#000]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                <PieChart className="w-3.5 h-3.5" />
-                <span>Alokasi Budget (Bulanan)</span>
-              </button>
+              {/* SUB-TAB 1: ALOKASI BUDGET BULANAN */}
+              {modalSubTab === 'budget' && (
+                <form id="budget-form" onSubmit={handleSaveAllBudgets} className="ax-form">
+                  <div className="ax-warn">
+                    <Sliders className="w-4 h-4" />
+                    <span><b>Kontrol pagu pengeluaran bulanan. </b>Atur alokasi dana per kategori untuk 1 bulan. Status <b>On Budget</b> atau <b>Over Budget</b> tampil di Laporan secara otomatis.</span>
+                  </div>
 
-              <button
-                type="button"
-                onClick={() => setModalSubTab('categories')}
-                className={`py-1.5 px-3 rounded text-xs font-heading font-bold flex items-center justify-center gap-1.5 transition-all ${
-                  modalSubTab === 'categories'
-                    ? 'bg-[var(--accent-sand)] text-black border border-black shadow-[1px_1px_0px_#000]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                <Tag className="w-3.5 h-3.5" />
-                <span>Kelola Kategori</span>
-              </button>
-            </div>
-
-            {/* KONTEN SUB-TAB 1: ALOKASI BUDGET BULANAN */}
-            {modalSubTab === 'budget' && (
-              <div className="space-y-3">
-                <div className="p-3 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] leading-relaxed space-y-1">
-                  <p className="font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-                    <Sliders className="w-3.5 h-3.5 text-[var(--accent-sand)]" />
-                    Kontrol Pagu Pengeluaran Bulanan
-                  </p>
-                  <p className="text-[11px] font-mono text-[var(--text-muted)]">
-                    Atur alokasi dana per kategori untuk 1 bulan. Status <b>On Budget</b> atau <b>Over Budget</b> akan tampil di Laporan Keuangan secara otomatis.
-                  </p>
-                </div>
-
-                <form onSubmit={handleSaveAllBudgets} className="space-y-3">
-                  <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                  <div className="ax-rlist" style={{ maxHeight: 300, overflowY: 'auto' }}>
                     {categories.lists.expense.map(cat => {
                       const val = budgetInputs[cat] ?? '';
                       const numVal = parseInt(val.replace(/[^\d]/g, '') || '0', 10);
                       return (
-                        <div key={cat} className="p-2.5 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-xs text-[var(--text-primary)] flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full bg-[var(--accent-terracotta)]" />
-                              {cat}
-                            </span>
-                            <span className="text-[10px] font-mono text-[var(--text-muted)]">
-                              {formatRupiah(numVal)} / bln
-                            </span>
+                        <div key={cat} className="ax-bgt">
+                          <div className="ax-bgt-h">
+                            <b>{cat}</b>
+                            <small>{formatRupiah(numVal)} / bln</small>
                           </div>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-[var(--text-muted)] pointer-events-none select-none">
-                              Rp
-                            </span>
+                          <div className="ax-plain-amt">
+                            <span>Rp</span>
                             <input
                               type="text"
+                              inputMode="numeric"
+                              className="brutal-input"
                               value={val}
                               onChange={(e) => {
                                 const raw = e.target.value.replace(/[^\d]/g, '');
                                 setBudgetInputs(prev => ({ ...prev, [cat]: raw }));
                               }}
-                              placeholder="0 (fleksibel/tanpa limit)"
-                              className="brutal-input text-xs py-1.5 !pl-12 pr-2.5 w-full font-mono font-bold"
+                              placeholder="0 (fleksibel / tanpa limit)"
+                              aria-label={`Pagu ${cat}`}
                             />
                           </div>
                         </div>
@@ -686,247 +650,114 @@ export function AddTransactionView({
                     })}
                   </div>
 
-                  <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
-                    <div className="text-[11px] font-mono text-[var(--text-muted)]">
-                      Total Pagu: <strong className="text-[var(--text-primary)] font-bold">
-                        {formatRupiah(
-                          categories.lists.expense.reduce((sum, c) => {
-                            const raw = budgetInputs[c] || '';
-                            return sum + (parseInt(raw.replace(/[^\d]/g, ''), 10) || 0);
-                          }, 0)
-                        )}
-                      </strong>
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="brutal-btn brutal-btn-sand text-xs py-2 px-3 font-bold flex items-center gap-1.5 shadow-[2px_2px_0px_#000]"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                      <span>Simpan Alokasi Budget</span>
-                    </button>
+                  <div className="ax-sum">
+                    <div><small>Total pagu bulanan</small><b>{formatRupiah(totalPagu)}</b></div>
+                    <div><small>Kategori</small><b>{categories.lists.expense.length}</b></div>
                   </div>
                 </form>
-              </div>
-            )}
+              )}
 
-            {/* KONTEN SUB-TAB 2: KELOLA KATEGORI */}
-            {modalSubTab === 'categories' && (
-              <div className="space-y-3">
-                {/* Selector Pengeluaran vs Pemasukan */}
-                <div className="flex gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => { setCategoryKindInModal('expense'); setEditingCategory(null); }}
-                    className={`py-1 px-3 rounded font-bold border transition-all ${
-                      categoryKindInModal === 'expense'
-                        ? 'bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)] border-[var(--accent-terracotta)]'
-                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)]'
-                    }`}
-                  >
-                    Pengeluaran ({categories.lists.expense.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setCategoryKindInModal('income'); setEditingCategory(null); }}
-                    className={`py-1 px-3 rounded font-bold border transition-all ${
-                      categoryKindInModal === 'income'
-                        ? 'bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] border-[var(--accent-sage)]'
-                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)]'
-                    }`}
-                  >
-                    Pemasukan ({categories.lists.income.length})
-                  </button>
-                </div>
-
-                {/* Form Tambah Kategori Baru */}
-                <form onSubmit={handleAddCategory} className="space-y-2">
-                  <label className="brutal-label text-xs">
-                    Tambah Kategori {categoryKindInModal === 'expense' ? 'Pengeluaran' : 'Pemasukan'} Baru
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newCatName}
-                      onChange={(e) => { setNewCatName(e.target.value); setCatError(null); }}
-                      placeholder="Contoh: Langganan SaaS, Servis Motor..."
-                      className="brutal-input text-xs flex-1"
-                    />
-                    <button
-                      type="submit"
-                      className="brutal-btn brutal-btn-sage text-xs py-2 px-3 flex items-center gap-1 font-bold shrink-0 shadow-[2px_2px_0px_#000]"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Tambah</span>
+              {/* SUB-TAB 2: KELOLA KATEGORI */}
+              {modalSubTab === 'categories' && (
+                <div className="ax-form">
+                  <div className="ax-chipset" role="radiogroup" aria-label="Jenis kategori">
+                    <button type="button" role="radio" aria-checked={categoryKindInModal === 'expense'} onClick={() => { setCategoryKindInModal('expense'); setEditingCategory(null); }}>
+                      Pengeluaran ({categories.lists.expense.length})
+                    </button>
+                    <button type="button" role="radio" aria-checked={categoryKindInModal === 'income'} onClick={() => { setCategoryKindInModal('income'); setEditingCategory(null); }}>
+                      Pemasukan ({categories.lists.income.length})
                     </button>
                   </div>
-                  {catError && (
-                    <p className="text-xs text-[var(--accent-terracotta-light)] font-mono flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" /> {catError}
-                    </p>
+
+                  <form onSubmit={handleAddCategory}>
+                    <label className="brutal-label" htmlFor="new-cat-name">Tambah kategori {categoryKindInModal === 'expense' ? 'pengeluaran' : 'pemasukan'} baru</label>
+                    <div className="ax-addcat">
+                      <input id="new-cat-name" type="text" className="brutal-input" value={newCatName}
+                        onChange={(e) => { setNewCatName(e.target.value); setCatError(null); }} placeholder="Langganan SaaS, Servis Motor..." />
+                      <button type="submit" className="ax-sl-add"><Plus className="w-4 h-4" />Tambah</button>
+                    </div>
+                    {catError && <p className="ax-fieldhint" role="alert" style={{ color: 'var(--accent-terracotta-light)', fontWeight: 800 }}>{catError}</p>}
+                  </form>
+
+                  {editingCategory && (
+                    <div className="ax-sl-box" style={{ borderColor: 'var(--accent-blue)' }}>
+                      <div className="ax-fl"><span><Pencil className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Ubah nama kategori</span></div>
+                      <div className="ax-addcat">
+                        <input type="text" className="brutal-input" value={editingCategory.newName}
+                          onChange={(e) => setEditingCategory({ ...editingCategory, newName: e.target.value })} autoFocus aria-label="Nama kategori baru" />
+                        <button type="button" className="ax-sl-add" onClick={handleRenameCategory}>Simpan</button>
+                        <button type="button" className="ax-hopen" onClick={() => setEditingCategory(null)}>Batal</button>
+                      </div>
+                    </div>
                   )}
-                </form>
 
-                {/* Mode Edit/Rename Kategori */}
-                {editingCategory && (
-                  <div className="p-3 rounded bg-[var(--bg-elevated)] border-2 border-[var(--accent-blue)] space-y-2">
-                    <span className="text-xs font-bold text-[var(--accent-blue-light)] flex items-center gap-1">
-                      <Pencil className="w-3 h-3" /> Ubah Nama Kategori:
-                    </span>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={editingCategory.newName}
-                        onChange={(e) => setEditingCategory({ ...editingCategory, newName: e.target.value })}
-                        className="brutal-input text-xs flex-1"
-                        autoFocus
-                      />
-                      <button
-                        type="button"
-                        onClick={handleRenameCategory}
-                        className="brutal-btn brutal-btn-sand text-xs py-1.5 px-3 font-bold"
-                      >
-                        Simpan
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditingCategory(null)}
-                        className="brutal-btn brutal-btn-ghost text-xs py-1.5 px-2"
-                      >
-                        Batal
+                  <div>
+                    <div className="ax-fl">
+                      <span>Daftar kategori aktif</span>
+                      <button type="button" className="ax-link"
+                        onClick={() => {
+                          if (confirm('Kembalikan daftar kategori ke pengaturan default?')) {
+                            categories.reset();
+                            showToast('Kategori dikembalikan ke default!', 'info');
+                          }
+                        }}>
+                        <RotateCcw className="w-3 h-3 inline -mt-0.5 mr-1" />Reset default
                       </button>
                     </div>
-                  </div>
-                )}
-
-                {/* List Kategori Saat Ini */}
-                <div className="space-y-2 pt-2 border-t border-[var(--border-subtle)]">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono uppercase font-bold text-[var(--text-muted)]">
-                      Daftar Kategori Aktif:
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (confirm('Kembalikan daftar kategori ke pengaturan default?')) {
-                          categories.reset();
-                          showToast('Kategori dikembalikan ke default!', 'info');
-                        }
-                      }}
-                      className="text-[10px] font-mono text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-1"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      <span>Reset Default</span>
-                    </button>
-                  </div>
-
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                    {categories.lists[categoryKindInModal].map(c => (
-                      <div key={c} className="flex items-center justify-between p-2 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-xs">
-                        <span className="font-bold text-[var(--text-primary)] truncate">{c}</span>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {c !== LOCKED_CATEGORY && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => setEditingCategory({ kind: categoryKindInModal, oldName: c, newName: c })}
-                                className="text-[var(--text-muted)] hover:text-[var(--accent-blue-light)] p-1"
-                                title="Ubah Nama"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => categories.remove(categoryKindInModal, c)}
-                                className="text-[var(--text-muted)] hover:text-[var(--accent-terracotta-light)] p-1"
-                                title="Hapus Kategori"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </>
+                    <div className="ax-rlist" style={{ maxHeight: 260, overflowY: 'auto' }}>
+                      {categories.lists[categoryKindInModal].map(c => (
+                        <div key={c} className="ax-catline">
+                          <b>{c}</b>
+                          {c !== LOCKED_CATEGORY ? (
+                            <span style={{ display: 'inline-flex', gap: 2, flex: 'none' }}>
+                              <button type="button" className="ax-ib" onClick={() => setEditingCategory({ kind: categoryKindInModal, oldName: c, newName: c })}
+                                title="Ubah nama" aria-label={`Ubah nama ${c}`}><Pencil className="w-3.5 h-3.5" /></button>
+                              <button type="button" className="ax-ib del" onClick={() => categories.remove(categoryKindInModal, c)}
+                                title="Hapus kategori" aria-label={`Hapus kategori ${c}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                            </span>
+                          ) : (
+                            <small style={{ flex: 'none', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>Terkunci</small>
                           )}
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
-
-                <div className="pt-2 border-t border-[var(--border-subtle)] flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setIsCategoryModalOpen(false)}
-                    className="brutal-btn brutal-btn-sand text-xs py-1.5 px-3 font-bold"
-                  >
-                    Selesai
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+              )}
+            </div>
+          </ModalFrame>
+        );
+      })()}
 
       {/* MODAL SETUP CEPAT GEMINI API UNTUK SCAN STRUK */}
       {showApiKeyModal && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-sm">
-          <div className="brutal-card p-3.5 bg-[var(--bg-surface)] border-2 border-black max-w-md w-full space-y-3 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-                <ScanCamera className="w-5 h-5 text-[var(--accent-sand)]" />
-                <h3 className="font-heading font-bold text-sm text-white">Aktifkan Gemini AI Scanner</h3>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setShowApiKeyModal(false)} 
-                className="p-1 text-slate-400 hover:text-[var(--text-primary)]"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-              Fitur scan struk otomatis ditenagai oleh <strong>Google Gemini Flash AI Vision</strong>. Masukkan API Key Google AI Studio Anda untuk membaca struk belanja:
+        <ModalFrame
+          title="Aktifkan Gemini AI Scanner"
+          subtitle="Scan struk otomatis"
+          icon={<ScanCamera className="w-4 h-4" />}
+          tint="var(--accent-lavender)"
+          onClose={() => setShowApiKeyModal(false)}
+          footer={
+            <>
+              <button type="button" className="brutal-btn brutal-btn-ghost" onClick={() => setShowApiKeyModal(false)}>Batal</button>
+              <button type="submit" form="gemini-key-form" disabled={!inputApiKey.trim()} className="brutal-btn brutal-btn-sand"><Check className="w-4 h-4" />Simpan & scan sekarang</button>
+            </>
+          }
+        >
+          <form id="gemini-key-form" onSubmit={handleSaveApiKeyAndScan} className="ax-form">
+            <p className="ax-sec-sub" style={{ margin: 0 }}>
+              Fitur scan struk otomatis ditenagai oleh <b>Google Gemini Flash AI Vision</b>. Masukkan API Key Google AI Studio Anda untuk membaca struk belanja.
             </p>
-
-            <form onSubmit={handleSaveApiKeyAndScan} className="space-y-3">
-              <div>
-                <input
-                  type="password"
-                  placeholder="AIzaSy..."
-                  value={inputApiKey}
-                  onChange={e => setInputApiKey(e.target.value)}
-                  className="brutal-input text-xs py-2 w-full font-mono"
-                  autoFocus
-                />
-                <a
-                  href="https://aistudio.google.com/apikey"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-block text-[10px] text-amber-400 hover:underline mt-1.5"
-                >
-                  🔗 Dapatkan API Key Gratis di Google AI Studio →
-                </a>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
-                <button
-                  type="button"
-                  onClick={() => setShowApiKeyModal(false)}
-                  className="brutal-btn brutal-btn-ghost text-xs py-1.5 px-3"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={!inputApiKey.trim()}
-                  className="brutal-btn brutal-btn-sand text-xs py-1.5 px-3 font-bold shadow-[2px_2px_0px_#000]"
-                >
-                  Simpan & Scan Sekarang
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <div>
+              <label className="brutal-label" htmlFor="gemini-key">API Key</label>
+              <input id="gemini-key" type="password" className="brutal-input" placeholder="AIzaSy..." value={inputApiKey}
+                onChange={e => setInputApiKey(e.target.value)} autoFocus autoComplete="off" />
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="ax-link" style={{ display: 'inline-block', marginTop: 8 }}>
+                🔗 Dapatkan API Key gratis di Google AI Studio →
+              </a>
+            </div>
+          </form>
+        </ModalFrame>
       )}
     </div>
   );

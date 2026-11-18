@@ -11,6 +11,7 @@ import {
   Trash2,
   RefreshCw,
   Check,
+  Calculator,
   X,
   AlertCircle
 } from 'lucide-react';
@@ -23,6 +24,9 @@ import {
   deleteInvestmentAsset 
 } from '../services/investmentService';
 import { evaluateMathExpression, formatRupiah } from '../utils/calculator';
+import { ModalFrame } from './ui/ModalFrame';
+import { ConfirmDeleteModal } from './ConfirmDeleteModal';
+import { calcNoteOf } from './ObligationForms';
 
 interface Props {
   currentLedger: Ledger;
@@ -365,269 +369,159 @@ export function InvestmentPortfolioView({
       {/* =================================================================== */}
       {/* MODAL TAMBAH / EDIT ASET INVESTASI                                 */}
       {/* =================================================================== */}
-      {(isAddOpen || editingAsset) && (
-        <div 
-          className="ax-modal fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-[2px]"
-          onClick={() => { setIsAddOpen(false); setEditingAsset(null); }}
-        >
-          <div 
-            className="w-full max-w-lg bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)] p-3.5 space-y-3 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150"
-            onClick={e => e.stopPropagation()}
+      {(isAddOpen || editingAsset) && (() => {
+        const close = () => { setIsAddOpen(false); setEditingAsset(null); };
+        const formId = editingAsset ? 'edit-asset-form' : 'add-asset-form';
+        const capNote = calcNoteOf(capital);
+        const valNote = calcNoteOf(currentValue);
+        const capNum = evaluateMathExpression(capital);
+        const valNum = evaluateMathExpression(currentValue);
+        const gain = capNum.success && valNum.success ? valNum.result - capNum.result : null;
+        return (
+          <ModalFrame
+            wide
+            title={editingAsset ? 'Ubah Aset Investasi' : 'Tambah Aset Investasi'}
+            subtitle={editingAsset ? editingAsset.name : `Buku kas: ${currentLedger.name}`}
+            icon={editingAsset ? <Pencil className="w-4 h-4" /> : <Coins className="w-4 h-4" />}
+            tint="#e3a8f7"
+            onClose={close}
+            footer={
+              <>
+                <button type="button" className="brutal-btn brutal-btn-ghost" onClick={close}>Batal</button>
+                <button type="submit" form={formId} className="brutal-btn brutal-btn-sand">
+                  <Check className="w-4 h-4" />{editingAsset ? 'Simpan perubahan' : 'Tambah ke portofolio'}
+                </button>
+              </>
+            }
           >
-            <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <div className="flex items-center gap-2">
-                <Coins className="w-5 h-5 text-[var(--accent-sand)]" />
-                <h3 className="font-heading font-bold text-lg text-[var(--text-primary)]">
-                  {editingAsset ? 'Edit Aset Investasi' : 'Tambah Aset Investasi Baru'}
-                </h3>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => { setIsAddOpen(false); setEditingAsset(null); }} 
-                className="brutal-btn !p-1.5"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={editingAsset ? handleSaveEditedAsset : handleCreateAsset} className="space-y-3.5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <form id={formId} onSubmit={editingAsset ? handleSaveEditedAsset : handleCreateAsset} className="ax-form">
+              <div className="ax-two">
                 <div>
-                  <label className="brutal-label">Nama Instrumen / Aset</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Contoh: Bank BRI, Bitcoin, Antam 10g"
-                    className="brutal-input text-xs"
-                    required
-                  />
+                  <label className="brutal-label" htmlFor={`${formId}-name`}>Nama instrumen / aset</label>
+                  <input id={`${formId}-name`} type="text" className="brutal-input" value={name} onChange={(e) => setName(e.target.value)}
+                    placeholder="Bank BRI, Bitcoin, Antam 10g" required />
                 </div>
-
                 <div>
-                  <label className="brutal-label">Kode / Ticker (Opsional)</label>
-                  <input
-                    type="text"
-                    value={ticker}
-                    onChange={(e) => setTicker(e.target.value)}
-                    placeholder="Contoh: BBRI, BTC, XAU"
-                    className="brutal-input text-xs uppercase"
-                  />
+                  <label className="brutal-label" htmlFor={`${formId}-ticker`}>Kode / ticker (opsional)</label>
+                  <input id={`${formId}-ticker`} type="text" className="brutal-input uppercase" value={ticker} onChange={(e) => setTicker(e.target.value)}
+                    placeholder="BBRI, BTC, XAU" />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="brutal-label">Kategori Aset</label>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value as InvestmentAssetType)}
-                    className="brutal-select text-xs"
-                  >
-                    {Object.entries(ASSET_TYPE_LABELS).map(([k, meta]) => (
-                      <option key={k} value={k}>{meta.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="brutal-label">Platform / Sekuritas</label>
-                  <input
-                    type="text"
-                    value={platform}
-                    onChange={(e) => setPlatform(e.target.value)}
-                    placeholder="Contoh: Stockbit, Bibit, Pluang, BCA"
-                    className="brutal-input text-xs"
-                  />
+              <div>
+                <div className="ax-fl"><span>Kategori aset</span></div>
+                <div className="ax-chipset" role="radiogroup" aria-label="Kategori aset">
+                  {Object.entries(ASSET_TYPE_LABELS).map(([k, meta]) => (
+                    <button key={k} type="button" role="radio" aria-checked={type === k} onClick={() => setType(k as InvestmentAssetType)}>{meta.label}</button>
+                  ))}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="brutal-label flex items-center justify-between">
-                    <span>Modal Pembelian (Rp)</span>
-                    <span className="text-[10px] font-mono text-[var(--accent-sand)]">Bisa hitung</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={capital}
-                    onChange={(e) => setCapital(e.target.value)}
-                    onBlur={handleCapitalBlur}
-                    placeholder="10000000"
-                    className="brutal-input text-xs font-mono font-bold"
-                    required
-                  />
-                </div>
+              <div>
+                <label className="brutal-label" htmlFor={`${formId}-platform`}>Platform / sekuritas</label>
+                <input id={`${formId}-platform`} type="text" className="brutal-input" value={platform} onChange={(e) => setPlatform(e.target.value)}
+                  placeholder="Stockbit, Bibit, Pluang, BCA" />
+              </div>
 
-                <div>
-                  <label className="brutal-label flex items-center justify-between">
-                    <span>Nilai Pasar Terkini (Rp)</span>
-                    <span className="text-[10px] font-mono text-[var(--accent-sand)]">Bisa hitung</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={currentValue}
-                    onChange={(e) => setCurrentValue(e.target.value)}
-                    onBlur={handleCurrentValueBlur}
-                    placeholder="11450000"
-                    className="brutal-input text-xs font-mono font-bold"
-                    required
-                  />
+              <div className="ax-two">
+                <div className="ax-amt" data-kind="transfer">
+                  <label className="ax-fl" htmlFor={`${formId}-cap`}><span><Calculator className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Modal pembelian</span></label>
+                  <div className="ax-amt-row">
+                    <span>Rp</span>
+                    <input id={`${formId}-cap`} type="text" inputMode="text" autoComplete="off" value={capital} onChange={(e) => setCapital(e.target.value)}
+                      onBlur={handleCapitalBlur} placeholder="10000000" required />
+                  </div>
+                  {capNote && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{capNote}</div>}
+                </div>
+                <div className="ax-amt" data-kind="income">
+                  <label className="ax-fl" htmlFor={`${formId}-val`}><span><Calculator className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Nilai pasar terkini</span></label>
+                  <div className="ax-amt-row">
+                    <span>Rp</span>
+                    <input id={`${formId}-val`} type="text" inputMode="text" autoComplete="off" value={currentValue} onChange={(e) => setCurrentValue(e.target.value)}
+                      onBlur={handleCurrentValueBlur} placeholder="11450000" required />
+                  </div>
+                  {valNote && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{valNote}</div>}
                 </div>
               </div>
 
               {calcNotice && (
-                <div className="p-2 bg-[var(--bg-elevated)] border border-[var(--accent-sand)] rounded text-xs font-mono text-[var(--accent-sand-light)] flex items-center gap-1.5">
-                  <Check className="w-3.5 h-3.5" />
-                  {calcNotice}
+                <div className="ax-warn"><Check className="w-4 h-4" /><span>{calcNotice}</span></div>
+              )}
+
+              {gain !== null && (
+                <div className="ax-sum">
+                  <div><small>Untung / rugi sementara</small><b style={{ color: gain >= 0 ? 'var(--accent-sage-light)' : 'var(--accent-terracotta-light)' }}>{gain >= 0 ? '+' : '-'}{formatRupiah(Math.abs(gain))}</b></div>
+                  <div><small>ROI</small><b>{capNum.result > 0 ? `${((gain / capNum.result) * 100).toFixed(1)}%` : '-'}</b></div>
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="ax-two">
                 <div>
-                  <label className="brutal-label">Jumlah Unit / Lot / Gram</label>
-                  <input
-                    type="text"
-                    value={units}
-                    onChange={(e) => setUnits(e.target.value)}
-                    placeholder="Misal: 2000 lembar, 10 gram"
-                    className="brutal-input text-xs font-mono"
-                  />
+                  <label className="brutal-label" htmlFor={`${formId}-units`}>Jumlah unit / lot / gram</label>
+                  <input id={`${formId}-units`} type="text" className="brutal-input" value={units} onChange={(e) => setUnits(e.target.value)}
+                    placeholder="2000 lembar, 10 gram" />
                 </div>
-
                 <div>
-                  <label className="brutal-label">Catatan Strategi</label>
-                  <input
-                    type="text"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Misal: Untuk dana pensiun, DCA bulanan"
-                    className="brutal-input text-xs"
-                  />
+                  <label className="brutal-label" htmlFor={`${formId}-notes`}>Catatan strategi</label>
+                  <input id={`${formId}-notes`} type="text" className="brutal-input" value={notes} onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Untuk dana pensiun, DCA bulanan" />
                 </div>
-              </div>
-
-              <div className="pt-3 border-t border-[var(--border-subtle)] flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setIsAddOpen(false); setEditingAsset(null); }}
-                  className="brutal-btn brutal-btn-ghost text-xs py-2 px-3"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="brutal-btn brutal-btn-sand text-xs py-2 px-5 font-bold shadow-[2px_2px_0px_#000]"
-                >
-                  {editingAsset ? 'Simpan Perubahan' : 'Tambah ke Portofolio'}
-                </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </ModalFrame>
+        );
+      })()}
 
       {/* =================================================================== */}
       {/* MODAL QUICK UPDATE NILAI PASAR                                     */}
       {/* =================================================================== */}
       {quickUpdateAsset && (
-        <div 
-          className="ax-modal fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-[2px]"
-          onClick={() => setQuickUpdateAsset(null)}
+        <ModalFrame
+          title="Perbarui Nilai Pasar"
+          subtitle={quickUpdateAsset.name}
+          icon={<RefreshCw className="w-4 h-4" />}
+          tint="var(--accent-sage)"
+          onClose={() => setQuickUpdateAsset(null)}
+          footer={
+            <>
+              <button type="button" className="brutal-btn brutal-btn-ghost" onClick={() => setQuickUpdateAsset(null)}>Batal</button>
+              <button type="submit" form="quick-asset-form" className="brutal-btn brutal-btn-sage"><Check className="w-4 h-4" />Update nilai</button>
+            </>
+          }
         >
-          <div 
-            className="w-full max-w-sm bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)] p-3.5 space-y-3 animate-in zoom-in-95 duration-150"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-2">
-              <h3 className="font-heading font-bold text-sm text-[var(--text-primary)]">
-                Perbarui Nilai Pasar
-              </h3>
-              <button type="button" onClick={() => setQuickUpdateAsset(null)} className="brutal-btn !p-1">
-                <X className="w-4 h-4" />
-              </button>
+          <form id="quick-asset-form" onSubmit={handleSaveQuickUpdate} className="ax-form">
+            <div className="ax-sum">
+              <div><small>Modal beli</small><b>{formatRupiah(quickUpdateAsset.initialCapital)}</b></div>
+              <div><small>Nilai saat ini</small><b>{formatRupiah(quickUpdateAsset.currentValue)}</b></div>
             </div>
-
-            <form onSubmit={handleSaveQuickUpdate} className="space-y-3">
-              <div>
-                <p className="font-heading font-bold text-sm text-[var(--text-primary)]">{quickUpdateAsset.name}</p>
-                <p className="text-xs text-[var(--text-muted)] font-mono">Modal Beli: {formatRupiah(quickUpdateAsset.initialCapital)}</p>
+            <div className="ax-amt" data-kind="income">
+              <label className="ax-fl" htmlFor="quick-asset-val"><span><Calculator className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Nilai pasar baru</span></label>
+              <div className="ax-amt-row">
+                <span>Rp</span>
+                <input id="quick-asset-val" type="text" inputMode="text" autoComplete="off" value={quickValue} onChange={(e) => setQuickValue(e.target.value)}
+                  placeholder="Total nilai saat ini" autoFocus required />
               </div>
-
-              <div>
-                <label className="brutal-label">Nilai Pasar Baru (Rp)</label>
-                <input
-                  type="text"
-                  value={quickValue}
-                  onChange={(e) => setQuickValue(e.target.value)}
-                  placeholder="Masukkan total nilai saat ini..."
-                  className="brutal-input text-sm font-mono font-bold"
-                  autoFocus
-                  required
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setQuickUpdateAsset(null)}
-                  className="brutal-btn brutal-btn-ghost text-xs py-1.5 px-3"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="brutal-btn brutal-btn-sage text-xs py-1.5 px-3 font-bold shadow-[2px_2px_0px_#000]"
-                >
-                  Update Nilai
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+              {calcNoteOf(quickValue) && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{calcNoteOf(quickValue)}</div>}
+            </div>
+          </form>
+        </ModalFrame>
       )}
 
       {/* =================================================================== */}
       {/* MODAL KONFIRMASI HAPUS ASET                                        */}
       {/* =================================================================== */}
       {assetToDelete && (
-        <div 
-          className="ax-modal fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-[2px]"
-          onClick={() => setAssetToDelete(null)}
-        >
-          <div 
-            className="w-full max-w-sm bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)] p-3.5 space-y-3 animate-in zoom-in-95 duration-150"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2 text-[var(--accent-terracotta)]">
-              <AlertCircle className="w-5 h-5" />
-              <h3 className="font-heading font-bold text-sm text-[var(--text-primary)]">
-                Hapus Aset Investasi?
-              </h3>
-            </div>
-
-            <p className="text-xs text-[var(--text-secondary)]">
-              Apakah Anda yakin ingin menghapus <b>"{assetToDelete.name}"</b> dari portofolio? Data yang dihapus tidak dapat dipulihkan.
-            </p>
-
-            <div className="pt-2 flex justify-end gap-2 border-t border-[var(--border-subtle)]">
-              <button
-                type="button"
-                onClick={() => setAssetToDelete(null)}
-                className="brutal-btn brutal-btn-ghost text-xs py-1.5 px-3"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={confirmDeleteAsset}
-                className="brutal-btn brutal-btn-terracotta text-xs py-1.5 px-3 font-bold shadow-[2px_2px_0px_#000]"
-              >
-                Ya, Hapus Aset
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteModal
+          title="Hapus Aset Investasi?"
+          kind="Aset investasi"
+          name={assetToDelete.name}
+          detailLabel="Nilai pasar"
+          detail={formatRupiah(assetToDelete.currentValue)}
+          notes={[{ tone: 'danger', text: 'Aset akan dihapus dari portofolio. Data yang dihapus tidak dapat dipulihkan.' }]}
+          confirmLabel="Ya, hapus aset"
+          onClose={() => setAssetToDelete(null)}
+          onConfirm={confirmDeleteAsset}
+        />
       )}
     </div>
   );

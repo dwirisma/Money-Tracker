@@ -1,27 +1,26 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { 
-  Bell, 
-  CheckCheck, 
-  Trash2, 
-  X, 
-  Calendar, 
-  Banknote, 
-  AlertCircle, 
-  AlertTriangle, 
-  PartyPopper, 
-  Database, 
-  Cpu, 
+import {
+  Bell,
+  CheckCheck,
+  Trash2,
+  X,
+  Calendar,
+  Banknote,
+  AlertCircle,
+  AlertTriangle,
+  PartyPopper,
+  Database,
+  Cpu,
   ArrowRight,
-  ShieldCheck,
-  Clock
+  ShieldCheck
 } from 'lucide-react';
-import { 
-  AppNotification, 
-  evaluateNotifications, 
-  getReadNotificationIds, 
-  saveReadNotificationIds, 
-  getDismissedNotificationIds, 
-  saveDismissedNotificationIds 
+import {
+  AppNotification,
+  evaluateNotifications,
+  getReadNotificationIds,
+  saveReadNotificationIds,
+  getDismissedNotificationIds,
+  saveDismissedNotificationIds
 } from '../../services/notificationService';
 import type { Transaction, Bill, Debt, Goal, Account } from '../../types';
 
@@ -36,6 +35,28 @@ interface NotificationCenterProps {
   onNavigate?: (moduleName: string) => void;
 }
 
+type Filter = 'all' | 'unread';
+
+/** Warna per tingkat keparahan (dipakai ikon dan lencana kategori). */
+const SEVERITY_COLOR: Record<AppNotification['severity'], string> = {
+  danger: 'var(--accent-terracotta)',
+  warning: 'var(--accent-sand)',
+  success: 'var(--accent-sage)',
+  info: 'var(--accent-blue)'
+};
+
+function timeAgo(ts: number): string {
+  if (!ts || isNaN(ts)) return '';
+  const diff = Math.max(0, Date.now() - ts);
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'Baru saja';
+  if (min < 60) return `${min} mnt lalu`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr} jam lalu`;
+  const day = Math.floor(hr / 24);
+  return `${day} hari lalu`;
+}
+
 export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   transactions,
   bills,
@@ -47,6 +68,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   onNavigate
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [filter, setFilter] = useState<Filter>('all');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -66,6 +88,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     return notifications.filter(n => !n.read).length;
   }, [notifications]);
 
+  const visible = filter === 'unread' ? notifications.filter(n => !n.read) : notifications;
+
   // Listener untuk event real-time update notifikasi
   useEffect(() => {
     const handleUpdate = () => setRefreshTrigger(prev => prev + 1);
@@ -77,18 +101,22 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     };
   }, []);
 
-  // Tutup panel ketika klik di luar container
+  // Tutup panel ketika klik di luar container, atau tekan Escape
   useEffect(() => {
+    if (!isOpen) return;
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     }
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setIsOpen(false);
     }
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKey);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKey);
     };
   }, [isOpen]);
 
@@ -136,222 +164,145 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   // Ikon sesuai kategori notifikasi
   const renderNotificationIcon = (notif: AppNotification) => {
+    const cls = 'w-4 h-4';
     switch (notif.type) {
       case 'automation':
-        return <Cpu className="w-4 h-4 text-emerald-500 shrink-0" />;
+        return <Cpu className={cls} />;
       case 'cutoff':
-        return <Calendar className="w-4 h-4 text-amber-500 shrink-0" />;
+        return <Calendar className={cls} />;
       case 'payday_adjusted':
       case 'payday_h3':
-        return <Banknote className="w-4 h-4 text-blue-500 shrink-0" />;
+        return <Banknote className={cls} />;
       case 'bill_due':
       case 'debt_due':
-        return <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />;
+        return <AlertCircle className={cls} />;
       case 'budget_over':
       case 'budget_warning':
-        return <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />;
+        return <AlertTriangle className={cls} />;
       case 'goal_achieved':
-        return <PartyPopper className="w-4 h-4 text-emerald-500 shrink-0" />;
+        return <PartyPopper className={cls} />;
       case 'backup_reminder':
-        return <Database className="w-4 h-4 text-purple-500 shrink-0" />;
+        return <Database className={cls} />;
       default:
-        return <Bell className="w-4 h-4 text-[var(--accent-sand)] shrink-0" />;
+        return <Bell className={cls} />;
     }
   };
 
   return (
     <div className="relative" ref={containerRef}>
-      {/* Tombol Lonceng Navigasi Atas */}
+      {/* Tombol lonceng di header */}
       <button
         id="btn-notification-center"
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        aria-label="Pusat Notifikasi"
+        aria-label={unreadCount > 0 ? `Pusat Notifikasi, ${unreadCount} belum dibaca` : 'Pusat Notifikasi'}
         aria-expanded={isOpen}
+        aria-haspopup="dialog"
         title={unreadCount > 0 ? `${unreadCount} notifikasi baru belum dibaca` : 'Pusat Notifikasi & Informasi'}
-        className={`brutal-btn !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] relative flex items-center justify-center transition-all ${
-          isOpen ? 'bg-[var(--accent-sand)] text-black border-black' : 'hover:bg-[var(--bg-muted)] hover:border-[var(--border-color)]'
-        }`}
+        className={`ax-hbtn ax-bell ${isOpen ? 'on' : ''}`}
       >
-        <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--text-primary)]" />
-        
-        {/* Indikator Titik Merah / Badge Counter */}
+        <Bell className="w-4 h-4" />
         {unreadCount > 0 && (
-          <span 
-            id="notification-badge-indicator"
-            className="absolute -top-1 -right-1 flex h-4 min-w-[1rem] px-1 items-center justify-center rounded-full bg-rose-500 text-white font-mono text-[9px] font-extrabold border-2 border-black dark:border-white shadow-[1px_1px_0px_#000] animate-pulse"
-          >
+          <span id="notification-badge-indicator" className="ax-bell-badge" aria-hidden="true">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
-      {/* Slide-out / Popover Panel Pusat Notifikasi Neo-brutalism */}
       {isOpen && (
-        <div 
-          id="notification-panel-popover"
-          className="absolute right-0 mt-2.5 w-[330px] sm:w-[410px] max-w-[calc(100vw-1.5rem)] bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[4px_4px_0px_#000] z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
-        >
-          {/* Header Panel Notifikasi */}
-          <div className="p-3 bg-[var(--bg-elevated)] border-b-2 border-[var(--border-color)] flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <div className="p-1 rounded-[var(--radius-sm)] bg-[var(--accent-sand)] text-black border border-black shadow-[1px_1px_0px_#000]">
-                <Bell className="w-3.5 h-3.5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <h3 className="font-heading font-extrabold text-sm text-[var(--text-primary)]">
-                    Pusat Notifikasi
-                  </h3>
-                  {unreadCount > 0 && (
-                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-rose-500 text-white border border-black">
-                      {unreadCount} Baru
-                    </span>
-                  )}
-                </div>
-                <p className="text-[10px] font-mono text-[var(--text-muted)]">
-                  Buku Kas: {currentLedgerName}
-                </p>
-              </div>
+        <div id="notification-panel-popover" className="ax-nc" role="dialog" aria-label="Pusat Notifikasi">
+          {/* Header berwarna */}
+          <header className="ax-nc-h">
+            <span className="ax-ic"><Bell className="w-4 h-4" /></span>
+            <div>
+              <h3>Pusat Notifikasi</h3>
+              <p>Buku kas: {currentLedgerName}</p>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] border border-transparent hover:border-[var(--border-color)] transition-colors"
-              title="Tutup Notifikasi"
-            >
+            <button type="button" className="ax-iconbtn" onClick={() => setIsOpen(false)} aria-label="Tutup notifikasi" title="Tutup">
               <X className="w-4 h-4" />
             </button>
-          </div>
+          </header>
 
-          {/* Sub-bar Aksi: Tandai Semua & Bersihkan */}
+          {/* Filter + aksi massal */}
           {notifications.length > 0 && (
-            <div className="px-3 py-1.5 bg-[var(--bg-muted)]/50 border-b border-[var(--border-subtle)] flex items-center justify-between text-[11px] font-mono">
-              <button
-                type="button"
-                onClick={markAllAsRead}
-                disabled={unreadCount === 0}
-                className="flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline disabled:opacity-40 disabled:hover:no-underline font-bold"
-                title="Tandai semua notifikasi sudah dibaca"
-              >
-                <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Tandai Semua Dibaca</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={clearAllNotifications}
-                className="flex items-center gap-1 text-[var(--text-muted)] hover:text-rose-500 hover:underline font-bold transition-colors"
-                title="Hapus dan bersihkan semua notifikasi"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Hapus Semua</span>
-              </button>
+            <div className="ax-nc-bar">
+              <div className="ax-chipset" role="radiogroup" aria-label="Filter notifikasi">
+                <button type="button" role="radio" aria-checked={filter === 'all'} onClick={() => setFilter('all')}>
+                  Semua ({notifications.length})
+                </button>
+                <button type="button" role="radio" aria-checked={filter === 'unread'} onClick={() => setFilter('unread')}>
+                  Belum dibaca ({unreadCount})
+                </button>
+              </div>
+              <div className="ax-nc-acts">
+                <button type="button" onClick={markAllAsRead} disabled={unreadCount === 0} title="Tandai semua notifikasi sudah dibaca">
+                  <CheckCheck className="w-3.5 h-3.5" /><span>Tandai dibaca</span>
+                </button>
+                <button type="button" className="del" onClick={clearAllNotifications} title="Hapus dan bersihkan semua notifikasi">
+                  <Trash2 className="w-3.5 h-3.5" /><span>Hapus semua</span>
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Daftar Notifikasi Terstruktur */}
-          <div className="max-h-[380px] sm:max-h-[440px] overflow-y-auto divide-y divide-[var(--border-subtle)]">
+          {/* Daftar */}
+          <div className="ax-nc-list">
             {notifications.length === 0 ? (
-              <div className="p-8 text-center space-y-2">
-                <div className="w-10 h-10 rounded-full mx-auto bg-emerald-500/10 border-2 border-emerald-500/30 flex items-center justify-center text-emerald-500">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <h4 className="font-heading font-bold text-sm text-[var(--text-primary)]">
-                  Semua Berjalan Lancar!
-                </h4>
-                <p className="text-xs text-[var(--text-muted)] font-mono max-w-[260px] mx-auto">
-                  Belum ada notifikasi baru. Sistem keuangan, tagihan, dan budget terpantau aman terkendali.
-                </p>
+              <div className="ax-nc-empty">
+                <span className="ax-ic" style={{ background: 'var(--accent-sage)' }}><ShieldCheck className="w-4 h-4" /></span>
+                <b>Semua berjalan lancar!</b>
+                <p>Belum ada notifikasi baru. Keuangan, tagihan, dan budget terpantau aman.</p>
+              </div>
+            ) : visible.length === 0 ? (
+              <div className="ax-nc-empty">
+                <span className="ax-ic" style={{ background: 'var(--accent-sage)' }}><CheckCheck className="w-4 h-4" /></span>
+                <b>Semua sudah dibaca</b>
+                <p>Tidak ada notifikasi yang belum dibaca.</p>
               </div>
             ) : (
-              notifications.map((notif) => {
+              visible.map((notif) => {
                 const isUnread = !notif.read;
-
+                const color = SEVERITY_COLOR[notif.severity] ?? SEVERITY_COLOR.info;
+                const ago = timeAgo(notif.timestamp);
                 return (
                   <div
                     key={notif.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => handleNotificationClick(notif)}
-                    className={`p-3 sm:p-3.5 transition-colors cursor-pointer group flex items-start gap-2.5 relative ${
-                      isUnread
-                        ? 'bg-[var(--bg-elevated)] border-l-4 border-l-[var(--accent-sand)]'
-                        : 'hover:bg-[var(--bg-elevated)]/60 opacity-80 hover:opacity-100'
-                    }`}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNotificationClick(notif); } }}
+                    className={`ax-nc-item ${isUnread ? 'unread' : ''}`}
+                    style={{ '--c': color } as React.CSSProperties}
                   >
-                    {/* Icon Box */}
-                    <div className="p-2 rounded-[var(--radius-sm)] bg-[var(--bg-surface)] border border-[var(--border-color)] shadow-[1px_1px_0px_#000] shrink-0 mt-0.5">
-                      {renderNotificationIcon(notif)}
-                    </div>
+                    <span className="ax-ic ax-nc-ic">{renderNotificationIcon(notif)}</span>
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className={`px-1.5 py-0.2 text-[9px] font-mono font-bold rounded uppercase border ${
-                            notif.severity === 'danger'
-                              ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                              : notif.severity === 'warning'
-                              ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                              : notif.severity === 'success'
-                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                              : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                          }`}>
-                            {notif.category}
-                          </span>
-                          {isUnread && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
-                          )}
-                        </div>
-
-                        {/* Individual Dismiss Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => dismissNotification(notif.id, e)}
-                          className="text-[var(--text-muted)] hover:text-rose-500 p-0.5 rounded transition-colors"
-                          title="Hapus notifikasi ini"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
+                    <div className="ax-nc-body">
+                      <div className="ax-nc-meta">
+                        <span className="ax-nc-cat">{notif.category}</span>
+                        {isUnread && <span className="ax-nc-dot" aria-label="Belum dibaca" />}
+                        {ago && <span className="ax-nc-time">{ago}</span>}
                       </div>
-
-                      <h4 className="font-heading font-bold text-xs text-[var(--text-primary)] leading-tight group-hover:text-[var(--accent-sand-light)] transition-colors">
-                        {notif.title}
-                      </h4>
-
-                      <p className="text-xs text-[var(--text-secondary)] font-body leading-relaxed">
-                        {notif.message}
-                      </p>
-
-                      {/* Action Link Footer */}
+                      <h4>{notif.title}</h4>
+                      <p>{notif.message}</p>
                       {notif.actionLabel && (
-                        <div className="pt-1 flex items-center justify-between text-[10px] font-mono">
-                          <span className="text-[var(--accent-sand)] font-bold flex items-center gap-1 group-hover:underline">
-                            <span>{notif.actionLabel}</span>
-                            <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
-                          </span>
-
-                          <span className="text-[var(--text-muted)] flex items-center gap-1">
-                            <Clock className="w-2.5 h-2.5" />
-                            <span>Terkini</span>
-                          </span>
-                        </div>
+                        <span className="ax-nc-act">{notif.actionLabel}<ArrowRight className="w-3 h-3" /></span>
                       )}
                     </div>
+
+                    <button
+                      type="button"
+                      className="ax-nc-x"
+                      onClick={(e) => dismissNotification(notif.id, e)}
+                      aria-label={`Hapus notifikasi: ${notif.title}`}
+                      title="Hapus notifikasi ini"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 );
               })
             )}
           </div>
-
-          {/* Footer Panel */}
-          {notifications.length > 0 && (
-            <div className="p-2 bg-[var(--bg-elevated)] border-t border-[var(--border-subtle)] text-center">
-              <p className="text-[10px] font-mono text-[var(--text-muted)]">
-                Notifikasi otomatis diperbarui berdasarkan siklus kas & aktivitas terkini.
-              </p>
-            </div>
-          )}
         </div>
       )}
     </div>

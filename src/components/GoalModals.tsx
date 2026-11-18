@@ -1,8 +1,9 @@
-import type { FormEvent } from 'react';
-import { AlertTriangle, Calculator, Check, Coins, Info } from 'lucide-react';
-import type { Account, Goal } from '../types';
+import type { CSSProperties, FormEvent } from 'react';
+import { AlertTriangle, Calculator, Check, Coins, Info, Pencil, Sparkles, Target } from 'lucide-react';
+import type { Account, Goal, GoalType } from '../types';
 import { evaluateMathExpression, formatRupiah } from '../utils/calculator';
 import { ModalFrame } from './ui/ModalFrame';
+import { ColorPicker, calcNoteOf } from './ObligationForms';
 
 const ACC_TYPE: Record<string, string> = { cash: 'Dompet', bank: 'Bank', ewallet: 'E-Wallet', credit_card: 'Kartu Kredit' };
 
@@ -144,6 +145,140 @@ export function AllocateGoalModal(p: AllocateProps) {
               : 'uang dipotong dari saldo akun dan dicatat sebagai transaksi pengeluaran alokasi agar aset kas tetap akurat.'}
           </span>
         </p>
+      </form>
+    </ModalFrame>
+  );
+}
+
+/* ============================ BUAT / UBAH TARGET ============================ */
+const GOAL_COLORS = [
+  { color: '#ffc933', label: 'Kuning' }, { color: '#2dd4a7', label: 'Hijau' }, { color: '#6c97ff', label: 'Biru' },
+  { color: '#ff7a4d', label: 'Oranye' }, { color: '#e3a8f7', label: 'Lilac' }
+];
+
+interface GoalFormProps {
+  mode: 'create' | 'edit';
+  ledgerName: string;
+  /** Nama target yang sedang diubah (subjudul saat mode edit). */
+  goalName?: string;
+  accounts: Account[];
+  type: GoalType;
+  /** Hanya mode buat: tipe target bisa dipilih. */
+  onType?: (t: GoalType) => void;
+  name: string; onName: (v: string) => void;
+  target: string; onTarget: (v: string) => void;
+  /** Hanya mode buat: kalkulator diterapkan saat field kehilangan fokus. */
+  onTargetBlur?: () => void;
+  calcNotice?: string | null;
+  /** Mode buat: dana awal. Mode ubah: dana terkumpul. */
+  funds: string; onFunds: (v: string) => void;
+  deadline: string; onDeadline: (v: string) => void;
+  sourceAccount: string; onSourceAccount: (id: string) => void;
+  color: string; onColor: (c: string) => void;
+  note: string; onNote: (v: string) => void;
+  onSubmit: (e: FormEvent) => void;
+  onClose: () => void;
+}
+
+export function GoalFormModal(p: GoalFormProps) {
+  const create = p.mode === 'create';
+  const formId = create ? 'add-goal-form' : 'edit-goal-form';
+  const sinking = p.type === 'sinking_fund';
+  const targetNote = p.calcNotice ?? calcNoteOf(p.target);
+  const fundsNote = calcNoteOf(p.funds);
+  return (
+    <ModalFrame
+      wide
+      title={create ? 'Buat Target Baru' : 'Ubah Target'}
+      subtitle={create ? `Buku kas: ${p.ledgerName}` : p.goalName}
+      icon={create ? <Target className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
+      tint={p.color || 'var(--accent-sand)'}
+      onClose={p.onClose}
+      footer={
+        <>
+          <button type="button" className="brutal-btn brutal-btn-ghost" onClick={p.onClose}>Batal</button>
+          <button type="submit" form={formId} className="brutal-btn brutal-btn-sand">
+            <Check className="w-4 h-4" />{create ? 'Simpan target' : 'Simpan perubahan'}
+          </button>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={p.onSubmit} className="ax-form">
+        {create && p.onType && (
+          <div>
+            <div className="ax-fl"><span>Tipe target</span></div>
+            <div className="ax-opts" role="radiogroup" aria-label="Tipe target">
+              <button type="button" role="radio" aria-checked={sinking} className="ax-opt" style={{ '--c': 'var(--accent-sand)' } as CSSProperties} onClick={() => p.onType!('sinking_fund')}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Coins className="w-4 h-4" />Sinking Fund</span>
+                <small>Dana terencana (pajak, darurat, servis) yang disisihkan riil dari kas.</small>
+              </button>
+              <button type="button" role="radio" aria-checked={!sinking} className="ax-opt" style={{ '--c': 'var(--accent-blue)' } as CSSProperties} onClick={() => p.onType!('wishlist')}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Sparkles className="w-4 h-4" />Wishlist</span>
+                <small>Barang impian yang ingin diwujudkan nanti.</small>
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div>
+          <label className="brutal-label" htmlFor={`${formId}-name`}>Nama target</label>
+          <input id={`${formId}-name`} type="text" className="brutal-input" value={p.name} onChange={e => p.onName(e.target.value)}
+            placeholder={sinking ? 'Pajak STNK & Servis Motor' : 'Laptop MacBook M3 Pro'} required />
+        </div>
+
+        <div className="ax-amt" data-kind="income">
+          <label className="ax-fl" htmlFor={`${formId}-target`}>
+            <span><Calculator className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Nominal target</span>
+          </label>
+          <div className="ax-amt-row">
+            <span>Rp</span>
+            <input id={`${formId}-target`} type="text" inputMode="text" autoComplete="off" value={p.target} onChange={e => p.onTarget(e.target.value)}
+              onBlur={p.onTargetBlur} placeholder="0" required />
+          </div>
+          {targetNote && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{targetNote}</div>}
+          <p className="ax-hint">Mendukung kalkulator, contoh: 5000000+1500000.</p>
+        </div>
+
+        <div className="ax-two">
+          <div>
+            <label className="brutal-label" htmlFor={`${formId}-funds`}>{create ? 'Dana awal (opsional)' : 'Dana terkumpul'}</label>
+            <div className="ax-plain-amt">
+              <span>Rp</span>
+              <input id={`${formId}-funds`} type="text" inputMode="text" autoComplete="off" className="brutal-input" value={p.funds}
+                onChange={e => p.onFunds(e.target.value)} placeholder="0" required={!create} />
+            </div>
+            {fundsNote && <p className="ax-fieldhint">{fundsNote}</p>}
+          </div>
+          <div>
+            <label className="brutal-label" htmlFor={`${formId}-deadline`}>Tenggat waktu</label>
+            <input id={`${formId}-deadline`} type="date" className="brutal-input" value={p.deadline} onChange={e => p.onDeadline(e.target.value)} />
+          </div>
+        </div>
+
+        {sinking && (
+          <div>
+            <div className="ax-fl"><span>Akun sumber utama</span></div>
+            {p.accounts.length === 0 ? (
+              <p className="ax-fieldhint">Belum ada akun di buku ini.</p>
+            ) : (
+              <div className="ax-accs" role="radiogroup" aria-label="Akun sumber utama">
+                {p.accounts.map(acc => (
+                  <button key={acc.id} type="button" role="radio" aria-checked={p.sourceAccount === acc.id} className="ax-acc" onClick={() => p.onSourceAccount(acc.id)}>
+                    <b>{acc.name}</b><small>{ACC_TYPE[acc.type] || acc.type} · {formatRupiah(acc.balance)}</small>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <ColorPicker label="Warna identitas target" value={p.color} onChange={p.onColor} options={GOAL_COLORS} />
+
+        <div>
+          <label className="brutal-label" htmlFor={`${formId}-note`}>Catatan (opsional)</label>
+          <input id={`${formId}-note`} type="text" className="brutal-input" value={p.note} onChange={e => p.onNote(e.target.value)}
+            placeholder={create ? 'Perkiraan servis di bengkel resmi' : undefined} />
+        </div>
       </form>
     </ModalFrame>
   );

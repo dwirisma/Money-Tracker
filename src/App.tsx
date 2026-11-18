@@ -123,7 +123,12 @@ import { evaluateMathExpression, formatRupiah } from './utils/calculator';
 import { useUI } from './context/UIContext';
 import { AppNav } from './components/layout/AppNav';
 import { HeaderTools } from './components/layout/HeaderTools';
-import { AllocateGoalModal } from './components/GoalModals';
+import { AddBillModal, AddDebtModal, EditBillModal, EditDebtModal } from './components/ObligationForms';
+import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
+import { AutomationFormModal } from './components/AutomationModals';
+import { LedgerFormModal, AccountFormModal } from './components/LedgerAccountModals';
+import { BillDetailModal, DebtDetailModal, GoalDetailModal, AutomationDetailModal } from './components/DetailModals';
+import { AllocateGoalModal, GoalFormModal } from './components/GoalModals';
 import { PayBillModal, PayDebtModal } from './components/PaymentModals';
 import { EditTransactionModal, DeleteTransactionModal } from './components/TransactionModals';
 import { AutomationsView } from './components/AutomationsView';
@@ -2525,447 +2530,83 @@ export default function App() {
       {/* MODAL 0: BUAT BUKU KAS BARU (NEW LEDGER MODAL)                      */}
       {/* =================================================================== */}
       {isAddLedgerOpen && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
-                <FolderPlus className="w-5 h-5 text-[var(--accent-sand)]" />
-                Buat Buku Kas Baru
-              </h3>
-              <button 
-                onClick={() => setIsAddLedgerOpen(false)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateLedger} className="space-y-3">
-              <div>
-                <label className="brutal-label">Nama Buku Kas</label>
-                <input 
-                  type="text"
-                  value={newLedgerName}
-                  onChange={(e) => setNewLedgerName(e.target.value)}
-                  placeholder="Misal: Bisnis Kopi, Proyek Lepas, Dana Liburan"
-                  className="brutal-input text-sm"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="brutal-label">Deskripsi / Tujuan Buku Kas</label>
-                <input 
-                  type="text"
-                  value={newLedgerDesc}
-                  onChange={(e) => setNewLedgerDesc(e.target.value)}
-                  placeholder="Misal: Rekap operasional usaha warung"
-                  className="brutal-input text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="brutal-label">Warna Identitas Buku</label>
-                <div className="flex gap-2 pt-1">
-                  {[
-                    { color: '#2dd4a7', label: 'Sage' },
-                    { color: '#6c97ff', label: 'Blue' },
-                    { color: '#ff7a4d', label: 'Terracotta' },
-                    { color: '#ffc933', label: 'Sand' },
-                    { color: '#e3a8f7', label: 'Lavender' }
-                  ].map(c => (
-                    <button
-                      key={c.color}
-                      type="button"
-                      onClick={() => setNewLedgerColor(c.color)}
-                      className={`w-8 h-8 rounded-[var(--radius-sm)] border-2 transition-transform ${
-                        newLedgerColor === c.color 
-                          ? 'border-white scale-110 shadow-[2px_2px_0px_#000]' 
-                          : 'border-[var(--border-subtle)]'
-                      }`}
-                      style={{ backgroundColor: c.color }}
-                      title={c.label}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="p-3 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] font-mono">
-                ℹ️ Setiap Buku Kas memiliki <strong>Daftar Akun, Saldo, dan Transaksi tersendiri</strong> yang sepenuhnya terisolasi.
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
-                <button 
-                  type="button" 
-                  onClick={() => setIsAddLedgerOpen(false)}
-                  className="brutal-btn brutal-btn-ghost text-xs"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className="brutal-btn brutal-btn-sand text-xs"
-                >
-                  Simpan & Beralih Buku
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <LedgerFormModal
+          mode="create"
+          name={newLedgerName} onName={setNewLedgerName}
+          desc={newLedgerDesc} onDesc={setNewLedgerDesc}
+          color={newLedgerColor} onColor={setNewLedgerColor}
+          onSubmit={handleCreateLedger}
+          onClose={() => setIsAddLedgerOpen(false)}
+        />
       )}
 
       {/* =================================================================== */}
       {/* MODAL 0B: EDIT BUKU KAS (EDIT LEDGER MODAL)                         */}
       {/* =================================================================== */}
       {editingLedger && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
-                <Pencil className="w-5 h-5 text-[var(--accent-sand)]" />
-                Edit Buku Kas: {editingLedger.name}
-              </h3>
-              <button 
-                onClick={() => setEditingLedger(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEditedLedger} className="space-y-3">
-              <div>
-                <label className="brutal-label">Nama Buku Kas</label>
-                <input 
-                  type="text"
-                  value={editLedgerName}
-                  onChange={(e) => setEditLedgerName(e.target.value)}
-                  className="brutal-input text-sm"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="brutal-label">Deskripsi / Tujuan Buku Kas</label>
-                <input 
-                  type="text"
-                  value={editLedgerDesc}
-                  onChange={(e) => setEditLedgerDesc(e.target.value)}
-                  placeholder="Misal: Operasional kantor atau tabungan keluarga"
-                  className="brutal-input text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="brutal-label">Warna Identitas Buku</label>
-                <div className="flex gap-2 pt-1">
-                  {[
-                    { color: '#2dd4a7', label: 'Sage' },
-                    { color: '#6c97ff', label: 'Blue' },
-                    { color: '#ff7a4d', label: 'Terracotta' },
-                    { color: '#ffc933', label: 'Sand' },
-                    { color: '#e3a8f7', label: 'Lavender' }
-                  ].map(c => (
-                    <button
-                      key={c.color}
-                      type="button"
-                      onClick={() => setEditLedgerColor(c.color)}
-                      className={`w-8 h-8 rounded-[var(--radius-sm)] border-2 transition-transform ${
-                        editLedgerColor === c.color 
-                          ? 'border-white scale-110 shadow-[2px_2px_0px_#000]' 
-                          : 'border-[var(--border-subtle)]'
-                      }`}
-                      style={{ backgroundColor: c.color }}
-                      title={c.label}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
-                <button 
-                  type="button" 
-                  onClick={() => setEditingLedger(null)}
-                  className="brutal-btn brutal-btn-ghost text-xs"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className="brutal-btn brutal-btn-sand text-xs"
-                >
-                  Simpan Perubahan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <LedgerFormModal
+          mode="edit"
+          ledgerName={editingLedger.name}
+          name={editLedgerName} onName={setEditLedgerName}
+          desc={editLedgerDesc} onDesc={setEditLedgerDesc}
+          color={editLedgerColor} onColor={setEditLedgerColor}
+          onSubmit={handleSaveEditedLedger}
+          onClose={() => setEditingLedger(null)}
+        />
       )}
 
       {/* =================================================================== */}
       {/* MODAL 0C: KONFIRMASI HAPUS BUKU KAS (DELETE LEDGER MODAL)           */}
       {/* =================================================================== */}
       {ledgerToDelete && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-2.5">
-              <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-heading font-bold text-lg text-white">Hapus Buku Kas?</h3>
-                <p className="text-sm text-[var(--text-secondary)]">
-                  Apakah Anda yakin ingin menghapus buku kas <strong className="text-white">"{ledgerToDelete.name}"</strong>?
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] font-mono space-y-1">
-              <p className="text-[var(--accent-terracotta-light)] font-bold">⚠️ Perhatian Konsekuensi:</p>
-              <p>• Seluruh akun dan riwayat transaksi yang terdaftar di dalam buku kas ini akan dihapus secara permanen.</p>
-              {activeLedgerIdState === ledgerToDelete.id && (
-                <p className="text-[var(--accent-sand)]">• Karena ini adalah buku kas aktif, aplikasi akan otomatis dialihkan ke buku kas lain yang tersisa.</p>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2.5 pt-2">
-              <button 
-                type="button" 
-                onClick={() => setLedgerToDelete(null)}
-                className="brutal-btn brutal-btn-ghost text-xs"
-              >
-                Batal
-              </button>
-              <button 
-                type="button" 
-                onClick={confirmExecuteDeleteLedger}
-                className="brutal-btn brutal-btn-terracotta text-xs flex items-center gap-1.5"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Ya, Hapus Buku Kas</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteModal
+          severe
+          title="Hapus Buku Kas?"
+          kind="Buku kas"
+          name={ledgerToDelete.name}
+          notes={[
+            { tone: 'danger', text: <><b>Perhatian: </b>seluruh akun dan riwayat transaksi di dalam buku kas ini akan dihapus secara permanen.</> },
+            ...(activeLedgerIdState === ledgerToDelete.id
+              ? [{ text: 'Karena ini buku kas aktif, aplikasi akan otomatis dialihkan ke buku kas lain yang tersisa.' }]
+              : [])
+          ]}
+          confirmLabel="Ya, hapus buku kas"
+          onClose={() => setLedgerToDelete(null)}
+          onConfirm={confirmExecuteDeleteLedger}
+        />
       )}
 
       {/* =================================================================== */}
       {/* MODAL 1: TAMBAH AKUN BARU KE BUKU KAS AKTIF                         */}
       {/* =================================================================== */}
       {isAddAccountOpen && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3">
-            <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <div>
-                <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
-                  <Wallet className="w-5 h-5 text-[var(--accent-sage)]" />
-                  Tambah Akun Baru
-                </h3>
-                <p className="text-[10px] font-mono text-[var(--accent-sand)]">Buku Kas: {currentLedger.name}</p>
-              </div>
-              <button 
-                onClick={() => setIsAddAccountOpen(false)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateAccount} className="space-y-3">
-              <div>
-                <label className="brutal-label">Nama Akun</label>
-                <input 
-                  type="text"
-                  value={newAccName}
-                  onChange={(e) => setNewAccName(e.target.value)}
-                  placeholder="Contoh: BCA Tabungan, GoPay, Kas Tunai"
-                  className="brutal-input text-sm"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="brutal-label">Tipe Akun</label>
-                <select 
-                  value={newAccType}
-                  onChange={(e) => setNewAccType(e.target.value as AccountType)}
-                  className="brutal-select text-sm"
-                >
-                  <option value="bank">Bank Konvensional / Digital</option>
-                  <option value="ewallet">E-Wallet (GoPay, OVO, ShopeePay)</option>
-                  <option value="cash">Tunai / Dompet Fisik</option>
-                  <option value="credit_card">Kartu Kredit (Liabilitas)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="brutal-label">Saldo Awal</label>
-                <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden">
-                  <span className="px-3.5 py-2 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-sm text-[var(--accent-sand)] flex items-center select-none shrink-0">
-                    Rp
-                  </span>
-                  <input 
-                    type="text"
-                    value={newAccBalance}
-                    onChange={(e) => setNewAccBalance(e.target.value)}
-                    placeholder="0"
-                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="brutal-label">Warna Aksen</label>
-                <div className="flex gap-2 pt-1">
-                  {[
-                    { color: '#2dd4a7', label: 'Sage' },
-                    { color: '#6c97ff', label: 'Blue' },
-                    { color: '#ff7a4d', label: 'Terracotta' },
-                    { color: '#ffc933', label: 'Sand' },
-                    { color: '#e3a8f7', label: 'Lavender' }
-                  ].map(c => (
-                    <button
-                      key={c.color}
-                      type="button"
-                      onClick={() => setNewAccColor(c.color)}
-                      className={`w-8 h-8 rounded-[var(--radius-sm)] border-2 transition-transform ${
-                        newAccColor === c.color 
-                          ? 'border-white scale-110 shadow-[2px_2px_0px_#000]' 
-                          : 'border-[var(--border-subtle)]'
-                      }`}
-                      style={{ backgroundColor: c.color }}
-                      title={c.label}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
-                <button 
-                  type="button" 
-                  onClick={() => setIsAddAccountOpen(false)}
-                  className="brutal-btn brutal-btn-ghost text-xs"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className="brutal-btn brutal-btn-sage text-xs"
-                >
-                  Simpan Akun
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <AccountFormModal
+          mode="create"
+          ledgerName={currentLedger.name}
+          name={newAccName} onName={setNewAccName}
+          type={newAccType} onType={setNewAccType}
+          balance={newAccBalance} onBalance={setNewAccBalance}
+          color={newAccColor} onColor={setNewAccColor}
+          onSubmit={handleCreateAccount}
+          onClose={() => setIsAddAccountOpen(false)}
+        />
       )}
 
       {/* =================================================================== */}
       {/* MODAL 2: EDIT AKUN                                                  */}
       {/* =================================================================== */}
       {editingAccount && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3">
-            <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
-                <Pencil className="w-5 h-5 text-[var(--accent-blue)]" />
-                Edit Akun: {editingAccount.name}
-              </h3>
-              <button 
-                onClick={() => setEditingAccount(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEditedAccount} className="space-y-3">
-              <div>
-                <label className="brutal-label">Nama Akun</label>
-                <input 
-                  type="text"
-                  value={editAccName}
-                  onChange={(e) => setEditAccName(e.target.value)}
-                  className="brutal-input text-sm"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="brutal-label">Tipe Akun</label>
-                <select 
-                  value={editAccType}
-                  onChange={(e) => setEditAccType(e.target.value as AccountType)}
-                  className="brutal-select text-sm"
-                >
-                  <option value="bank">Bank Konvensional / Digital</option>
-                  <option value="ewallet">E-Wallet (GoPay, OVO, ShopeePay)</option>
-                  <option value="cash">Tunai / Dompet Fisik</option>
-                  <option value="credit_card">Kartu Kredit (Liabilitas)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="brutal-label">Penyesuaian Saldo Riil</label>
-                <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden">
-                  <span className="px-3.5 py-2 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-sm text-[var(--accent-sand)] flex items-center select-none shrink-0">
-                    Rp
-                  </span>
-                  <input 
-                    type="text"
-                    value={editAccBalance}
-                    onChange={(e) => setEditAccBalance(e.target.value)}
-                    className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="brutal-label">Warna Aksen</label>
-                <div className="flex gap-2 pt-1">
-                  {[
-                    { color: '#2dd4a7', label: 'Sage' },
-                    { color: '#6c97ff', label: 'Blue' },
-                    { color: '#ff7a4d', label: 'Terracotta' },
-                    { color: '#ffc933', label: 'Sand' },
-                    { color: '#e3a8f7', label: 'Lavender' }
-                  ].map(c => (
-                    <button
-                      key={c.color}
-                      type="button"
-                      onClick={() => setEditAccColor(c.color)}
-                      className={`w-8 h-8 rounded-[var(--radius-sm)] border-2 transition-transform ${
-                        editAccColor === c.color 
-                          ? 'border-white scale-110 shadow-[2px_2px_0px_#000]' 
-                          : 'border-[var(--border-subtle)]'
-                      }`}
-                      style={{ backgroundColor: c.color }}
-                      title={c.label}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
-                <button 
-                  type="button" 
-                  onClick={() => setEditingAccount(null)}
-                  className="brutal-btn brutal-btn-ghost text-xs"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className="brutal-btn brutal-btn-blue text-xs"
-                >
-                  Simpan Perubahan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <AccountFormModal
+          mode="edit"
+          ledgerName={currentLedger.name}
+          accountName={editingAccount.name}
+          name={editAccName} onName={setEditAccName}
+          type={editAccType} onType={setEditAccType}
+          balance={editAccBalance} onBalance={setEditAccBalance}
+          color={editAccColor} onColor={setEditAccColor}
+          onSubmit={handleSaveEditedAccount}
+          onClose={() => setEditingAccount(null)}
+        />
       )}
 
       {/* =================================================================== */}
@@ -3012,256 +2653,39 @@ export default function App() {
       {/* MODAL KONFIRMASI HAPUS AKUN                                         */}
       {/* =================================================================== */}
       {accountToDelete && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-2.5">
-              <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-heading font-bold text-lg text-white">Hapus Akun Keuangan?</h3>
-                <p className="text-sm text-[var(--text-secondary)]">
-                  Apakah Anda yakin ingin menghapus akun <strong className="text-white">"{accountToDelete.name}"</strong> dengan saldo saat ini <strong className="font-mono text-white">{formatRupiah(accountToDelete.balance)}</strong> dari Buku Kas <span className="text-[var(--accent-sand)]">{currentLedger.name}</span>?
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] font-mono">
-              ⚠️ Akun akan dihapus dari daftar akun aktif dan total saldo buku kas ini akan otomatis menyesuaikan.
-            </div>
-
-            <div className="flex justify-end gap-2.5 pt-2">
-              <button 
-                type="button" 
-                onClick={() => setAccountToDelete(null)}
-                className="brutal-btn brutal-btn-ghost text-xs"
-              >
-                Batal
-              </button>
-              <button 
-                type="button" 
-                onClick={confirmExecuteDeleteAccount}
-                className="brutal-btn brutal-btn-terracotta text-xs flex items-center gap-1.5"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Ya, Hapus Akun</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteModal
+          severe
+          title="Hapus Akun Keuangan?"
+          kind={`Akun · ${currentLedger.name}`}
+          name={accountToDelete.name}
+          detailLabel="Saldo saat ini"
+          detail={formatRupiah(accountToDelete.balance)}
+          notes={[{ text: 'Akun akan dihapus dari daftar akun aktif dan total saldo buku kas ini otomatis menyesuaikan.' }]}
+          confirmLabel="Ya, hapus akun"
+          onClose={() => setAccountToDelete(null)}
+          onConfirm={confirmExecuteDeleteAccount}
+        />
       )}
 
       {/* =================================================================== */}
       {/* MODAL 4: BUAT TARGET BARU (WISHLIST & SINKING FUNDS)                */}
       {/* =================================================================== */}
       {isAddGoalOpen && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <div>
-                <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
-                  <Target className="w-5 h-5 text-[var(--accent-sand)]" />
-                  Buat Target Finansial Baru
-                </h3>
-                <p className="text-[10px] font-mono text-[var(--accent-sand-light)]">Buku Kas: {currentLedger.name}</p>
-              </div>
-              <button 
-                type="button"
-                onClick={() => setIsAddGoalOpen(false)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateGoal} className="space-y-3">
-              {/* Tipe Target: Sinking Fund vs Wishlist */}
-              <div>
-                <label className="brutal-label">Pilih Tipe Target</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setNewGoalType('sinking_fund')}
-                    className={`p-3 rounded-[var(--radius-sm)] border-2 text-left transition-all ${
-                      newGoalType === 'sinking_fund'
-                        ? 'bg-[var(--accent-sand-dark)] border-[var(--accent-sand)] text-white shadow-[2px_2px_0px_#000]'
-                        : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                    }`}
-                  >
-                    <p className="font-heading font-bold text-xs flex items-center gap-1.5 text-[var(--accent-sand-light)]">
-                      <Coins className="w-3.5 h-3.5" /> Sinking Fund
-                    </p>
-                    <p className="text-[10px] text-[var(--text-muted)] mt-1 font-mono">
-                      Dana terencana (pajak, darurat, servis) yang disisihkan riil dari kas.
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setNewGoalType('wishlist')}
-                    className={`p-3 rounded-[var(--radius-sm)] border-2 text-left transition-all ${
-                      newGoalType === 'wishlist'
-                        ? 'bg-[var(--accent-blue-dark)] border-[var(--accent-blue)] text-white shadow-[2px_2px_0px_#000]'
-                        : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                    }`}
-                  >
-                    <p className="font-heading font-bold text-xs flex items-center gap-1.5 text-[var(--accent-blue-light)]">
-                      <Sparkles className="w-3.5 h-3.5" /> Wishlist Impian
-                    </p>
-                    <p className="text-[10px] text-[var(--text-muted)] mt-1 font-mono">
-                      Daftar barang impian / belanja yang ingin diwujudkan nanti.
-                    </p>
-                  </button>
-                </div>
-              </div>
-
-              {/* Nama Target */}
-              <div>
-                <label className="brutal-label">Nama Target Finansial</label>
-                <input 
-                  type="text"
-                  value={newGoalName}
-                  onChange={(e) => setNewGoalName(e.target.value)}
-                  placeholder={newGoalType === 'sinking_fund' ? "Misal: Pajak STNK & Servis Motor" : "Misal: Laptop MacBook M3 Pro"}
-                  className="brutal-input text-sm"
-                  required
-                />
-              </div>
-
-              {/* Nominal Target & Awal */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="brutal-label mb-0">Nominal Target</label>
-                    <span className="text-[10px] font-mono text-[var(--accent-sand)]">Kalkulator</span>
-                  </div>
-                  <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden">
-                    <span className="px-3 py-2 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-xs text-[var(--accent-sand)] flex items-center select-none shrink-0">
-                      Rp
-                    </span>
-                    <input 
-                      type="text"
-                      value={newGoalTarget}
-                      onChange={(e) => setNewGoalTarget(e.target.value)}
-                      onBlur={handleNewGoalTargetBlur}
-                      placeholder="0"
-                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                      required
-                    />
-                  </div>
-                  {goalCalcNotice && (
-                    <p className="text-[10px] font-mono text-[var(--accent-sand)] mt-1">{goalCalcNotice}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="brutal-label">Dana Awal (Opsional)</label>
-                  <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden">
-                    <span className="px-3 py-2 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-xs text-[var(--text-muted)] flex items-center select-none shrink-0">
-                      Rp
-                    </span>
-                    <input 
-                      type="text"
-                      value={newGoalInitial}
-                      onChange={(e) => setNewGoalInitial(e.target.value)}
-                      placeholder="0"
-                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Tenggat Waktu & Akun Sumber (Khusus Sinking Fund) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="brutal-label">Tenggat Waktu / Deadline</label>
-                  <input 
-                    type="date"
-                    value={newGoalDeadline}
-                    onChange={(e) => setNewGoalDeadline(e.target.value)}
-                    className="brutal-input text-xs"
-                  />
-                </div>
-
-                {newGoalType === 'sinking_fund' && (
-                  <div>
-                    <label className="brutal-label">Akun Sumber Utama</label>
-                    <select
-                      value={newGoalSourceAccount}
-                      onChange={(e) => setNewGoalSourceAccount(e.target.value)}
-                      className="brutal-select text-xs"
-                    >
-                      {accounts.length === 0 ? (
-                        <option value="">Belum ada akun di buku ini</option>
-                      ) : (
-                        accounts.map(acc => (
-                          <option key={acc.id} value={acc.id}>
-                            {acc.name} ({formatRupiah(acc.balance)})
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              {/* Pilihan Warna Identitas */}
-              <div>
-                <label className="brutal-label">Warna Identitas Target</label>
-                <div className="flex gap-2 pt-1">
-                  {[
-                    { color: '#ffc933', label: 'Sand' },
-                    { color: '#2dd4a7', label: 'Sage' },
-                    { color: '#6c97ff', label: 'Blue' },
-                    { color: '#ff7a4d', label: 'Terracotta' },
-                    { color: '#e3a8f7', label: 'Lavender' }
-                  ].map(c => (
-                    <button
-                      key={c.color}
-                      type="button"
-                      onClick={() => setNewGoalColor(c.color)}
-                      className={`w-8 h-8 rounded-[var(--radius-sm)] border-2 transition-transform ${
-                        newGoalColor === c.color 
-                          ? 'border-white scale-110 shadow-[2px_2px_0px_#000]' 
-                          : 'border-[var(--border-subtle)]'
-                      }`}
-                      style={{ backgroundColor: c.color }}
-                      title={c.label}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Catatan / Keterangan */}
-              <div>
-                <label className="brutal-label">Catatan Target (Opsional)</label>
-                <input 
-                  type="text"
-                  value={newGoalNote}
-                  onChange={(e) => setNewGoalNote(e.target.value)}
-                  placeholder="Misal: Perkiraan servis di bengkel resmi AHASS"
-                  className="brutal-input text-sm"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
-                <button 
-                  type="button" 
-                  onClick={() => setIsAddGoalOpen(false)}
-                  className="brutal-btn brutal-btn-ghost text-xs"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className="brutal-btn brutal-btn-sand text-xs"
-                >
-                  Simpan Target Finansial
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <GoalFormModal
+          mode="create"
+          ledgerName={currentLedger.name}
+          accounts={accounts}
+          type={newGoalType} onType={setNewGoalType}
+          name={newGoalName} onName={setNewGoalName}
+          target={newGoalTarget} onTarget={setNewGoalTarget} onTargetBlur={handleNewGoalTargetBlur} calcNotice={goalCalcNotice}
+          funds={newGoalInitial} onFunds={setNewGoalInitial}
+          deadline={newGoalDeadline} onDeadline={setNewGoalDeadline}
+          sourceAccount={newGoalSourceAccount} onSourceAccount={setNewGoalSourceAccount}
+          color={newGoalColor} onColor={setNewGoalColor}
+          note={newGoalNote} onNote={setNewGoalNote}
+          onSubmit={handleCreateGoal}
+          onClose={() => setIsAddGoalOpen(false)}
+        />
       )}
 
       {/* =================================================================== */}
@@ -3291,158 +2715,39 @@ export default function App() {
       {/* MODAL 6: EDIT TARGET (WISHLIST & SINKING FUNDS)                     */}
       {/* =================================================================== */}
       {editingGoal && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
-                <Pencil className="w-5 h-5 text-[var(--accent-sand)]" />
-                Edit Target: {editingGoal.name}
-              </h3>
-              <button 
-                type="button" 
-                onClick={() => setEditingGoal(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEditedGoal} className="space-y-3">
-              <div>
-                <label className="brutal-label">Nama Target</label>
-                <input 
-                  type="text"
-                  value={editGoalName}
-                  onChange={(e) => setEditGoalName(e.target.value)}
-                  className="brutal-input text-sm"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="brutal-label">Nominal Target</label>
-                  <input 
-                    type="text"
-                    value={editGoalTarget}
-                    onChange={(e) => setEditGoalTarget(e.target.value)}
-                    className="brutal-input text-sm font-mono"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="brutal-label">Dana Terkumpul</label>
-                  <input 
-                    type="text"
-                    value={editGoalCurrent}
-                    onChange={(e) => setEditGoalCurrent(e.target.value)}
-                    className="brutal-input text-sm font-mono"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="brutal-label">Tenggat Waktu</label>
-                  <input 
-                    type="date"
-                    value={editGoalDeadline}
-                    onChange={(e) => setEditGoalDeadline(e.target.value)}
-                    className="brutal-input text-xs"
-                  />
-                </div>
-
-                {editGoalType === 'sinking_fund' && (
-                  <div>
-                    <label className="brutal-label">Akun Sumber</label>
-                    <select
-                      value={editGoalSourceAccount}
-                      onChange={(e) => setEditGoalSourceAccount(e.target.value)}
-                      className="brutal-select text-xs"
-                    >
-                      {accounts.map(acc => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="brutal-label">Catatan</label>
-                <input 
-                  type="text"
-                  value={editGoalNote}
-                  onChange={(e) => setEditGoalNote(e.target.value)}
-                  className="brutal-input text-sm"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
-                <button 
-                  type="button" 
-                  onClick={() => setEditingGoal(null)}
-                  className="brutal-btn brutal-btn-ghost text-xs"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className="brutal-btn brutal-btn-sand text-xs"
-                >
-                  Simpan Perubahan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <GoalFormModal
+          mode="edit"
+          ledgerName={currentLedger.name}
+          goalName={editingGoal.name}
+          accounts={accounts}
+          type={editGoalType}
+          name={editGoalName} onName={setEditGoalName}
+          target={editGoalTarget} onTarget={setEditGoalTarget}
+          funds={editGoalCurrent} onFunds={setEditGoalCurrent}
+          deadline={editGoalDeadline} onDeadline={setEditGoalDeadline}
+          sourceAccount={editGoalSourceAccount} onSourceAccount={setEditGoalSourceAccount}
+          color={editGoalColor} onColor={setEditGoalColor}
+          note={editGoalNote} onNote={setEditGoalNote}
+          onSubmit={handleSaveEditedGoal}
+          onClose={() => setEditingGoal(null)}
+        />
       )}
 
       {/* =================================================================== */}
       {/* MODAL 7: KONFIRMASI HAPUS TARGET                                    */}
       {/* =================================================================== */}
       {goalToDelete && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-2.5">
-              <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-heading font-bold text-lg text-white">Hapus Target Finansial?</h3>
-                <p className="text-sm text-[var(--text-secondary)]">
-                  Apakah Anda yakin ingin menghapus target <strong className="text-white">"{goalToDelete.name}"</strong> dengan progres saat ini <strong className="font-mono text-white">{formatRupiah(goalToDelete.currentAmount)}</strong>?
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] font-mono">
-              ℹ️ Target akan dihapus dari daftar. Transaksi penyisihan dana yang telah lalu tetap tercatat dalam riwayat transaksi kas Anda.
-            </div>
-
-            <div className="flex justify-end gap-2.5 pt-2">
-              <button 
-                type="button" 
-                onClick={() => setGoalToDelete(null)}
-                className="brutal-btn brutal-btn-ghost text-xs"
-              >
-                Batal
-              </button>
-              <button 
-                type="button" 
-                onClick={confirmExecuteDeleteGoal}
-                className="brutal-btn brutal-btn-terracotta text-xs flex items-center gap-1.5"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Ya, Hapus Target</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteModal
+          title="Hapus Target Finansial?"
+          kind="Target"
+          name={goalToDelete.name}
+          detailLabel="Progres saat ini"
+          detail={formatRupiah(goalToDelete.currentAmount)}
+          notes={[{ text: 'Target akan dihapus dari daftar. Transaksi penyisihan dana yang telah lalu tetap tercatat di riwayat transaksi kas Anda.' }]}
+          confirmLabel="Ya, hapus target"
+          onClose={() => setGoalToDelete(null)}
+          onConfirm={confirmExecuteDeleteGoal}
+        />
       )}
 
       {/* =================================================================== */}
@@ -3473,522 +2778,40 @@ export default function App() {
       {/* =================================================================== */}
       {/* MODAL 8: DETAIL & RIWAYAT ALOKASI TARGET (NEO-BRUTALISM)            */}
       {/* =================================================================== */}
-      {selectedGoalForDetail && (() => {
-        const goal = selectedGoalForDetail;
-        const progress = goal.targetAmount > 0 
-          ? Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100))
-          : 0;
-        const remaining = Math.max(0, goal.targetAmount - goal.currentAmount);
-        const sourceAcc = accounts.find(a => a.id === goal.sourceAccountId);
-
-        return (
-          <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
-            <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2">
-              
-              {/* Header Modal */}
-              <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-3 gap-2.5">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`brutal-badge text-[10px] font-mono font-bold ${
-                      goal.type === 'sinking_fund' ? 'brutal-badge-sand' : 'brutal-badge-blue'
-                    }`}>
-                      {goal.type === 'sinking_fund' ? 'SINKING FUND' : 'WISHLIST'}
-                    </span>
-                    {goal.isCompleted && (
-                      <span className="brutal-badge brutal-badge-sage text-[10px] font-mono font-bold flex items-center gap-1">
-                        <Award className="w-3 h-3" /> TERCAPAI
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="font-heading font-bold text-xl text-white tracking-tight">
-                    {goal.name}
-                  </h3>
-                </div>
-
-                <button 
-                  type="button" 
-                  onClick={() => setSelectedGoalForDetail(null)}
-                  className="p-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
-                  title="Tutup Modal"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Banner Overview / Metrik Progres */}
-              <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] space-y-3 shadow-[var(--shadow-sm)]">
-                <div className="flex items-baseline justify-between">
-                  <div>
-                    <p className="text-[10px] font-heading uppercase text-[var(--text-secondary)]">Total Dana Terkumpul</p>
-                    <p className="text-xl font-mono font-bold text-white tracking-tight">
-                      {formatRupiah(goal.currentAmount)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-heading uppercase text-[var(--text-secondary)]">Target Total</p>
-                    <p className="text-sm font-mono font-bold text-[var(--accent-sand-light)]">
-                      {formatRupiah(goal.targetAmount)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs font-mono">
-                    <span className="text-[var(--text-secondary)]">Pencapaian</span>
-                    <span className="font-bold text-[var(--accent-sand-light)]">{progress}%</span>
-                  </div>
-                  <div className="brutal-progress-container h-3">
-                    <div 
-                      className="brutal-progress-bar"
-                      style={{
-                        width: `${progress}%`,
-                        backgroundColor: goal.isCompleted 
-                          ? 'var(--accent-sage)' 
-                          : (goal.colorAccent || 'var(--accent-sand)')
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Metadata Ringkas */}
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-subtle)] text-xs font-mono">
-                  <div>
-                    <span className="text-[var(--text-muted)] block text-[10px] uppercase">Sisa Dana Dibutuhkan</span>
-                    <span className="font-bold text-white">
-                      {goal.isCompleted ? 'Target Selesai 🎉' : formatRupiah(remaining)}
-                    </span>
-                  </div>
-
-                  {goal.deadline ? (
-                    <div>
-                      <span className="text-[var(--text-muted)] block text-[10px] uppercase">Tenggat Waktu</span>
-                      <span className="font-bold text-[var(--accent-sand-light)]">{goal.deadline}</span>
-                    </div>
-                  ) : (
-                    <div>
-                      <span className="text-[var(--text-muted)] block text-[10px] uppercase">Tenggat Waktu</span>
-                      <span className="text-[var(--text-secondary)]">Tanpa batas waktu</span>
-                    </div>
-                  )}
-
-                  {goal.type === 'sinking_fund' && sourceAcc && (
-                    <div className="col-span-2 pt-1">
-                      <span className="text-[var(--text-muted)] block text-[10px] uppercase">Akun Sumber Potongan</span>
-                      <span className="text-[var(--accent-sage-light)] font-bold">{sourceAcc.name}</span>
-                    </div>
-                  )}
-
-                  {goal.note && (
-                    <div className="col-span-2 pt-1 text-[var(--text-secondary)] font-sans text-xs">
-                      <span className="text-[var(--text-muted)] block text-[10px] font-mono uppercase">Catatan</span>
-                      <p className="mt-0.5">{goal.note}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* List Riwayat Alokasi Transaksi Khusus Target Ini */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <History className="w-4 h-4 text-[var(--accent-sand)]" />
-                    <h4 className="font-heading font-bold text-sm text-white">
-                      Riwayat Alokasi Dana
-                    </h4>
-                  </div>
-                  <span className="px-2 py-0.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[10px] font-mono rounded text-[var(--text-secondary)]">
-                    {goalAllocationHistory.length} Transaksi
-                  </span>
-                </div>
-
-                <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                  {isLoadingGoalHistory ? (
-                    <div className="py-8 text-center text-xs font-mono text-[var(--text-muted)] animate-pulse space-y-2">
-                      <div className="w-6 h-6 border-2 border-[var(--accent-sand)] border-t-transparent rounded-full animate-spin mx-auto" />
-                      <p>Memuat riwayat alokasi dari Firestore...</p>
-                    </div>
-                  ) : goalAllocationHistory.length === 0 ? (
-                    <div className="p-4 bg-[var(--bg-elevated)] border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-center space-y-2">
-                      <Coins className="w-6 h-6 text-[var(--accent-sand)] mx-auto opacity-70" />
-                      <p className="font-heading text-xs font-bold text-white">
-                        Belum ada riwayat alokasi dana untuk target ini
-                      </p>
-                      <p className="text-[11px] font-mono text-[var(--text-muted)]">
-                        Klik tombol "+ Alokasikan Dana" di bawah untuk mulai menabung ke target ini.
-                      </p>
-                    </div>
-                  ) : (
-                    goalAllocationHistory.map(tx => {
-                      const acc = accounts.find(a => a.id === tx.accountId);
-                      return (
-                        <div
-                          key={tx.id}
-                          className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] flex items-center justify-between gap-2.5 group"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-[var(--accent-sand-dark)] border border-[var(--accent-sand)] text-[var(--accent-sand-light)] flex items-center justify-center shrink-0">
-                              <Coins className="w-4 h-4" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-mono text-[11px] font-bold text-white">
-                                  {tx.date}
-                                </span>
-                                {acc && (
-                                  <span className="text-[10px] font-mono text-[var(--accent-sage-light)] bg-[var(--bg-muted)] px-1.5 py-0.2 rounded border border-[var(--border-subtle)]">
-                                    {acc.name}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs text-[var(--text-secondary)] line-clamp-1">
-                                {tx.note || tx.category || 'Alokasi Tabungan'}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                            <span className="font-mono font-bold text-sm text-[var(--accent-sand-light)]">
-                              +{formatRupiah(tx.amount)}
-                            </span>
-
-                            {/* Tombol Aksi Minimalis Edit & Hapus */}
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => openEditTransactionModal(tx)}
-                                className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-colors"
-                                title="Edit Alokasi Ini"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setTxToDelete(tx)}
-                                className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent-terracotta)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-colors"
-                                title="Hapus Alokasi Ini"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              {/* Footer Tombol Aksi Modal */}
-              <div className="flex items-center justify-between gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const targetToAlloc = goal;
-                    setSelectedGoalForDetail(null);
-                    openAllocateModal(targetToAlloc);
-                  }}
-                  disabled={goal.isCompleted}
-                  className={`brutal-btn text-xs py-2 px-3 flex items-center gap-1.5 ${
-                    goal.isCompleted 
-                      ? 'opacity-60 bg-[var(--bg-elevated)] border-[var(--border-subtle)] cursor-not-allowed text-[var(--text-secondary)]' 
-                      : 'brutal-btn-sand'
-                  }`}
-                >
-                  <Coins className="w-3.5 h-3.5" />
-                  <span>{goal.isCompleted ? 'Target Telah Tercapai 🎉' : '+ Alokasikan Dana'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedGoalForDetail(null)}
-                  className="brutal-btn brutal-btn-ghost text-xs py-2 px-3"
-                >
-                  Tutup
-                </button>
-              </div>
-
-            </div>
-          </div>
-        );
-      })()}
+      {selectedGoalForDetail && (
+        <GoalDetailModal
+          goal={selectedGoalForDetail}
+          accounts={accounts}
+          history={goalAllocationHistory}
+          onClose={() => setSelectedGoalForDetail(null)}
+          onEditTx={openEditTransactionModal}
+          onDeleteTx={setTxToDelete}
+          onAllocate={(g) => { setSelectedGoalForDetail(null); openAllocateModal(g); }}
+        />
+      )}
 
       {/* =================================================================== */}
       {/* MODAL 9: TAMBAH TAGIHAN RUTIN BARU (NEW BILL MODAL)                 */}
       {/* =================================================================== */}
       {isAddBillOpen && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <div>
-                <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
-                  <Receipt className="w-5 h-5 text-[var(--accent-blue)]" />
-                  Tambah Tagihan Rutin
-                </h3>
-                <p className="text-[10px] font-mono text-[var(--accent-sand)]">Buku Kas: {currentLedger.name}</p>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setIsAddBillOpen(false)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateBill} className="space-y-3">
-              <div>
-                <label className="brutal-label">Nama Tagihan / Langganan</label>
-                <input 
-                  type="text"
-                  value={newBillName}
-                  onChange={(e) => setNewBillName(e.target.value)}
-                  placeholder="Misal: Netflix Premium, Indihome, BPJS, Listrik PLN"
-                  className="brutal-input text-sm"
-                  required
-                />
-              </div>
-
-              {/* Tipe Siklus & Tipe Nominal */}
-              <div className="space-y-3">
-                <div>
-                  <label className="brutal-label">Siklus Pembayaran</label>
-                  <div className="grid grid-cols-5 gap-1 p-1 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)]">
-                    {[
-                      { id: 'daily', label: 'Harian' },
-                      { id: 'weekly', label: 'Mingguan' },
-                      { id: 'monthly', label: 'Bulanan' },
-                      { id: 'yearly', label: 'Tahunan' },
-                      { id: 'custom', label: 'Kustom' }
-                    ].map(item => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setNewBillCycle(item.id as BillCycle)}
-                        className={`py-1 text-[11px] font-mono font-bold rounded transition-all ${
-                          newBillCycle === item.id
-                            ? 'bg-[var(--accent-blue)] text-black shadow-[1px_1px_0px_#000]'
-                            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Input Interval Kustom */}
-                {newBillCycle === 'custom' && (
-                  <div className="grid grid-cols-2 gap-2 p-2.5 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] animate-in fade-in duration-150">
-                    <div>
-                      <label className="text-[10px] font-mono text-[var(--text-muted)] block uppercase mb-1">Setiap Kelipatan</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={newBillCustomCount}
-                        onChange={(e) => setNewBillCustomCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                        className="brutal-input text-xs py-1.5"
-                        placeholder="Misal: 10"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-mono text-[var(--text-muted)] block uppercase mb-1">Satuan Waktu</label>
-                      <select
-                        value={newBillCustomUnit}
-                        onChange={(e) => setNewBillCustomUnit(e.target.value as CustomIntervalUnit)}
-                        className="brutal-select text-xs py-1.5"
-                      >
-                        <option value="days">Hari</option>
-                        <option value="weeks">Minggu</option>
-                        <option value="months">Bulan</option>
-                        <option value="years">Tahun</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="brutal-label">Tipe Nominal</label>
-                  <div className="grid grid-cols-2 gap-1.5 p-1 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)]">
-                    <button
-                      type="button"
-                      onClick={() => setNewBillPricingType('fixed')}
-                      className={`py-1 text-xs font-mono font-bold rounded transition-all ${
-                        newBillPricingType === 'fixed'
-                          ? 'bg-[var(--accent-blue)] text-black shadow-[1px_1px_0px_#000]'
-                          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                      }`}
-                    >
-                      Tetap
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNewBillPricingType('variable')}
-                      className={`py-1 text-xs font-mono font-bold rounded transition-all ${
-                        newBillPricingType === 'variable'
-                          ? 'bg-[var(--accent-sand)] text-black shadow-[1px_1px_0px_#000]'
-                          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                      }`}
-                    >
-                      Fluktuatif
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Input Nominal Tetap vs Estimasi Periode Lalu */}
-              {newBillPricingType === 'fixed' ? (
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="brutal-label mb-0">Nominal Tetap per Siklus</label>
-                    <span className="text-[10px] font-mono text-[var(--accent-sand)]">Mendukung kalkulator</span>
-                  </div>
-                  <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden">
-                    <span className="px-3.5 py-2 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-sm text-[var(--accent-blue-light)] flex items-center select-none shrink-0">
-                      Rp
-                    </span>
-                    <input 
-                      type="text"
-                      value={newBillAmount}
-                      onChange={(e) => handleBillAmountCalcChange(e.target.value)}
-                      placeholder="Contoh: 186000 atau 54000+10000"
-                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                      required
-                    />
-                  </div>
-                  {billCalcNotice && (
-                    <p className="text-xs font-mono text-[var(--accent-blue-light)] mt-1">{billCalcNotice}</p>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-2 animate-in fade-in duration-150">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="brutal-label mb-0">Nominal Periode Lalu (Estimasi)</label>
-                    <span className="text-[10px] font-mono text-[var(--accent-sand)]">Mendukung kalkulator</span>
-                  </div>
-                  <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden">
-                    <span className="px-3.5 py-2 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-sm text-[var(--accent-sand-light)] flex items-center select-none shrink-0">
-                      Rp
-                    </span>
-                    <input 
-                      type="text"
-                      value={newBillLastNominal}
-                      onChange={(e) => handleBillLastNominalCalcChange(e.target.value)}
-                      placeholder="Contoh: 450000 atau 200000+50000"
-                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                      required
-                    />
-                  </div>
-                  {newBillLastNominalCalcNotice && (
-                    <p className="text-xs font-mono text-[var(--accent-sand-light)] mt-1">{newBillLastNominalCalcNotice}</p>
-                  )}
-                  <p className="text-[11px] font-mono text-[var(--text-muted)]">
-                    💡 Ditampilkan di kartu sebagai <strong>Estimasi/Bulan Lalu</strong> dan otomatis terbarui saat Anda membayar tagihan aktual berikutnya.
-                  </p>
-                </div>
-              )}
-
-              {/* Tanggal Jatuh Tempo Berikutnya */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="brutal-label">Jatuh Tempo Berikutnya</label>
-                  <input 
-                    type="date"
-                    value={newBillNextDate}
-                    onChange={(e) => setNewBillNextDate(e.target.value)}
-                    className="brutal-input text-xs"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="brutal-label">Kategori</label>
-                  <input 
-                    type="text"
-                    value={newBillCategory}
-                    onChange={(e) => setNewBillCategory(e.target.value)}
-                    placeholder="Tagihan & Utilitas"
-                    className="brutal-input text-xs"
-                  />
-                </div>
-              </div>
-
-              {/* Akun Default Pembayaran */}
-              <div>
-                <label className="brutal-label">Akun Kas Sumber Default (Opsional)</label>
-                <select
-                  value={newBillSourceAccount}
-                  onChange={(e) => setNewBillSourceAccount(e.target.value)}
-                  className="brutal-select text-xs"
-                >
-                  <option value="">Pilih akun saat pembayaran nanti</option>
-                  {accounts.map(acc => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.name} — Saldo: {formatRupiah(acc.balance)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Catatan */}
-              <div>
-                <label className="brutal-label">Catatan Tambahan (Opsional)</label>
-                <input 
-                  type="text"
-                  value={newBillNote}
-                  onChange={(e) => setNewBillNote(e.target.value)}
-                  placeholder="Misal: ID Pelanggan: 123456789 atau paket bersama"
-                  className="brutal-input text-xs"
-                />
-              </div>
-
-              {/* Warna Kartu */}
-              <div>
-                <label className="brutal-label">Warna Aksen Kartu</label>
-                <div className="flex gap-2 pt-1">
-                  {[
-                    { color: '#6c97ff', label: 'Blue' },
-                    { color: '#2dd4a7', label: 'Sage' },
-                    { color: '#ff7a4d', label: 'Terracotta' },
-                    { color: '#ffc933', label: 'Sand' },
-                    { color: '#e3a8f7', label: 'Lavender' }
-                  ].map(c => (
-                    <button
-                      key={c.color}
-                      type="button"
-                      onClick={() => setNewBillColor(c.color)}
-                      className={`w-7 h-7 rounded-[var(--radius-sm)] border-2 transition-transform ${
-                        newBillColor === c.color 
-                          ? 'border-white scale-110 shadow-[2px_2px_0px_#000]' 
-                          : 'border-[var(--border-subtle)]'
-                      }`}
-                      style={{ backgroundColor: c.color }}
-                      title={c.label}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
-                <button 
-                  type="button" 
-                  onClick={() => setIsAddBillOpen(false)}
-                  className="brutal-btn brutal-btn-ghost text-xs"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className="brutal-btn brutal-btn-blue text-xs flex items-center gap-1.5"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Simpan Tagihan</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <AddBillModal
+          ledgerName={currentLedger.name}
+          accounts={accounts}
+          name={newBillName} onName={setNewBillName}
+          cycle={newBillCycle} onCycle={setNewBillCycle}
+          customCount={newBillCustomCount} onCustomCount={setNewBillCustomCount}
+          customUnit={newBillCustomUnit} onCustomUnit={setNewBillCustomUnit}
+          pricingType={newBillPricingType} onPricingType={setNewBillPricingType}
+          amount={newBillAmount} onAmount={handleBillAmountCalcChange} calcNotice={billCalcNotice}
+          lastNominal={newBillLastNominal} onLastNominal={handleBillLastNominalCalcChange} lastNominalNotice={newBillLastNominalCalcNotice}
+          nextDate={newBillNextDate} onNextDate={setNewBillNextDate}
+          category={newBillCategory} onCategory={setNewBillCategory}
+          sourceAccount={newBillSourceAccount} onSourceAccount={setNewBillSourceAccount}
+          note={newBillNote} onNote={setNewBillNote}
+          color={newBillColor} onColor={setNewBillColor}
+          onSubmit={handleCreateBill}
+          onClose={() => setIsAddBillOpen(false)}
+        />
       )}
 
       {/* =================================================================== */}
@@ -4016,513 +2839,61 @@ export default function App() {
       {/* MODAL 11: EDIT TAGIHAN                                              */}
       {/* =================================================================== */}
       {editingBill && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
-                <Pencil className="w-5 h-5 text-[var(--accent-blue)]" />
-                Edit Tagihan: {editingBill.name}
-              </h3>
-              <button 
-                type="button" 
-                onClick={() => setEditingBill(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEditedBill} className="space-y-3">
-              <div>
-                <label className="brutal-label">Nama Tagihan</label>
-                <input 
-                  type="text"
-                  value={editBillName}
-                  onChange={(e) => setEditBillName(e.target.value)}
-                  className="brutal-input text-sm"
-                  required
-                />
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="brutal-label">Siklus Pembayaran</label>
-                  <div className="grid grid-cols-5 gap-1 p-1 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)]">
-                    {[
-                      { id: 'daily', label: 'Harian' },
-                      { id: 'weekly', label: 'Mingguan' },
-                      { id: 'monthly', label: 'Bulanan' },
-                      { id: 'yearly', label: 'Tahunan' },
-                      { id: 'custom', label: 'Kustom' }
-                    ].map(item => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setEditBillCycle(item.id as BillCycle)}
-                        className={`py-1 text-[11px] font-mono font-bold rounded transition-all ${
-                          editBillCycle === item.id
-                            ? 'bg-[var(--accent-blue)] text-black shadow-[1px_1px_0px_#000]'
-                            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Input Interval Kustom */}
-                {editBillCycle === 'custom' && (
-                  <div className="grid grid-cols-2 gap-2 p-2.5 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] animate-in fade-in duration-150">
-                    <div>
-                      <label className="text-[10px] font-mono text-[var(--text-muted)] block uppercase mb-1">Setiap Kelipatan</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={editBillCustomCount}
-                        onChange={(e) => setEditBillCustomCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                        className="brutal-input text-xs py-1.5"
-                        placeholder="Misal: 10"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-mono text-[var(--text-muted)] block uppercase mb-1">Satuan Waktu</label>
-                      <select
-                        value={editBillCustomUnit}
-                        onChange={(e) => setEditBillCustomUnit(e.target.value as CustomIntervalUnit)}
-                        className="brutal-select text-xs py-1.5"
-                      >
-                        <option value="days">Hari</option>
-                        <option value="weeks">Minggu</option>
-                        <option value="months">Bulan</option>
-                        <option value="years">Tahun</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="brutal-label">Tipe Nominal</label>
-                  <div className="grid grid-cols-2 gap-1.5 p-1 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)]">
-                    <button
-                      type="button"
-                      onClick={() => setEditBillPricingType('fixed')}
-                      className={`py-1 text-xs font-mono font-bold rounded transition-all ${
-                        editBillPricingType === 'fixed'
-                          ? 'bg-[var(--accent-blue)] text-black shadow-[1px_1px_0px_#000]'
-                          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                      }`}
-                    >
-                      Tetap
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditBillPricingType('variable')}
-                      className={`py-1 text-xs font-mono font-bold rounded transition-all ${
-                        editBillPricingType === 'variable'
-                          ? 'bg-[var(--accent-sand)] text-black shadow-[1px_1px_0px_#000]'
-                          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                      }`}
-                    >
-                      Fluktuatif
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {editBillPricingType === 'fixed' ? (
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="brutal-label mb-0">Nominal Tetap per Siklus</label>
-                  </div>
-                  <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden">
-                    <span className="px-3.5 py-2 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-sm text-[var(--accent-blue-light)] flex items-center select-none shrink-0">
-                      Rp
-                    </span>
-                    <input 
-                      type="text"
-                      value={editBillAmount}
-                      onChange={(e) => setEditBillAmount(e.target.value)}
-                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                      required
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2 animate-in fade-in duration-150">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="brutal-label mb-0">Nominal Periode Lalu (Estimasi)</label>
-                    <span className="text-[10px] font-mono text-[var(--accent-sand)]">Mendukung kalkulator</span>
-                  </div>
-                  <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden">
-                    <span className="px-3.5 py-2 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-sm text-[var(--accent-sand-light)] flex items-center select-none shrink-0">
-                      Rp
-                    </span>
-                    <input 
-                      type="text"
-                      value={editBillLastNominal}
-                      onChange={(e) => handleEditBillLastNominalCalcChange(e.target.value)}
-                      placeholder="Contoh: 450000"
-                      className="w-full bg-transparent px-3 py-2 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                    />
-                  </div>
-                  {editBillLastNominalCalcNotice && (
-                    <p className="text-xs font-mono text-[var(--accent-sand-light)] mt-1">{editBillLastNominalCalcNotice}</p>
-                  )}
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="brutal-label">Jatuh Tempo Berikutnya</label>
-                  <input 
-                    type="date"
-                    value={editBillNextDate}
-                    onChange={(e) => setEditBillNextDate(e.target.value)}
-                    className="brutal-input text-xs"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="brutal-label">Kategori</label>
-                  <input 
-                    type="text"
-                    value={editBillCategory}
-                    onChange={(e) => setEditBillCategory(e.target.value)}
-                    className="brutal-input text-xs"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="brutal-label">Akun Kas Sumber</label>
-                <select
-                  value={editBillSourceAccount}
-                  onChange={(e) => setEditBillSourceAccount(e.target.value)}
-                  className="brutal-select text-xs"
-                >
-                  <option value="">Pilih akun kas...</option>
-                  {accounts.map(acc => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="brutal-label">Catatan</label>
-                <input 
-                  type="text"
-                  value={editBillNote}
-                  onChange={(e) => setEditBillNote(e.target.value)}
-                  className="brutal-input text-xs"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
-                <button 
-                  type="button" 
-                  onClick={() => setEditingBill(null)}
-                  className="brutal-btn brutal-btn-ghost text-xs"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className="brutal-btn brutal-btn-blue text-xs font-bold"
-                >
-                  Simpan Perubahan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <EditBillModal
+          billName={editingBill.name}
+          accounts={accounts}
+          name={editBillName} onName={setEditBillName}
+          cycle={editBillCycle} onCycle={setEditBillCycle}
+          customCount={editBillCustomCount} onCustomCount={setEditBillCustomCount}
+          customUnit={editBillCustomUnit} onCustomUnit={setEditBillCustomUnit}
+          pricingType={editBillPricingType} onPricingType={setEditBillPricingType}
+          amount={editBillAmount} onAmount={setEditBillAmount}
+          lastNominal={editBillLastNominal} onLastNominal={handleEditBillLastNominalCalcChange} lastNominalNotice={editBillLastNominalCalcNotice}
+          nextDate={editBillNextDate} onNextDate={setEditBillNextDate}
+          category={editBillCategory} onCategory={setEditBillCategory}
+          sourceAccount={editBillSourceAccount} onSourceAccount={setEditBillSourceAccount}
+          note={editBillNote} onNote={setEditBillNote}
+          color={editBillColor} onColor={setEditBillColor}
+          onSubmit={handleSaveEditedBill}
+          onClose={() => setEditingBill(null)}
+        />
       )}
 
       {/* =================================================================== */}
       {/* MODAL 12: KONFIRMASI HAPUS TAGIHAN                                  */}
       {/* =================================================================== */}
       {billToDelete && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-2.5">
-              <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-heading font-bold text-lg text-white">Hapus Tagihan?</h3>
-                <p className="text-sm text-[var(--text-secondary)]">
-                  Apakah Anda yakin ingin menghapus tagihan <strong className="text-white">"{billToDelete.name}"</strong>?
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] font-mono">
-              ℹ️ Pengingat tagihan ini akan dihapus. Riwayat transaksi pembayaran yang sudah dilakukan sebelumnya tetap tersimpan di riwayat kas Anda.
-            </div>
-
-            <div className="flex justify-end gap-2.5 pt-2">
-              <button 
-                type="button" 
-                onClick={() => setBillToDelete(null)}
-                className="brutal-btn brutal-btn-ghost text-xs"
-              >
-                Batal
-              </button>
-              <button 
-                type="button" 
-                onClick={confirmExecuteDeleteBill}
-                className="brutal-btn brutal-btn-terracotta text-xs flex items-center gap-1.5"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Ya, Hapus Tagihan</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteModal
+          title="Hapus Tagihan?"
+          kind="Tagihan"
+          name={billToDelete.name}
+          notes={[{ text: 'Pengingat tagihan ini akan dihapus. Riwayat transaksi pembayaran yang sudah dilakukan tetap tersimpan di riwayat kas Anda.' }]}
+          confirmLabel="Ya, hapus tagihan"
+          onClose={() => setBillToDelete(null)}
+          onConfirm={confirmExecuteDeleteBill}
+        />
       )}
 
       {/* =================================================================== */}
       {/* MODAL 13: CATAT UTANG BARU (NEW DEBT MODAL)                         */}
       {/* =================================================================== */}
       {isAddDebtOpen && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <div>
-                <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-[var(--accent-terracotta)]" />
-                  Catat Utang / Pinjaman Baru
-                </h3>
-                <p className="text-[10px] font-mono text-[var(--accent-sand)]">Buku Kas: {currentLedger.name}</p>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setIsAddDebtOpen(false)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateDebt} className="space-y-3">
-              <div>
-                <label className="brutal-label">Nama Utang / Pinjaman</label>
-                <input 
-                  type="text"
-                  value={newDebtName}
-                  onChange={(e) => setNewDebtName(e.target.value)}
-                  placeholder="Misal: Cicilan Motor Honda, KPR Mandiri, Pinjaman Teman Budi"
-                  className="brutal-input text-sm"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="brutal-label">Pihak Pemberi Pinjaman (Lender)</label>
-                <input 
-                  type="text"
-                  value={newDebtLender}
-                  onChange={(e) => setNewDebtLender(e.target.value)}
-                  placeholder="Misal: BCA Finance, FIF, Teman Budi"
-                  className="brutal-input text-sm"
-                />
-              </div>
-
-              {/* Total Utang & Sisa Utang */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="brutal-label mb-0">Total Utang Awal</label>
-                  </div>
-                  <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden">
-                    <span className="px-2.5 py-1.5 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-xs text-[var(--accent-terracotta-light)] flex items-center select-none shrink-0">
-                      Rp
-                    </span>
-                    <input 
-                      type="text"
-                      value={newDebtTotal}
-                      onChange={(e) => handleDebtTotalCalcChange(e.target.value)}
-                      placeholder="10000000"
-                      className="w-full bg-transparent px-2.5 py-1.5 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="brutal-label mb-0">Sisa Pokok Saat Ini</label>
-                  </div>
-                  <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden">
-                    <span className="px-2.5 py-1.5 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-xs text-[var(--accent-terracotta-light)] flex items-center select-none shrink-0">
-                      Rp
-                    </span>
-                    <input 
-                      type="text"
-                      value={newDebtRemaining}
-                      onChange={(e) => setNewDebtRemaining(e.target.value)}
-                      placeholder="Sisa belum lunas"
-                      className="w-full bg-transparent px-2.5 py-1.5 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {debtCalcNotice && (
-                <p className="text-xs font-mono text-[var(--accent-terracotta-light)]">{debtCalcNotice}</p>
-              )}
-
-              {/* Tanggal Jatuh Tempo Berikutnya (Wajib/Terdekat) */}
-              <div>
-                <label className="brutal-label">Tanggal Jatuh Tempo Terdekat / Berikutnya</label>
-                <input 
-                  type="date"
-                  value={newDebtNextDate}
-                  onChange={(e) => setNewDebtNextDate(e.target.value)}
-                  className="brutal-input text-xs"
-                  required
-                />
-                <p className="text-[10px] font-mono text-[var(--text-muted)] mt-1">
-                  Jadwal siklus pembayaran terdekat untuk kalkulasi countdown pengingat.
-                </p>
-              </div>
-
-              {/* Siklus Pembayaran Cicilan */}
-              <div>
-                <label className="brutal-label">Siklus Pembayaran Cicilan</label>
-                <div className="grid grid-cols-5 gap-1.5 pt-1">
-                  {[
-                    { id: 'daily', label: 'Harian' },
-                    { id: 'weekly', label: 'Mingguan' },
-                    { id: 'monthly', label: 'Bulanan' },
-                    { id: 'yearly', label: 'Tahunan' },
-                    { id: 'custom', label: 'Kustom' },
-                  ].map(c => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setNewDebtCycle(c.id as any)}
-                      className={`py-1.5 px-1 text-center font-mono text-xs rounded border-2 transition-all ${
-                        newDebtCycle === c.id
-                          ? 'border-[var(--accent-terracotta)] bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)] font-bold shadow-[2px_2px_0px_#000]'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                      }`}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Input Khusus Interval Kustom */}
-                {newDebtCycle === 'custom' && (
-                  <div className="mt-3 p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] space-y-2">
-                    <p className="text-xs font-mono text-[var(--accent-terracotta-light)] font-bold">
-                      Pengaturan Interval Kustom
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] font-mono text-[var(--text-secondary)] block mb-1">Setiap Berapa</label>
-                        <input 
-                          type="number"
-                          min="1"
-                          max="365"
-                          value={newDebtCustomCount}
-                          onChange={(e) => setNewDebtCustomCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                          className="brutal-input text-xs font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-mono text-[var(--text-secondary)] block mb-1">Satuan Waktu</label>
-                        <select
-                          value={newDebtCustomUnit}
-                          onChange={(e) => setNewDebtCustomUnit(e.target.value as CustomIntervalUnit)}
-                          className="brutal-select text-xs"
-                        >
-                          <option value="days">Hari</option>
-                          <option value="weeks">Minggu</option>
-                          <option value="months">Bulan</option>
-                          <option value="years">Tahun</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Tanggal Target Pelunasan Akhir (Opsional) */}
-              <div>
-                <label className="brutal-label">Target Pelunasan Akhir (Opsional)</label>
-                <input 
-                  type="date"
-                  value={newDebtDueDate}
-                  onChange={(e) => setNewDebtDueDate(e.target.value)}
-                  className="brutal-input text-xs"
-                />
-              </div>
-
-              {/* Catatan */}
-              <div>
-                <label className="brutal-label">Catatan (Opsional)</label>
-                <input 
-                  type="text"
-                  value={newDebtNote}
-                  onChange={(e) => setNewDebtNote(e.target.value)}
-                  placeholder="Misal: Jatuh tempo tanggal 25 tiap bulan, bunga 0%"
-                  className="brutal-input text-xs"
-                />
-              </div>
-
-              {/* Pilihan Warna */}
-              <div>
-                <label className="brutal-label">Warna Identitas Utang</label>
-                <div className="flex gap-2 pt-1">
-                  {[
-                    { color: '#ff7a4d', label: 'Terracotta' },
-                    { color: '#ffc933', label: 'Sand' },
-                    { color: '#6c97ff', label: 'Blue' },
-                    { color: '#2dd4a7', label: 'Sage' },
-                    { color: '#e3a8f7', label: 'Lavender' }
-                  ].map(c => (
-                    <button
-                      key={c.color}
-                      type="button"
-                      onClick={() => setNewDebtColor(c.color)}
-                      className={`w-7 h-7 rounded-[var(--radius-sm)] border-2 transition-transform ${
-                        newDebtColor === c.color 
-                          ? 'border-white scale-110 shadow-[2px_2px_0px_#000]' 
-                          : 'border-[var(--border-subtle)]'
-                      }`}
-                      style={{ backgroundColor: c.color }}
-                      title={c.label}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
-                <button 
-                  type="button" 
-                  onClick={() => setIsAddDebtOpen(false)}
-                  className="brutal-btn brutal-btn-ghost text-xs"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className="brutal-btn brutal-btn-terracotta text-xs flex items-center gap-1.5"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Simpan Catatan Utang</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <AddDebtModal
+          ledgerName={currentLedger.name}
+          name={newDebtName} onName={setNewDebtName}
+          lender={newDebtLender} onLender={setNewDebtLender}
+          total={newDebtTotal} onTotal={handleDebtTotalCalcChange} calcNotice={debtCalcNotice}
+          remaining={newDebtRemaining} onRemaining={setNewDebtRemaining}
+          nextDate={newDebtNextDate} onNextDate={setNewDebtNextDate}
+          cycle={newDebtCycle} onCycle={setNewDebtCycle}
+          customCount={newDebtCustomCount} onCustomCount={setNewDebtCustomCount}
+          customUnit={newDebtCustomUnit} onCustomUnit={setNewDebtCustomUnit}
+          dueDate={newDebtDueDate} onDueDate={setNewDebtDueDate}
+          note={newDebtNote} onNote={setNewDebtNote}
+          color={newDebtColor} onColor={setNewDebtColor}
+          onSubmit={handleCreateDebt}
+          onClose={() => setIsAddDebtOpen(false)}
+        />
       )}
 
       {/* =================================================================== */}
@@ -4551,1556 +2922,181 @@ export default function App() {
       {/* MODAL 15: EDIT UTANG                                                */}
       {/* =================================================================== */}
       {editingDebt && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-md w-full space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
-                <Pencil className="w-5 h-5 text-[var(--accent-terracotta)]" />
-                Edit Utang: {editingDebt.name}
-              </h3>
-              <button 
-                type="button" 
-                onClick={() => setEditingDebt(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEditedDebt} className="space-y-3">
-              <div>
-                <label className="brutal-label">Nama Utang</label>
-                <input 
-                  type="text"
-                  value={editDebtName}
-                  onChange={(e) => setEditDebtName(e.target.value)}
-                  className="brutal-input text-sm"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="brutal-label">Pemberi Pinjaman (Lender)</label>
-                <input 
-                  type="text"
-                  value={editDebtLender}
-                  onChange={(e) => setEditDebtLender(e.target.value)}
-                  className="brutal-input text-sm"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="brutal-label">Total Utang Awal</label>
-                  <input 
-                    type="text"
-                    value={editDebtTotal}
-                    onChange={(e) => setEditDebtTotal(e.target.value)}
-                    className="brutal-input text-sm font-mono"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="brutal-label">Sisa Pokok Utang</label>
-                  <input 
-                    type="text"
-                    value={editDebtRemaining}
-                    onChange={(e) => setEditDebtRemaining(e.target.value)}
-                    className="brutal-input text-sm font-mono"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Tanggal Jatuh Tempo Terdekat / Berikutnya */}
-              <div>
-                <label className="brutal-label">Tanggal Jatuh Tempo Terdekat / Berikutnya</label>
-                <input 
-                  type="date"
-                  value={editDebtNextDate}
-                  onChange={(e) => setEditDebtNextDate(e.target.value)}
-                  className="brutal-input text-xs"
-                  required
-                />
-              </div>
-
-              {/* Siklus Pembayaran Cicilan */}
-              <div>
-                <label className="brutal-label">Siklus Pembayaran Cicilan</label>
-                <div className="grid grid-cols-5 gap-1.5 pt-1">
-                  {[
-                    { id: 'daily', label: 'Harian' },
-                    { id: 'weekly', label: 'Mingguan' },
-                    { id: 'monthly', label: 'Bulanan' },
-                    { id: 'yearly', label: 'Tahunan' },
-                    { id: 'custom', label: 'Kustom' },
-                  ].map(c => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setEditDebtCycle(c.id as any)}
-                      className={`py-1.5 px-1 text-center font-mono text-xs rounded border-2 transition-all ${
-                        editDebtCycle === c.id
-                          ? 'border-[var(--accent-terracotta)] bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)] font-bold shadow-[2px_2px_0px_#000]'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                      }`}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Input Khusus Interval Kustom */}
-                {editDebtCycle === 'custom' && (
-                  <div className="mt-3 p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] space-y-2">
-                    <p className="text-xs font-mono text-[var(--accent-terracotta-light)] font-bold">
-                      Pengaturan Interval Kustom
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] font-mono text-[var(--text-secondary)] block mb-1">Setiap Berapa</label>
-                        <input 
-                          type="number"
-                          min="1"
-                          max="365"
-                          value={editDebtCustomCount}
-                          onChange={(e) => setEditDebtCustomCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                          className="brutal-input text-xs font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-mono text-[var(--text-secondary)] block mb-1">Satuan Waktu</label>
-                        <select
-                          value={editDebtCustomUnit}
-                          onChange={(e) => setEditDebtCustomUnit(e.target.value as CustomIntervalUnit)}
-                          className="brutal-select text-xs"
-                        >
-                          <option value="days">Hari</option>
-                          <option value="weeks">Minggu</option>
-                          <option value="months">Bulan</option>
-                          <option value="years">Tahun</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="brutal-label">Tanggal Target Pelunasan Akhir (Opsional)</label>
-                <input 
-                  type="date"
-                  value={editDebtDueDate}
-                  onChange={(e) => setEditDebtDueDate(e.target.value)}
-                  className="brutal-input text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="brutal-label">Catatan</label>
-                <input 
-                  type="text"
-                  value={editDebtNote}
-                  onChange={(e) => setEditDebtNote(e.target.value)}
-                  className="brutal-input text-xs"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
-                <button 
-                  type="button" 
-                  onClick={() => setEditingDebt(null)}
-                  className="brutal-btn brutal-btn-ghost text-xs"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className="brutal-btn brutal-btn-terracotta text-xs font-bold"
-                >
-                  Simpan Perubahan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <EditDebtModal
+          debtName={editingDebt.name}
+          name={editDebtName} onName={setEditDebtName}
+          lender={editDebtLender} onLender={setEditDebtLender}
+          total={editDebtTotal} onTotal={setEditDebtTotal}
+          remaining={editDebtRemaining} onRemaining={setEditDebtRemaining}
+          nextDate={editDebtNextDate} onNextDate={setEditDebtNextDate}
+          cycle={editDebtCycle} onCycle={setEditDebtCycle}
+          customCount={editDebtCustomCount} onCustomCount={setEditDebtCustomCount}
+          customUnit={editDebtCustomUnit} onCustomUnit={setEditDebtCustomUnit}
+          dueDate={editDebtDueDate} onDueDate={setEditDebtDueDate}
+          note={editDebtNote} onNote={setEditDebtNote}
+          color={editDebtColor} onColor={setEditDebtColor}
+          onSubmit={handleSaveEditedDebt}
+          onClose={() => setEditingDebt(null)}
+        />
       )}
 
       {/* =================================================================== */}
       {/* MODAL 16: KONFIRMASI HAPUS UTANG                                    */}
       {/* =================================================================== */}
       {debtToDelete && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-2.5">
-              <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-heading font-bold text-lg text-white">Hapus Data Utang?</h3>
-                <p className="text-sm text-[var(--text-secondary)]">
-                  Apakah Anda yakin ingin menghapus data utang <strong className="text-white">"{debtToDelete.name}"</strong> dengan sisa utang saat ini <strong className="font-mono text-white">{formatRupiah(debtToDelete.remainingDebt)}</strong>?
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] font-mono">
-              ℹ️ Dokumen utang ini akan dihapus. Riwayat transaksi cicilan yang telah dicatat sebelumnya tetap tersimpan di riwayat kas Anda.
-            </div>
-
-            <div className="flex justify-end gap-2.5 pt-2">
-              <button 
-                type="button" 
-                onClick={() => setDebtToDelete(null)}
-                className="brutal-btn brutal-btn-ghost text-xs"
-              >
-                Batal
-              </button>
-              <button 
-                type="button" 
-                onClick={confirmExecuteDeleteDebt}
-                className="brutal-btn brutal-btn-terracotta text-xs flex items-center gap-1.5"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Ya, Hapus Utang</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteModal
+          title="Hapus Data Utang?"
+          kind="Utang"
+          name={debtToDelete.name}
+          detailLabel="Sisa utang"
+          detail={formatRupiah(debtToDelete.remainingDebt)}
+          notes={[{ text: 'Dokumen utang ini akan dihapus. Riwayat transaksi cicilan yang telah dicatat tetap tersimpan di riwayat kas Anda.' }]}
+          confirmLabel="Ya, hapus utang"
+          onClose={() => setDebtToDelete(null)}
+          onConfirm={confirmExecuteDeleteDebt}
+        />
       )}
 
       {/* =================================================================== */}
       {/* MODAL 17: DETAIL & RIWAYAT TAGIHAN (PROGRESSIVE DISCLOSURE)        */}
       {/* =================================================================== */}
-      {selectedBillForDetail && (() => {
-        const bill = bills.find(b => b.id === selectedBillForDetail.id) || selectedBillForDetail;
-        const dueStatus = getBillDueStatus(bill.nextPaymentDate);
-        const sourceAcc = accounts.find(a => a.id === bill.sourceAccountId);
-        const billTransactions = transactions.filter(t => t.billId === bill.id);
-
-        return (
-          <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
-            <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2">
-              
-              {/* Header Modal */}
-              <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-3 gap-2.5">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="brutal-badge text-[10px] font-mono font-bold bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
-                      {getCycleLabel(bill.cycle, bill.customIntervalCount, bill.customIntervalUnit).toUpperCase()}
-                    </span>
-                    <span className={`brutal-badge text-[10px] font-mono font-bold ${
-                      bill.pricingType === 'fixed' 
-                        ? 'bg-[var(--accent-blue-dark)] text-[var(--accent-blue-light)] border border-[var(--accent-blue)]' 
-                        : 'bg-[var(--accent-sand-dark)] text-[var(--accent-sand-light)] border border-[var(--accent-sand)]'
-                    }`}>
-                      {bill.pricingType === 'fixed' ? 'NOMINAL TETAP' : 'NOMINAL BERVARIASI'}
-                    </span>
-                    {bill.category && (
-                      <span className="text-[10px] font-mono text-[var(--text-muted)] bg-[var(--bg-muted)] px-1.5 py-0.5 rounded border border-[var(--border-subtle)]">
-                        {bill.category}
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="font-heading font-bold text-xl text-white tracking-tight">
-                    {bill.name}
-                  </h3>
-                </div>
-
-                <button 
-                  type="button" 
-                  onClick={() => setSelectedBillForDetail(null)}
-                  className="p-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
-                  title="Tutup Modal"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Banner Overview / Metadata Ringkas */}
-              <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] space-y-3 shadow-[var(--shadow-sm)]">
-                <div className="flex items-baseline justify-between">
-                  <div>
-                    <p className="text-[10px] font-heading uppercase text-[var(--text-secondary)]">Nominal Tagihan</p>
-                    {bill.pricingType === 'fixed' ? (
-                      <p className="text-xl font-mono font-bold text-[var(--accent-blue-light)] tracking-tight">
-                        {formatRupiah(bill.fixedAmount || 0)}
-                      </p>
-                    ) : (
-                      <div className="space-y-0.5">
-                        <p className="text-xl font-mono font-bold text-[var(--accent-sand)]">
-                          {bill.lastNominal ? `Estimasi: ${formatRupiah(bill.lastNominal)}` : 'Estimasi: Rp 0'}
-                        </p>
-                        <p className="text-[10px] font-mono text-[var(--text-muted)]">
-                          {bill.lastNominal ? '(Berdasarkan pembayaran terakhir)' : '(Menunggu pembayaran aktual pertama)'}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-heading uppercase text-[var(--text-secondary)]">Total Dibayarkan Sejauh Ini</p>
-                    <p className="text-sm font-mono font-bold text-white">
-                      {formatRupiah(bill.totalPaid || 0)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Metadata Tambahan */}
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-subtle)] text-xs font-mono">
-                  <div>
-                    <span className="text-[var(--text-muted)] block text-[10px] uppercase">Jatuh Tempo Berikutnya</span>
-                    <span className="font-bold text-white flex items-center gap-1 mt-0.5">
-                      <Calendar className="w-3.5 h-3.5 text-[var(--accent-sand)]" />
-                      {bill.nextPaymentDate}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-[var(--text-muted)] block text-[10px] uppercase">Status Pembayaran</span>
-                    <span className="inline-block mt-0.5 font-bold">
-                      {dueStatus.isOverdue ? (
-                        <span className="text-[var(--accent-terracotta-light)]">⚠️ Terlambat {Math.abs(dueStatus.daysLeft)} Hari</span>
-                      ) : dueStatus.isToday ? (
-                        <span className="text-[var(--accent-terracotta-light)]">⚡ Hari Ini!</span>
-                      ) : (
-                        <span className="text-[var(--accent-sage-light)]">✓ Sisa {dueStatus.daysLeft} Hari</span>
-                      )}
-                    </span>
-                  </div>
-
-                  {sourceAcc && (
-                    <div className="col-span-2 pt-1">
-                      <span className="text-[var(--text-muted)] block text-[10px] uppercase">Akun Kas Sumber Terkait</span>
-                      <span className="text-[var(--accent-blue-light)] font-bold">{sourceAcc.name} (Saldo: {formatRupiah(sourceAcc.balance)})</span>
-                    </div>
-                  )}
-
-                  {bill.note && (
-                    <div className="col-span-2 pt-1 text-[var(--text-secondary)] font-sans text-xs">
-                      <span className="text-[var(--text-muted)] block text-[10px] font-mono uppercase">Catatan</span>
-                      <p className="mt-0.5">{bill.note}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* List Riwayat Pembayaran Tagihan */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <History className="w-4 h-4 text-[var(--accent-blue)]" />
-                    <h4 className="font-heading font-bold text-sm text-white">
-                      Riwayat Pembayaran Tagihan
-                    </h4>
-                  </div>
-                  <span className="px-2 py-0.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[10px] font-mono rounded text-[var(--text-secondary)]">
-                    {billTransactions.length} Pembayaran
-                  </span>
-                </div>
-
-                <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                  {billTransactions.length === 0 ? (
-                    <div className="p-4 bg-[var(--bg-elevated)] border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-center space-y-2">
-                      <Receipt className="w-6 h-6 text-[var(--accent-blue)] mx-auto opacity-70" />
-                      <p className="font-heading text-xs font-bold text-white">
-                        Belum ada riwayat pembayaran untuk tagihan ini
-                      </p>
-                      <p className="text-[11px] font-mono text-[var(--text-muted)]">
-                        Klik tombol "+ Bayar Sekarang" di bawah untuk mencatat pembayaran periode ini.
-                      </p>
-                    </div>
-                  ) : (
-                    billTransactions.map(tx => {
-                      const acc = accounts.find(a => a.id === tx.accountId);
-                      return (
-                        <div
-                          key={tx.id}
-                          className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] flex items-center justify-between gap-2.5 group"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-[var(--accent-blue-dark)] border border-[var(--accent-blue)] text-[var(--accent-blue-light)] flex items-center justify-center shrink-0">
-                              <CreditCard className="w-4 h-4" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-mono text-[11px] font-bold text-white">
-                                  {tx.date}
-                                </span>
-                                {acc && (
-                                  <span className="text-[10px] font-mono text-[var(--accent-sage-light)] bg-[var(--bg-muted)] px-1.5 py-0.2 rounded border border-[var(--border-subtle)]">
-                                    {acc.name}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs text-[var(--text-secondary)] line-clamp-1">
-                                {tx.note || tx.category || 'Pembayaran Tagihan'}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                            <span className="font-mono font-bold text-sm text-[var(--accent-blue-light)]">
-                              -{formatRupiah(tx.amount)}
-                            </span>
-
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => openEditTransactionModal(tx)}
-                                className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-colors"
-                                title="Edit Transaksi Ini"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setTxToDelete(tx)}
-                                className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent-terracotta)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-colors"
-                                title="Hapus Transaksi Ini"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              {/* Footer Tombol Aksi Modal */}
-              <div className="flex items-center justify-between gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const targetBill = bill;
-                    setSelectedBillForDetail(null);
-                    openPayBillModal(targetBill);
-                  }}
-                  className="brutal-btn brutal-btn-blue text-xs py-2 px-3 flex items-center gap-1.5 font-bold"
-                >
-                  <CreditCard className="w-3.5 h-3.5" />
-                  <span>+ Bayar Sekarang</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedBillForDetail(null)}
-                  className="brutal-btn brutal-btn-ghost text-xs py-2 px-3"
-                >
-                  Tutup
-                </button>
-              </div>
-
-            </div>
-          </div>
-        );
-      })()}
+      {selectedBillForDetail && (
+        <BillDetailModal
+          bill={bills.find(b => b.id === selectedBillForDetail.id) || selectedBillForDetail}
+          accounts={accounts}
+          transactions={transactions}
+          onClose={() => setSelectedBillForDetail(null)}
+          onEditTx={openEditTransactionModal}
+          onDeleteTx={setTxToDelete}
+          onPay={(b) => { setSelectedBillForDetail(null); openPayBillModal(b); }}
+        />
+      )}
 
       {/* =================================================================== */}
       {/* MODAL 18: DETAIL & RIWAYAT UTANG / CICILAN                         */}
       {/* =================================================================== */}
-      {selectedDebtForDetail && (() => {
-        const debt = debts.find(d => d.id === selectedDebtForDetail.id) || selectedDebtForDetail;
-        const progress = debt.totalDebt > 0 ? Math.min(100, Math.round(((debt.totalDebt - debt.remainingDebt) / debt.totalDebt) * 100)) : 100;
-        const paidAmount = Math.max(0, debt.totalDebt - debt.remainingDebt);
-        const debtTransactions = transactions.filter(t => t.debtId === debt.id);
-        const dueStatus = getBillDueStatus(debt.nextPaymentDate);
-
-        return (
-          <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
-            <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2">
-              
-              {/* Header Modal */}
-              <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-3 gap-2.5">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {debt.isPaidOff ? (
-                      <span className="brutal-badge brutal-badge-sage text-[10px] font-mono font-bold flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> LUNAS SEPENUHNYA
-                      </span>
-                    ) : (
-                      <span className="brutal-badge brutal-badge-terracotta text-[10px] font-mono font-bold">
-                        CICILAN BERJALAN
-                      </span>
-                    )}
-                    <span className="brutal-badge text-[10px] font-mono font-bold bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border-subtle)]">
-                      SIKLUS: {getCycleLabel(debt.cycle, debt.customIntervalCount, debt.customIntervalUnit).toUpperCase()}
-                    </span>
-                    {debt.lender && (
-                      <span className="text-[10px] font-mono text-[var(--accent-sand-light)] bg-[var(--bg-muted)] px-2 py-0.5 rounded border border-[var(--border-subtle)]">
-                        Lender: {debt.lender}
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="font-heading font-bold text-xl text-white tracking-tight">
-                    {debt.name}
-                  </h3>
-                </div>
-
-                <button 
-                  type="button" 
-                  onClick={() => setSelectedDebtForDetail(null)}
-                  className="p-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
-                  title="Tutup Modal"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Banner Overview / Metrik Utang */}
-              <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] space-y-3 shadow-[var(--shadow-sm)]">
-                <div className="flex items-baseline justify-between">
-                  <div>
-                    <p className="text-[10px] font-heading uppercase text-[var(--text-secondary)]">Sisa Pokok Utang</p>
-                    <p className="text-xl font-mono font-bold text-[var(--accent-terracotta-light)] tracking-tight">
-                      {formatRupiah(debt.remainingDebt)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-heading uppercase text-[var(--text-secondary)]">Total Pinjaman Awal</p>
-                    <p className="text-sm font-mono font-bold text-white">
-                      {formatRupiah(debt.totalDebt)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Progress Bar Pelunasan */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs font-mono">
-                    <span className="text-[var(--text-secondary)]">Telah Dilunasi</span>
-                    <span className="font-bold text-[var(--accent-sand)]">{progress}% ({formatRupiah(paidAmount)})</span>
-                  </div>
-                  <div className="brutal-progress-container h-3">
-                    <div 
-                      className="brutal-progress-bar"
-                      style={{
-                        width: `${progress}%`,
-                        backgroundColor: debt.isPaidOff 
-                          ? 'var(--accent-sage)' 
-                          : (debt.colorAccent || 'var(--accent-terracotta)')
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Metadata Tambahan */}
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-subtle)] text-xs font-mono">
-                  {debt.nextPaymentDate && (
-                    <div>
-                      <span className="text-[var(--text-muted)] block text-[10px] uppercase">Jatuh Tempo Terdekat</span>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="font-bold text-white flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5 text-[var(--accent-terracotta-light)]" />
-                          {debt.nextPaymentDate}
-                        </span>
-                        {!debt.isPaidOff && (
-                          <span className="inline-block font-bold">
-                            {dueStatus.isOverdue ? (
-                              <span className="text-[var(--accent-terracotta-light)]">⚠️ H-{Math.abs(dueStatus.daysLeft)}</span>
-                            ) : dueStatus.isToday ? (
-                              <span className="text-[var(--accent-terracotta-light)]">⚡ Hari Ini!</span>
-                            ) : (
-                              <span className="text-[var(--accent-sage-light)]">✓ {dueStatus.daysLeft} Hari</span>
-                            )}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <span className="text-[var(--text-muted)] block text-[10px] uppercase">Siklus Cicilan</span>
-                    <span className="font-bold text-[var(--accent-sand)]">{getCycleLabel(debt.cycle, debt.customIntervalCount, debt.customIntervalUnit)}</span>
-                  </div>
-
-                  <div>
-                    <span className="text-[var(--text-muted)] block text-[10px] uppercase">Pihak Pemberi Pinjaman</span>
-                    <span className="font-bold text-white">{debt.lender || 'Tidak disebutkan'}</span>
-                  </div>
-
-                  <div>
-                    <span className="text-[var(--text-muted)] block text-[10px] uppercase">Target Pelunasan Akhir</span>
-                    <span className="font-bold text-white">{debt.dueDate || 'Tanpa batas waktu'}</span>
-                  </div>
-
-                  {debt.note && (
-                    <div className="col-span-2 pt-1 text-[var(--text-secondary)] font-sans text-xs">
-                      <span className="text-[var(--text-muted)] block text-[10px] font-mono uppercase">Catatan Pinjaman</span>
-                      <p className="mt-0.5">{debt.note}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* List Riwayat Pembayaran Cicilan */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <History className="w-4 h-4 text-[var(--accent-terracotta)]" />
-                    <h4 className="font-heading font-bold text-sm text-white">
-                      Riwayat Pembayaran Cicilan
-                    </h4>
-                  </div>
-                  <span className="px-2 py-0.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[10px] font-mono rounded text-[var(--text-secondary)]">
-                    {debtTransactions.length} Transaksi
-                  </span>
-                </div>
-
-                <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                  {debtTransactions.length === 0 ? (
-                    <div className="p-4 bg-[var(--bg-elevated)] border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-center space-y-2">
-                      <Banknote className="w-6 h-6 text-[var(--accent-terracotta)] mx-auto opacity-70" />
-                      <p className="font-heading text-xs font-bold text-white">
-                        Belum ada riwayat pembayaran cicilan untuk utang ini
-                      </p>
-                      <p className="text-[11px] font-mono text-[var(--text-muted)]">
-                        Klik tombol "+ Bayar Cicilan" di bawah untuk mencatat pembayaran pokok utang.
-                      </p>
-                    </div>
-                  ) : (
-                    debtTransactions.map(tx => {
-                      const acc = accounts.find(a => a.id === tx.accountId);
-                      return (
-                        <div
-                          key={tx.id}
-                          className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] flex items-center justify-between gap-2.5 group"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
-                              <Banknote className="w-4 h-4" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-mono text-[11px] font-bold text-white">
-                                  {tx.date}
-                                </span>
-                                {acc && (
-                                  <span className="text-[10px] font-mono text-[var(--accent-sage-light)] bg-[var(--bg-muted)] px-1.5 py-0.2 rounded border border-[var(--border-subtle)]">
-                                    {acc.name}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs text-[var(--text-secondary)] line-clamp-1">
-                                {tx.note || 'Pembayaran Cicilan Utang'}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                            <span className="font-mono font-bold text-sm text-[var(--accent-terracotta-light)]">
-                              -{formatRupiah(tx.amount)}
-                            </span>
-
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => openEditTransactionModal(tx)}
-                                className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-colors"
-                                title="Edit Cicilan Ini"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setTxToDelete(tx)}
-                                className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent-terracotta)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-colors"
-                                title="Hapus Cicilan Ini"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              {/* Footer Tombol Aksi Modal */}
-              <div className="flex items-center justify-between gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const targetDebt = debt;
-                    setSelectedDebtForDetail(null);
-                    openPayDebtModal(targetDebt);
-                  }}
-                  disabled={debt.isPaidOff}
-                  className={`brutal-btn text-xs py-2 px-3 flex items-center gap-1.5 font-bold ${
-                    debt.isPaidOff 
-                      ? 'opacity-60 bg-[var(--bg-elevated)] border-[var(--border-subtle)] cursor-not-allowed text-[var(--text-secondary)]'
-                      : 'brutal-btn-terracotta'
-                  }`}
-                >
-                  <Banknote className="w-3.5 h-3.5" />
-                  <span>{debt.isPaidOff ? 'Utang Telah Lunas 🎉' : '+ Bayar Cicilan'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedDebtForDetail(null)}
-                  className="brutal-btn brutal-btn-ghost text-xs py-2 px-3"
-                >
-                  Tutup
-                </button>
-              </div>
-
-            </div>
-          </div>
-        );
-      })()}
+      {selectedDebtForDetail && (
+        <DebtDetailModal
+          debt={debts.find(d => d.id === selectedDebtForDetail.id) || selectedDebtForDetail}
+          accounts={accounts}
+          transactions={transactions}
+          onClose={() => setSelectedDebtForDetail(null)}
+          onEditTx={openEditTransactionModal}
+          onDeleteTx={setTxToDelete}
+          onPay={(d) => { setSelectedDebtForDetail(null); openPayDebtModal(d); }}
+        />
+      )}
 
       {/* =================================================================== */}
       {/* MODAL 19: BUAT ATURAN OTOMATISASI BARU (NEW AUTOMATION RULE)        */}
       {/* =================================================================== */}
       {isAddAutomationOpen && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <div>
-                <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-[var(--accent-sand)]" />
-                  Buat Aturan Otomatisasi Baru
-                </h3>
-                <p className="text-[10px] font-mono text-[var(--accent-sand-light)]">Buku Kas: {currentLedger.name}</p>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setIsAddAutomationOpen(false)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={apKind ? handleCreateAutopilot : handleCreateAutomation} className="space-y-3">
-              {/* Tipe Transaksi Otomatis */}
-              <div>
-                <label className="brutal-label">Tipe Transaksi Otomatis</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'income', label: 'Pemasukan', icon: TrendingUp, color: 'var(--accent-sage)', desc: 'Auto-Income (Gaji, Dividen)' },
-                    { id: 'expense', label: 'Pengeluaran', icon: TrendingDown, color: 'var(--accent-terracotta)', desc: 'Auto-Expense (Biaya Admin)' },
-                    { id: 'transfer', label: 'Transfer', icon: ArrowRightLeft, color: 'var(--accent-blue)', desc: 'Auto-Transfer (Nabung)' },
-                    { id: 'ap_goal_topup', label: 'Top-up Tabungan', icon: ApPiggy, color: 'var(--accent-sand)', desc: 'Setor ke Sinking Fund' },
-                    { id: 'ap_pay_bill', label: 'Bayar Tagihan', icon: ApReceipt, color: 'var(--accent-lavender)', desc: 'Lunasi saat jatuh tempo' },
-                    { id: 'ap_pay_debt', label: 'Cicil Utang', icon: ApLandmark, color: 'var(--accent-terracotta)', desc: 'Cicilan otomatis' }
-                  ].map(t => {
-                    const IconComp = t.icon;
-                    const isAp = t.id.startsWith('ap_');
-                    const isSelected = isAp ? apKind === t.id.slice(3) : (!apKind && newAutoType === t.id);
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => {
-                          if (isAp) { setApKind(t.id.slice(3) as AutopilotKind); setApDraft(emptyApDraft()); return; }
-                          setApKind(null);
-                          setNewAutoType(t.id as AutomationType);
-                          if (t.id === 'income') {
-                            setNewAutoCategory('Gaji & Pendapatan');
-                            setNewAutoColor('#2dd4a7');
-                          } else if (t.id === 'expense') {
-                            setNewAutoCategory('Biaya Layanan & Admin');
-                            setNewAutoColor('#ff7a4d');
-                          } else {
-                            setNewAutoCategory('Transfer Tabungan');
-                            setNewAutoColor('#6c97ff');
-                          }
-                        }}
-                        className={`p-2.5 rounded-[var(--radius-sm)] border-2 text-left transition-all ${
-                          isSelected
-                            ? 'bg-[var(--bg-elevated)] border-white text-white shadow-[2px_2px_0px_#000]'
-                            : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5 font-heading font-bold text-xs" style={{ color: t.color }}>
-                          <IconComp className="w-3.5 h-3.5" />
-                          <span>{t.label}</span>
-                        </div>
-                        <p className="text-[9px] text-[var(--text-muted)] mt-1 font-mono leading-tight">{t.desc}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {apKind ? (
-                <AutopilotFields kind={apKind} draft={apDraft} onChange={setApDraft} accounts={accounts} goals={goals} bills={bills} debts={debts} />
-              ) : (<>
-              {/* Nama Aturan */}
-              <div>
-                <label className="brutal-label">Nama Aturan Otomatis</label>
-                <input 
-                  type="text"
-                  value={newAutoName}
-                  onChange={(e) => setNewAutoName(e.target.value)}
-                  placeholder={
-                    newAutoType === 'income' 
-                      ? "Misal: Gaji Bulanan Kantor, Passive Income Sewa" 
-                      : newAutoType === 'expense' 
-                      ? "Misal: Potongan Admin Bank, Iuran Kebersihan" 
-                      : "Misal: Sisihkan Gaji ke Jago, Alokasi Dana Dingin"
-                  }
-                  className="brutal-input text-sm"
-                  required
-                />
-              </div>
-
-              {/* Kategori & Nominal */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="brutal-label">Kategori</label>
-                  <input 
-                    type="text"
-                    value={newAutoCategory}
-                    onChange={(e) => setNewAutoCategory(e.target.value)}
-                    placeholder="Misal: Gaji, Operasional, Tabungan"
-                    className="brutal-input text-xs"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="brutal-label mb-0">Nominal Transaksi</label>
-                    <span className="text-[10px] font-mono text-[var(--accent-sand)]">Kalkulator</span>
-                  </div>
-                  <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden">
-                    <span className="px-2.5 py-1.5 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-xs text-white flex items-center select-none shrink-0">
-                      Rp
-                    </span>
-                    <input 
-                      type="text"
-                      value={newAutoAmount}
-                      onChange={(e) => handleAutoAmountCalcChange(e.target.value)}
-                      placeholder="1000000"
-                      className="w-full bg-transparent px-2.5 py-1.5 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {autoCalcNotice && (
-                <p className="text-xs font-mono text-[var(--accent-sand-light)]">{autoCalcNotice}</p>
-              )}
-
-              {/* Akun Sumber & Akun Tujuan (Khusus Transfer) */}
-              <div className={`grid ${newAutoType === 'transfer' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-2.5`}>
-                <div>
-                  <label className="brutal-label">
-                    {newAutoType === 'income' ? 'Rekening / Kas Penerima' : newAutoType === 'expense' ? 'Rekening / Kas Pemotong' : 'Rekening Asal (Sumber)'}
-                  </label>
-                  <select
-                    value={newAutoSourceAccount}
-                    onChange={(e) => setNewAutoSourceAccount(e.target.value)}
-                    className="brutal-select text-xs"
-                    required
-                  >
-                    <option value="">Pilih akun kas...</option>
-                    {accounts.map(acc => (
-                      <option key={acc.id} value={acc.id}>
-                        {acc.name} — Saldo: {formatRupiah(acc.balance)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {newAutoType === 'transfer' && (
-                  <div>
-                    <label className="brutal-label">Rekening Tujuan (Penerima)</label>
-                    <select
-                      value={newAutoToAccount}
-                      onChange={(e) => setNewAutoToAccount(e.target.value)}
-                      className="brutal-select text-xs"
-                      required
-                    >
-                      <option value="">Pilih akun tujuan...</option>
-                      {accounts.map(acc => (
-                        <option key={acc.id} value={acc.id} disabled={acc.id === newAutoSourceAccount}>
-                          {acc.name} — Saldo: {formatRupiah(acc.balance)} {acc.id === newAutoSourceAccount ? '(Akun Sumber)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              {/* Siklus Eksekusi */}
-              <div>
-                <label className="brutal-label">Siklus Eksekusi Rutin</label>
-                <div className="grid grid-cols-5 gap-1.5 pt-1">
-                  {[
-                    { id: 'daily', label: 'Harian' },
-                    { id: 'weekly', label: 'Mingguan' },
-                    { id: 'monthly', label: 'Bulanan' },
-                    { id: 'yearly', label: 'Tahunan' },
-                    { id: 'custom', label: 'Kustom' },
-                  ].map(c => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setNewAutoCycle(c.id as any)}
-                      className={`py-1.5 px-1 text-center font-mono text-xs rounded border-2 transition-all ${
-                        newAutoCycle === c.id
-                          ? 'border-[var(--accent-sand)] bg-[var(--accent-sand-dark)] text-white font-bold shadow-[2px_2px_0px_#000]'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                      }`}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Pengaturan Tambahan Siklus Bulanan */}
-                {newAutoCycle === 'monthly' && (
-                  <div className="mt-3 p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] flex items-center justify-between gap-2.5">
-                    <div>
-                      <p className="text-xs font-mono font-bold text-white">Eksekusi Tanggal Berapa?</p>
-                      <p className="text-[10px] text-[var(--text-muted)] font-mono">Dijalankan otomatis tiap bulan pada tanggal ini</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-xs font-mono text-[var(--text-secondary)]">Tgl</span>
-                      <input 
-                        type="number"
-                        min="1"
-                        max="31"
-                        value={newAutoMonthlyDay}
-                        onChange={(e) => {
-                          const val = Math.min(31, Math.max(1, parseInt(e.target.value, 10) || 1));
-                          setNewAutoMonthlyDay(val);
-                          // Auto update next date
-                          const d = new Date();
-                          const currentDay = d.getDate();
-                          if (currentDay > val) {
-                            d.setMonth(d.getMonth() + 1);
-                          }
-                          d.setDate(val);
-                          setNewAutoNextDate(d.toISOString().split('T')[0]);
-                        }}
-                        className="w-16 brutal-input text-xs font-mono font-bold text-center"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Pengaturan Tambahan Siklus Kustom */}
-                {newAutoCycle === 'custom' && (
-                  <div className="mt-3 p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] space-y-2">
-                    <p className="text-xs font-mono text-[var(--accent-sand-light)] font-bold">
-                      Pengaturan Interval Kustom
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] font-mono text-[var(--text-secondary)] block mb-1">Setiap Berapa</label>
-                        <input 
-                          type="number"
-                          min="1"
-                          max="365"
-                          value={newAutoCustomCount}
-                          onChange={(e) => setNewAutoCustomCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                          className="brutal-input text-xs font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-mono text-[var(--text-secondary)] block mb-1">Satuan Waktu</label>
-                        <select
-                          value={newAutoCustomUnit}
-                          onChange={(e) => setNewAutoCustomUnit(e.target.value as CustomIntervalUnit)}
-                          className="brutal-select text-xs"
-                        >
-                          <option value="days">Hari</option>
-                          <option value="weeks">Minggu</option>
-                          <option value="months">Bulan</option>
-                          <option value="years">Tahun</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Tanggal Eksekusi Berikutnya */}
-              <div>
-                <label className="brutal-label">Tanggal Eksekusi Pertama / Berikutnya</label>
-                <input 
-                  type="date"
-                  value={newAutoNextDate}
-                  onChange={(e) => setNewAutoNextDate(e.target.value)}
-                  className="brutal-input text-xs"
-                  required
-                />
-                <p className="text-[10px] font-mono text-[var(--text-muted)] mt-1">
-                  Saat aplikasi dibuka pada atau setelah tanggal ini, sistem akan otomatis mengeksekusi transaksi.
-                </p>
-              </div>
-
-              {/* Catatan (Opsional) */}
-              <div>
-                <label className="brutal-label">Catatan Tambahan (Opsional)</label>
-                <input 
-                  type="text"
-                  value={newAutoNote}
-                  onChange={(e) => setNewAutoNote(e.target.value)}
-                  placeholder="Misal: Catatan transaksi otomatis"
-                  className="brutal-input text-xs"
-                />
-              </div>
-
-              <div className="p-3 bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] font-mono space-y-1">
-                <p className="text-[var(--accent-sand-light)] font-bold">ℹ️ Mekanisme Otomatisasi Terintegrasi:</p>
-                <p>Ketika tanggal jatuh tempo tiba dan aplikasi dibuka, sistem secara atomik akan memotong/menambah saldo akun, mencatat transaksi bertanda [Otomatis], dan memajukan jadwal eksekusi ke siklus selanjutnya.</p>
-              </div>
-
-              </>)}
-
-              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
-                <button 
-                  type="button" 
-                  onClick={() => setIsAddAutomationOpen(false)}
-                  className="brutal-btn brutal-btn-ghost text-xs"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className="brutal-btn brutal-btn-sand text-xs flex items-center gap-1.5 font-bold"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Simpan Aturan Otomatis</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <AutomationFormModal
+          mode="create"
+          ledgerName={currentLedger.name}
+          accounts={accounts}
+          kind={apKind ? `ap_${apKind}` : newAutoType}
+          onKind={(id) => {
+            if (id.startsWith('ap_')) { setApKind(id.slice(3) as AutopilotKind); setApDraft(emptyApDraft()); return; }
+            setApKind(null);
+            setNewAutoType(id as AutomationType);
+            if (id === 'income') {
+              setNewAutoCategory('Gaji & Pendapatan');
+              setNewAutoColor('#2dd4a7');
+            } else if (id === 'expense') {
+              setNewAutoCategory('Biaya Layanan & Admin');
+              setNewAutoColor('#ff7a4d');
+            } else {
+              setNewAutoCategory('Transfer Tabungan');
+              setNewAutoColor('#6c97ff');
+            }
+          }}
+          autopilotFields={apKind ? (
+            <AutopilotFields kind={apKind} draft={apDraft} onChange={setApDraft} accounts={accounts} goals={goals} bills={bills} debts={debts} />
+          ) : undefined}
+          name={newAutoName} onName={setNewAutoName}
+          category={newAutoCategory} onCategory={setNewAutoCategory}
+          amount={newAutoAmount} onAmount={handleAutoAmountCalcChange} calcNotice={autoCalcNotice}
+          sourceAccount={newAutoSourceAccount} onSourceAccount={setNewAutoSourceAccount}
+          toAccount={newAutoToAccount} onToAccount={setNewAutoToAccount}
+          cycle={newAutoCycle} onCycle={setNewAutoCycle}
+          monthlyDay={newAutoMonthlyDay}
+          onMonthlyDay={(val) => {
+            setNewAutoMonthlyDay(val);
+            // Auto update next date
+            const d = new Date();
+            const currentDay = d.getDate();
+            if (currentDay > val) {
+              d.setMonth(d.getMonth() + 1);
+            }
+            d.setDate(val);
+            setNewAutoNextDate(d.toISOString().split('T')[0]);
+          }}
+          customCount={newAutoCustomCount} onCustomCount={setNewAutoCustomCount}
+          customUnit={newAutoCustomUnit} onCustomUnit={setNewAutoCustomUnit}
+          nextDate={newAutoNextDate} onNextDate={setNewAutoNextDate}
+          note={newAutoNote} onNote={setNewAutoNote}
+          onSubmit={apKind ? handleCreateAutopilot : handleCreateAutomation}
+          onClose={() => setIsAddAutomationOpen(false)}
+        />
       )}
 
       {/* =================================================================== */}
       {/* MODAL 20: EDIT ATURAN OTOMATISASI                                   */}
       {/* =================================================================== */}
       {editingAutomation && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b-2 border-[var(--border-subtle)] pb-3">
-              <div>
-                <h3 className="font-heading font-bold text-lg text-white flex items-center gap-2">
-                  <Pencil className="w-5 h-5 text-[var(--accent-sand)]" />
-                  Edit Aturan: {editingAutomation.name}
-                </h3>
-                <p className="text-[10px] font-mono text-[var(--accent-sand-light)]">Buku Kas: {currentLedger.name}</p>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setEditingAutomation(null)}
-                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEditedAutomation} className="space-y-3">
-              <div>
-                <label className="brutal-label">Nama Aturan</label>
-                <input 
-                  type="text"
-                  value={editAutoName}
-                  onChange={(e) => setEditAutoName(e.target.value)}
-                  className="brutal-input text-sm"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="brutal-label">Kategori</label>
-                  <input 
-                    type="text"
-                    value={editAutoCategory}
-                    onChange={(e) => setEditAutoCategory(e.target.value)}
-                    className="brutal-input text-xs"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="brutal-label mb-0">Nominal Transaksi</label>
-                    <span className="text-[10px] font-mono text-[var(--accent-sand)]">Kalkulator</span>
-                  </div>
-                  <div className="flex items-stretch border-[2.5px] border-[var(--border-color)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)] shadow-[var(--shadow-sm)] overflow-hidden">
-                    <span className="px-2.5 py-1.5 bg-[var(--bg-muted)] border-r-2 border-[var(--border-color)] font-mono font-bold text-xs text-white flex items-center select-none shrink-0">
-                      Rp
-                    </span>
-                    <input 
-                      type="text"
-                      value={editAutoAmount}
-                      onChange={(e) => handleEditAutoAmountCalcChange(e.target.value)}
-                      className="w-full bg-transparent px-2.5 py-1.5 text-[var(--text-primary)] font-mono font-bold text-sm focus:outline-none"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {editAutoCalcNotice && (
-                <p className="text-xs font-mono text-[var(--accent-sand-light)]">{editAutoCalcNotice}</p>
-              )}
-
-              <div className={`grid ${editAutoType === 'transfer' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-2.5`}>
-                <div>
-                  <label className="brutal-label">
-                    {editAutoType === 'income' ? 'Rekening / Kas Penerima' : editAutoType === 'expense' ? 'Rekening / Kas Pemotong' : 'Rekening Asal'}
-                  </label>
-                  <select
-                    value={editAutoSourceAccount}
-                    onChange={(e) => setEditAutoSourceAccount(e.target.value)}
-                    className="brutal-select text-xs"
-                    required
-                  >
-                    {accounts.map(acc => (
-                      <option key={acc.id} value={acc.id}>
-                        {acc.name} — Saldo: {formatRupiah(acc.balance)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {editAutoType === 'transfer' && (
-                  <div>
-                    <label className="brutal-label">Rekening Tujuan</label>
-                    <select
-                      value={editAutoToAccount}
-                      onChange={(e) => setEditAutoToAccount(e.target.value)}
-                      className="brutal-select text-xs"
-                      required
-                    >
-                      {accounts.map(acc => (
-                        <option key={acc.id} value={acc.id} disabled={acc.id === editAutoSourceAccount}>
-                          {acc.name} — Saldo: {formatRupiah(acc.balance)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              {/* Siklus Eksekusi */}
-              <div>
-                <label className="brutal-label">Siklus Eksekusi</label>
-                <div className="grid grid-cols-5 gap-1.5 pt-1">
-                  {[
-                    { id: 'daily', label: 'Harian' },
-                    { id: 'weekly', label: 'Mingguan' },
-                    { id: 'monthly', label: 'Bulanan' },
-                    { id: 'yearly', label: 'Tahunan' },
-                    { id: 'custom', label: 'Kustom' },
-                  ].map(c => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setEditAutoCycle(c.id as any)}
-                      className={`py-1.5 px-1 text-center font-mono text-xs rounded border-2 transition-all ${
-                        editAutoCycle === c.id
-                          ? 'border-[var(--accent-sand)] bg-[var(--accent-sand-dark)] text-white font-bold shadow-[2px_2px_0px_#000]'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                      }`}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
-                </div>
-
-                {editAutoCycle === 'monthly' && (
-                  <div className="mt-3 p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] flex items-center justify-between gap-2.5">
-                    <p className="text-xs font-mono font-bold text-white">Eksekusi Tanggal Berapa?</p>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-mono text-[var(--text-secondary)]">Tgl</span>
-                      <input 
-                        type="number"
-                        min="1"
-                        max="31"
-                        value={editAutoMonthlyDay}
-                        onChange={(e) => setEditAutoMonthlyDay(Math.min(31, Math.max(1, parseInt(e.target.value, 10) || 1)))}
-                        className="w-16 brutal-input text-xs font-mono font-bold text-center"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {editAutoCycle === 'custom' && (
-                  <div className="mt-3 p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] space-y-2">
-                    <p className="text-xs font-mono text-[var(--accent-sand-light)] font-bold">
-                      Interval Kustom
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] font-mono text-[var(--text-secondary)] block mb-1">Setiap</label>
-                        <input 
-                          type="number"
-                          min="1"
-                          max="365"
-                          value={editAutoCustomCount}
-                          onChange={(e) => setEditAutoCustomCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                          className="brutal-input text-xs font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-mono text-[var(--text-secondary)] block mb-1">Satuan</label>
-                        <select
-                          value={editAutoCustomUnit}
-                          onChange={(e) => setEditAutoCustomUnit(e.target.value as CustomIntervalUnit)}
-                          className="brutal-select text-xs"
-                        >
-                          <option value="days">Hari</option>
-                          <option value="weeks">Minggu</option>
-                          <option value="months">Bulan</option>
-                          <option value="years">Tahun</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="brutal-label">Tanggal Eksekusi Berikutnya</label>
-                <input 
-                  type="date"
-                  value={editAutoNextDate}
-                  onChange={(e) => setEditAutoNextDate(e.target.value)}
-                  className="brutal-input text-xs"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="brutal-label">Catatan</label>
-                <input 
-                  type="text"
-                  value={editAutoNote}
-                  onChange={(e) => setEditAutoNote(e.target.value)}
-                  className="brutal-input text-xs"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
-                <button 
-                  type="button" 
-                  onClick={() => setEditingAutomation(null)}
-                  className="brutal-btn brutal-btn-ghost text-xs"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className="brutal-btn brutal-btn-sand text-xs font-bold"
-                >
-                  Simpan Perubahan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <AutomationFormModal
+          mode="edit"
+          ledgerName={currentLedger.name}
+          ruleName={editingAutomation.name}
+          accounts={accounts}
+          kind={editAutoType}
+          name={editAutoName} onName={setEditAutoName}
+          category={editAutoCategory} onCategory={setEditAutoCategory}
+          amount={editAutoAmount} onAmount={handleEditAutoAmountCalcChange} calcNotice={editAutoCalcNotice}
+          sourceAccount={editAutoSourceAccount} onSourceAccount={setEditAutoSourceAccount}
+          toAccount={editAutoToAccount} onToAccount={setEditAutoToAccount}
+          cycle={editAutoCycle} onCycle={setEditAutoCycle}
+          monthlyDay={editAutoMonthlyDay} onMonthlyDay={setEditAutoMonthlyDay}
+          customCount={editAutoCustomCount} onCustomCount={setEditAutoCustomCount}
+          customUnit={editAutoCustomUnit} onCustomUnit={setEditAutoCustomUnit}
+          nextDate={editAutoNextDate} onNextDate={setEditAutoNextDate}
+          note={editAutoNote} onNote={setEditAutoNote}
+          onSubmit={handleSaveEditedAutomation}
+          onClose={() => setEditingAutomation(null)}
+        />
       )}
 
       {/* =================================================================== */}
       {/* MODAL 21: KONFIRMASI HAPUS ATURAN OTOMATISASI                       */}
       {/* =================================================================== */}
       {automationToDelete && (
-        <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
-          <div className="brutal-card p-4 bg-[var(--bg-surface)] border-2 border-[var(--accent-terracotta)] max-w-md w-full space-y-3 shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start gap-2.5">
-              <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-terracotta-dark)] border-2 border-[var(--accent-terracotta)] text-[var(--accent-terracotta-light)] flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-heading font-bold text-lg text-white">Hapus Aturan Otomatis?</h3>
-                <p className="text-sm text-[var(--text-secondary)]">
-                  Apakah Anda yakin ingin menghapus aturan <strong className="text-white">"{automationToDelete.name}"</strong>?
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] font-mono">
-              ℹ️ Aturan penjadwalan ini akan dihapus. Semua riwayat transaksi yang pernah dibuat oleh aturan ini sebelumnya tetap aman tersimpan di riwayat kas Anda.
-            </div>
-
-            <div className="flex justify-end gap-2.5 pt-2">
-              <button 
-                type="button" 
-                onClick={() => setAutomationToDelete(null)}
-                className="brutal-btn brutal-btn-ghost text-xs"
-              >
-                Batal
-              </button>
-              <button 
-                type="button" 
-                onClick={confirmExecuteDeleteAutomation}
-                className="brutal-btn brutal-btn-terracotta text-xs flex items-center gap-1.5"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Ya, Hapus Aturan</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteModal
+          title="Hapus Aturan Otomatis?"
+          kind="Aturan otomatisasi"
+          name={automationToDelete.name}
+          notes={[{ text: 'Aturan penjadwalan ini akan dihapus. Riwayat transaksi yang pernah dibuat oleh aturan ini tetap aman di riwayat kas Anda.' }]}
+          confirmLabel="Ya, hapus aturan"
+          onClose={() => setAutomationToDelete(null)}
+          onConfirm={confirmExecuteDeleteAutomation}
+        />
       )}
 
       {/* =================================================================== */}
       {/* MODAL 22: DETAIL & RIWAYAT EKSEKUSI ATURAN OTOMATISASI              */}
       {/* =================================================================== */}
-      {selectedAutomationForDetail && (() => {
-        const rule = automations.find(a => a.id === selectedAutomationForDetail.id) || selectedAutomationForDetail;
-        const sourceAcc = accounts.find(a => a.id === rule.sourceAccountId);
-        const destAcc = rule.toAccountId ? accounts.find(a => a.id === rule.toAccountId) : null;
-        const dueStatus = getBillDueStatus(rule.nextRunDate);
-        const autoTransactions = transactions.filter(t => t.automationId === rule.id);
-        const cycleLabel = getCycleLabel(rule.cycle, rule.customIntervalCount, rule.customIntervalUnit);
-        const cycleDisplay = rule.cycle === 'monthly' && rule.monthlyDay 
-          ? `Setiap tgl ${rule.monthlyDay} per bulan`
-          : cycleLabel;
-
-        return (
-          <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 backdrop-blur-[2px]">
-            <div className="brutal-card p-4 bg-[var(--bg-surface)] max-w-lg w-full space-y-3 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-xl)] animate-in fade-in zoom-in-95 duration-150 border-2">
-              
-              {/* Header Modal */}
-              <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-3 gap-2.5">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`brutal-badge text-[10px] font-mono font-bold ${
-                      rule.type === 'income'
-                        ? 'bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] border border-[var(--accent-sage)]'
-                        : rule.type === 'expense'
-                        ? 'bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)] border border-[var(--accent-terracotta)]'
-                        : 'bg-[var(--accent-blue-dark)] text-[var(--accent-blue-light)] border border-[var(--accent-blue)]'
-                    }`}>
-                      {rule.type === 'income' ? 'PEMASUKAN OTOMATIS' : rule.type === 'expense' ? 'PENGELUARAN OTOMATIS' : 'TRANSFER OTOMATIS'}
-                    </span>
-                    <span className={`brutal-badge text-[10px] font-mono font-bold ${
-                      rule.isActive
-                        ? 'bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] border border-[var(--accent-sage)]'
-                        : 'bg-[var(--bg-muted)] text-[var(--text-muted)] border border-[var(--border-subtle)]'
-                    }`}>
-                      {rule.isActive ? 'STATUS: AKTIF' : 'STATUS: NONAKTIF'}
-                    </span>
-                  </div>
-                  <h3 className="font-heading font-bold text-xl text-white tracking-tight">
-                    {rule.name}
-                  </h3>
-                </div>
-
-                <button 
-                  type="button" 
-                  onClick={() => setSelectedAutomationForDetail(null)}
-                  className="p-1.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
-                  title="Tutup Modal"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Banner Overview / Metadata Ringkas */}
-              <div className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] space-y-3 shadow-[var(--shadow-sm)]">
-                <div className="flex items-baseline justify-between">
-                  <div>
-                    <p className="text-[10px] font-heading uppercase text-[var(--text-secondary)]">Nominal Eksekusi</p>
-                    <p className={`text-xl font-mono font-bold tracking-tight ${
-                      rule.type === 'income'
-                        ? 'text-[var(--accent-sage-light)]'
-                        : rule.type === 'expense'
-                        ? 'text-[var(--accent-terracotta-light)]'
-                        : 'text-[var(--accent-blue-light)]'
-                    }`}>
-                      {rule.type === 'income' && '+'}
-                      {rule.type === 'expense' && '-'}
-                      {rule.type === 'transfer' && '⇄ '}
-                      {formatRupiah(rule.amount)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-heading uppercase text-[var(--text-secondary)]">Total Dieksekusi</p>
-                    <p className="text-sm font-mono font-bold text-white">
-                      {rule.executionCount || 0} Kali
-                    </p>
-                  </div>
-                </div>
-
-                {/* Metadata Tambahan */}
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-subtle)] text-xs font-mono">
-                  <div>
-                    <span className="text-[var(--text-muted)] block text-[10px] uppercase">Siklus Penjadwalan</span>
-                    <span className="font-bold text-white">{cycleDisplay}</span>
-                  </div>
-
-                  <div>
-                    <span className="text-[var(--text-muted)] block text-[10px] uppercase">Jadwal Eksekusi Berikutnya</span>
-                    <span className="font-bold text-white flex items-center gap-1 mt-0.5">
-                      <Calendar className="w-3.5 h-3.5 text-[var(--accent-sand)]" />
-                      {rule.nextRunDate}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-[var(--text-muted)] block text-[10px] uppercase">
-                      {rule.type === 'transfer' ? 'Akun Sumber' : rule.type === 'income' ? 'Rekening Masuk' : 'Rekening Potong'}
-                    </span>
-                    <span className="font-bold text-white">{sourceAcc?.name || 'Akun'}</span>
-                  </div>
-
-                  {rule.type === 'transfer' && (
-                    <div>
-                      <span className="text-[var(--text-muted)] block text-[10px] uppercase">Akun Tujuan</span>
-                      <span className="font-bold text-[var(--accent-blue-light)]">{destAcc?.name || 'Tujuan'}</span>
-                    </div>
-                  )}
-
-                  <div className="col-span-2 pt-1">
-                    <span className="text-[var(--text-muted)] block text-[10px] uppercase">Terakhir Dijalankan</span>
-                    <span className="font-bold text-[var(--text-secondary)]">
-                      {rule.lastRunDate ? `${rule.lastRunDate} (Telah berjalan)` : 'Belum pernah dieksekusi'}
-                    </span>
-                  </div>
-
-                  {rule.note && (
-                    <div className="col-span-2 pt-1 text-[var(--text-secondary)] font-sans text-xs">
-                      <span className="text-[var(--text-muted)] block text-[10px] font-mono uppercase">Catatan</span>
-                      <p className="mt-0.5">{rule.note}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* List Riwayat Transaksi yang Dihasilkan */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <History className="w-4 h-4 text-[var(--accent-sand)]" />
-                    <h4 className="font-heading font-bold text-sm text-white">
-                      Riwayat Transaksi dari Aturan Ini
-                    </h4>
-                  </div>
-                  <span className="px-2 py-0.5 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[10px] font-mono rounded text-[var(--text-secondary)]">
-                    {autoTransactions.length} Transaksi
-                  </span>
-                </div>
-
-                <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                  {autoTransactions.length === 0 ? (
-                    <div className="p-4 bg-[var(--bg-elevated)] border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-center space-y-2">
-                      <Zap className="w-6 h-6 text-[var(--accent-sand)] mx-auto opacity-70" />
-                      <p className="font-heading text-xs font-bold text-white">
-                        Belum ada riwayat eksekusi transaksi
-                      </p>
-                      <p className="text-[11px] font-mono text-[var(--text-muted)]">
-                        Klik tombol "⚡ Jalankan Sekarang" di bawah untuk memicu eksekusi manual pertama.
-                      </p>
-                    </div>
-                  ) : (
-                    autoTransactions.map(tx => {
-                      const acc = accounts.find(a => a.id === tx.accountId);
-                      const toAcc = tx.toAccountId ? accounts.find(a => a.id === tx.toAccountId) : null;
-                      return (
-                        <div
-                          key={tx.id}
-                          className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] flex items-center justify-between gap-2.5 group"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-[var(--accent-sand-dark)] border border-[var(--accent-sand)] text-[var(--accent-sand-light)] flex items-center justify-center shrink-0">
-                              <Zap className="w-4 h-4" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-mono text-[11px] font-bold text-white">
-                                  {tx.date}
-                                </span>
-                                {acc && (
-                                  <span className="text-[10px] font-mono text-[var(--accent-sage-light)] bg-[var(--bg-muted)] px-1.5 py-0.2 rounded border border-[var(--border-subtle)]">
-                                    {toAcc ? `${acc.name} → ${toAcc.name}` : acc.name}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs text-[var(--text-secondary)] line-clamp-1">
-                                {tx.note || tx.category || 'Otomatisasi'}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                            <span className={`font-mono font-bold text-sm ${
-                              tx.type === 'income' ? 'text-[var(--accent-sage-light)]' : tx.type === 'expense' ? 'text-[var(--accent-terracotta-light)]' : 'text-[var(--accent-blue-light)]'
-                            }`}>
-                              {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '⇄ '}{formatRupiah(tx.amount)}
-                            </span>
-
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => openEditTransactionModal(tx)}
-                                className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-colors"
-                                title="Edit Transaksi Ini"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setTxToDelete(tx)}
-                                className="p-1.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent-terracotta)] rounded shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-colors"
-                                title="Hapus Transaksi Ini"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              {/* Footer Tombol Aksi Modal */}
-              <div className="flex items-center justify-between gap-2.5 pt-3 border-t-2 border-[var(--border-subtle)]">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    handleManualExecuteAutomation(rule, e);
-                  }}
-                  className="brutal-btn brutal-btn-sand text-xs py-2 px-3 flex items-center gap-1.5 font-bold"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Jalankan Sekarang</span>
-                </button>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      setSelectedAutomationForDetail(null);
-                      openEditAutomationModal(rule, e);
-                    }}
-                    className="brutal-btn brutal-btn-ghost text-xs py-2 px-3 flex items-center gap-1"
-                  >
-                    <Pencil className="w-3 h-3" />
-                    <span>Edit</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedAutomationForDetail(null)}
-                    className="brutal-btn brutal-btn-ghost text-xs py-2 px-3"
-                  >
-                    Tutup
-                  </button>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        );
-      })()}
+      {selectedAutomationForDetail && (
+        <AutomationDetailModal
+          rule={automations.find(a => a.id === selectedAutomationForDetail.id) || selectedAutomationForDetail}
+          accounts={accounts}
+          transactions={transactions}
+          onClose={() => setSelectedAutomationForDetail(null)}
+          onEditTx={openEditTransactionModal}
+          onDeleteTx={setTxToDelete}
+          onRunNow={(r, e) => { handleManualExecuteAutomation(r, e); }}
+          onEdit={(r, e) => { setSelectedAutomationForDetail(null); openEditAutomationModal(r, e); }}
+        />
+      )}
 
       {/* Footer */}
       <footer className="border-t-[2.5px] border-[var(--border-color)] bg-[var(--bg-surface)] py-3 px-3 pb-20 md:pb-3 text-center text-xs font-mono text-[var(--text-secondary)]">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff, Moon, Sun } from 'lucide-react';
+import { CalendarDays, Eye, EyeOff, Moon, Sun } from 'lucide-react';
 import { useUI } from '../../context/UIContext';
 
 function formatNow(d: Date) {
@@ -8,6 +8,7 @@ function formatNow(d: Date) {
   return { tgl, jam };
 }
 
+/** Alat header desktop: tanggal & jam, mode privasi, dan tema. (Di mobile ada di menu sheet.) */
 export function HeaderTools() {
   const { theme, privacy, toggleTheme, togglePrivacy } = useUI();
   const [now, setNow] = useState(() => new Date());
@@ -20,29 +21,34 @@ export function HeaderTools() {
   const { tgl, jam } = formatNow(now);
 
   return (
-    <div className="max-md:hidden flex items-center gap-1 sm:gap-2">
-      <div className="max-lg:hidden text-right leading-tight mr-1">
-        <div className="font-heading font-bold text-xs text-[var(--text-primary)]">{tgl}</div>
-        <div className="font-mono text-[11px] text-[var(--text-secondary)]">{jam}</div>
+    <div className="ax-htools">
+      <div className="ax-clock" aria-label={`${tgl}, ${jam}`}>
+        <CalendarDays className="w-4 h-4" aria-hidden="true" />
+        <div>
+          <b>{tgl}</b>
+          <small>{jam}</small>
+        </div>
       </div>
+
       <button
         type="button"
         onClick={togglePrivacy}
         aria-pressed={privacy}
         aria-label={privacy ? 'Tampilkan saldo' : 'Sembunyikan saldo'}
-        title={privacy ? 'Tampilkan saldo' : 'Sembunyikan saldo'}
-        className="brutal-btn !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)]"
+        title={privacy ? 'Mode privasi aktif: ketuk untuk tampilkan saldo' : 'Sembunyikan saldo'}
+        className={`ax-hbtn ${privacy ? 'on' : ''}`}
       >
-        {privacy ? <EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+        {privacy ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
       </button>
+
       <button
         type="button"
         onClick={toggleTheme}
         aria-label={theme === 'dark' ? 'Ganti ke tema terang' : 'Ganti ke tema gelap'}
         title={theme === 'dark' ? 'Tema terang' : 'Tema gelap'}
-        className="brutal-btn !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)]"
+        className="ax-hbtn"
       >
-        {theme === 'dark' ? <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+        {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
       </button>
     </div>
   );

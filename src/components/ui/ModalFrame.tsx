@@ -12,6 +12,8 @@ interface Props {
   /** Baris tombol yang menempel di bawah jendela. */
   footer?: ReactNode;
   wide?: boolean;
+  /** Tampil di atas jendela lain (mis. Ubah/Hapus Transaksi yang dibuka dari jendela detail). */
+  top?: boolean;
 }
 
 /**
@@ -19,7 +21,7 @@ interface Props {
  * Di mobile tampil sebagai sheet dari bawah, di desktop di tengah (diatur oleh kelas .ax-modal).
  * Escape menutup jendela.
  */
-export function ModalFrame({ title, subtitle, icon, tint, onClose, children, footer, wide }: Props) {
+export function ModalFrame({ title, subtitle, icon, tint, onClose, children, footer, wide, top }: Props) {
   const titleId = useId();
 
   useEffect(() => {
@@ -29,7 +31,7 @@ export function ModalFrame({ title, subtitle, icon, tint, onClose, children, foo
   }, [onClose]);
 
   return (
-    <div className="ax-modal fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-3">
+    <div className={`ax-modal fixed inset-0 ${top ? 'z-[70]' : 'z-50'} bg-black/80 flex items-center justify-center p-3`}>
       <div className={`ax-mdl ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} style={tint ? ({ '--tint': tint } as CSSProperties) : undefined}>
         <header className="ax-mdl-h">
           {icon && <span className="ax-ic">{icon}</span>}

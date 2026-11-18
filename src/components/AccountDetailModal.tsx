@@ -1,22 +1,22 @@
 import React, { useState } from 'react';
-import { 
-  X, 
-  Wallet, 
-  ArrowUpRight, 
-  ArrowDownLeft, 
-  ArrowRightLeft, 
-  Plus, 
-  Trash2, 
-  Pencil, 
-  PiggyBank, 
-  CreditCard, 
-  Landmark, 
-  Layers, 
+import {
+  Wallet,
+  ArrowUpRight,
+  ArrowDownLeft,
+  ArrowRightLeft,
+  Plus,
+  Trash2,
+  Pencil,
+  PiggyBank,
+  CreditCard,
+  Landmark,
+  Layers,
   History,
   Check
 } from 'lucide-react';
 import type { Account, AccountPocket, Transaction } from '../types';
 import { formatRupiah } from '../utils/calculator';
+import { ModalFrame } from './ui/ModalFrame';
 
 interface Props {
   isOpen: boolean;
@@ -180,517 +180,200 @@ export function AccountDetailModal({
     setPocketTransferAmount('');
   }
 
+  const TYPE_LABEL: Record<string, string> = { cash: 'Dompet Tunai', bank: 'Bank', ewallet: 'E-Wallet', credit_card: 'Kartu Kredit' };
+  const isCredit = account.type === 'credit_card';
+  const TypeIcon = account.type === 'bank' ? Landmark : account.type === 'credit_card' ? CreditCard : account.type === 'ewallet' ? Wallet : PiggyBank;
+  const poolPct = account.balance > 0 ? Math.min(100, Math.round((totalInPockets / account.balance) * 100)) : 0;
+  const closeThen = (fn: () => void) => () => { onClose(); fn(); };
+
   return (
-    <div className="ax-modal fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 sm:p-3 backdrop-blur-sm overflow-y-auto">
-      <div className="brutal-card bg-[var(--bg-surface)] border-2 border-black dark:border-slate-700 max-w-2xl w-full my-auto space-y-3 p-3.5 sm:p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in-95 duration-150">
-        
-        {/* Modal Header */}
-        <div className="flex items-start justify-between border-b-2 border-[var(--border-subtle)] pb-4">
-          <div className="flex items-center gap-2.5">
-            <div 
-              className="w-12 h-12 rounded-xl border-2 border-black dark:border-white/20 flex items-center justify-center text-white shadow-[2px_2px_0px_#000]"
-              style={{ backgroundColor: account.colorAccent || 'var(--accent-sage)' }}
-            >
-              {account.type === 'bank' && <Landmark className="w-6 h-6" />}
-              {account.type === 'credit_card' && <CreditCard className="w-6 h-6" />}
-              {account.type === 'ewallet' && <Wallet className="w-6 h-6" />}
-              {account.type === 'cash' && <PiggyBank className="w-6 h-6" />}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-heading font-black text-xl text-[var(--text-primary)]">
-                  {account.name}
-                </h2>
-                <span className="brutal-badge text-[10px] uppercase font-mono">
-                  {account.type}
-                </span>
-              </div>
-              <p className="text-xs font-mono text-[var(--text-secondary)]">
-                Detail Akun, Mutasi & Pos Kantong
-              </p>
-            </div>
+    <ModalFrame
+      wide
+      title={account.name}
+      subtitle={`${TYPE_LABEL[account.type] || account.type} · Detail akun, mutasi & pos kantong`}
+      icon={<TypeIcon className="w-4 h-4" />}
+      tint={account.colorAccent || 'var(--accent-sage)'}
+      onClose={onClose}
+      footer={<button type="button" className="brutal-btn brutal-btn-ghost" onClick={onClose}>Tutup</button>}
+    >
+      {/* RINGKASAN SALDO */}
+      <div className="ax-dhero">
+        <div className="ax-dhero-top">
+          <div>
+            <small>{isCredit ? 'Tagihan berjalan saat ini' : 'Total saldo rekening'}</small>
+            <div className={`ax-dhero-v ${isCredit ? 'neg' : ''}`}>{formatRupiah(account.balance)}</div>
           </div>
-
-          <button 
-            type="button" 
-            onClick={onClose}
-            className="p-1.5 rounded-lg border-2 border-black dark:border-white/20 bg-[var(--bg-elevated)] hover:bg-[var(--accent-terracotta)] hover:text-[var(--text-inverted)] transition-all shadow-[2px_2px_0px_#000] active:translate-x-0.5 active:translate-y-0.5"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Saldo & Quick Actions Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-xl">
-          <div className="sm:col-span-7 space-y-1">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-[var(--text-secondary)]">
-              {account.type === 'credit_card' ? 'Tagihan Berjalan Saat Ini' : 'Total Saldo Rekening'}
-            </span>
-            <div className="font-heading font-black text-xl sm:text-2xl text-[var(--text-primary)]">
-              {formatRupiah(account.balance)}
+          {(account.creditLimit || (!isCredit && pockets.length > 0)) && (
+            <div style={{ textAlign: 'right' }}>
+              <small>{account.creditLimit ? 'Limit kartu' : 'Saldo bebas'}</small>
+              <div className="ax-dhero-s">{formatRupiah(account.creditLimit ? account.creditLimit : unallocatedBalance)}</div>
             </div>
-            {account.type !== 'credit_card' && pockets.length > 0 && (
-              <p className="text-xs font-mono text-[var(--accent-sand)]">
-                Terbagi: {formatRupiah(totalInPockets)} ({pockets.length} Kantong) • Saldo Bebas: {formatRupiah(unallocatedBalance)}
-              </p>
-            )}
-            {account.creditLimit && (
-              <p className="text-xs font-mono text-[var(--text-muted)]">
-                Limit Kartu: {formatRupiah(account.creditLimit)}
-              </p>
-            )}
-          </div>
-
-          {/* Quick Shortcuts */}
-          <div className="sm:col-span-5 flex flex-wrap items-center sm:justify-end gap-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onSelectForTransaction(account.id);
-              }}
-              className="brutal-btn brutal-btn-sand text-xs py-1.5 px-3 flex items-center justify-center gap-1 font-bold shadow-[2px_2px_0px_#000]"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Catat</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onSelectForTransfer(account.id);
-              }}
-              className="brutal-btn brutal-btn-ghost text-xs py-1.5 px-3 flex items-center justify-center gap-1 font-bold shadow-[2px_2px_0px_#000]"
-            >
-              <ArrowRightLeft className="w-3.5 h-3.5" />
-              <span>Transfer</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onEditAccount(account);
-              }}
-              className="brutal-btn brutal-btn-ghost text-xs py-1.5 px-2.5 flex items-center justify-center gap-1 font-bold shadow-[2px_2px_0px_#000]"
-            >
-              <Pencil className="w-3 h-3" />
-              <span>Edit</span>
-            </button>
-          </div>
+          )}
         </div>
-
-        {/* Tab Selector: Mutasi vs Kantong */}
-        <div className="flex border-b-2 border-[var(--border-subtle)] gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab('mutations')}
-            className={`pb-2.5 px-3 font-heading font-bold text-sm flex items-center gap-2 border-b-2 transition-all ${
-              activeTab === 'mutations'
-                ? 'border-[var(--accent-sand)] text-[var(--accent-sand)]'
-                : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            <History className="w-4 h-4" />
-            <span>Riwayat Mutasi ({accountMutations.length})</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('pockets')}
-            className={`pb-2.5 px-3 font-heading font-bold text-sm flex items-center gap-2 border-b-2 transition-all ${
-              activeTab === 'pockets'
-                ? 'border-[var(--accent-sage)] text-[var(--accent-sage)]'
-                : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            <span>Kantong / Pos Anggaran ({pockets.length})</span>
-          </button>
-        </div>
-
-        {/* TAB 1: MUTASI TRANSAKSI */}
-        {activeTab === 'mutations' && (
-          <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
-                placeholder="Cari mutasi di akun ini..."
-                value={txSearch}
-                onChange={e => setTxSearch(e.target.value)}
-                className="brutal-input text-xs py-1.5 flex-1"
-              />
-              <div className="flex gap-1">
-                {(['all', 'income', 'expense', 'transfer'] as const).map(k => (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => setTxTypeFilter(k)}
-                    className={`px-2 py-1 text-xs font-mono rounded border ${
-                      txTypeFilter === k 
-                        ? 'bg-[var(--accent-sand)] text-black font-bold border-black' 
-                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-subtle)]'
-                    }`}
-                  >
-                    {k === 'all' ? 'Semua' : k === 'income' ? 'Masuk' : k === 'expense' ? 'Keluar' : 'Transfer'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-              {filteredMutations.length === 0 ? (
-                <div className="p-8 text-center text-xs font-mono text-[var(--text-muted)] bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)]">
-                  Belum ada riwayat transaksi yang melibatkan akun ini.
-                </div>
-              ) : (
-                filteredMutations.map(tx => {
-                  const isIncome = tx.type === 'income' || (tx.type === 'transfer' && tx.toAccountId === account.id);
-                  const otherAccName = tx.type === 'transfer'
-                    ? accounts.find(a => a.id === (isIncome ? tx.accountId : tx.toAccountId))?.name || 'Akun Lain'
-                    : null;
-
-                  return (
-                    <div 
-                      key={tx.id}
-                      className="p-3 bg-[var(--bg-elevated)] border-2 border-[var(--border-subtle)] rounded-xl flex items-center justify-between gap-2.5 hover:border-[var(--border-color)] transition-all"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className={`w-8 h-8 rounded-lg border-2 border-black flex items-center justify-center shrink-0 ${
-                          isIncome 
-                            ? 'bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)]' 
-                            : 'bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)]'
-                        }`}>
-                          {tx.type === 'transfer' ? (
-                            <ArrowRightLeft className="w-4 h-4" />
-                          ) : isIncome ? (
-                            <ArrowDownLeft className="w-4 h-4" />
-                          ) : (
-                            <ArrowUpRight className="w-4 h-4" />
-                          )}
-                        </div>
-
-                        <div className="min-w-0">
-                          <p className="font-heading font-bold text-xs text-[var(--text-primary)] truncate">
-                            {tx.type === 'transfer' 
-                              ? isIncome ? `Transfer Masuk dari ${otherAccName}` : `Transfer Keluar ke ${otherAccName}`
-                              : tx.category || 'Transaksi'}
-                          </p>
-                          <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--text-muted)]">
-                            <span>{tx.date}</span>
-                            {tx.note && <span className="truncate max-w-[150px]">“{tx.note}”</span>}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className={`font-mono font-bold text-xs ${
-                          isIncome ? 'text-[var(--accent-sage-light)]' : 'text-[var(--accent-terracotta-light)]'
-                        }`}>
-                          {isIncome ? '+' : '-'}{formatRupiah(tx.amount)}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onClose();
-                            onEditTransaction(tx);
-                          }}
-                          className="p-1 hover:text-[var(--accent-sand)] text-[var(--text-muted)]"
-                          title="Edit"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onClose();
-                            onDeleteTransaction(tx);
-                          }}
-                          className="p-1 hover:text-[var(--accent-terracotta)] text-[var(--text-muted)]"
-                          title="Hapus"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+        {!isCredit && pockets.length > 0 && (
+          <div>
+            <div className="ax-ob-row"><span>Terbagi ke {pockets.length} kantong</span><b>{formatRupiah(totalInPockets)}</b></div>
+            <div className="ax-share"><i style={{ width: `${poolPct}%`, background: 'var(--accent-sage)' }} /></div>
           </div>
         )}
-
-        {/* TAB 2: KANTONG POS ANGGARAN (PEMISAH SALDO) */}
-        {activeTab === 'pockets' && (
-          <div className="space-y-3">
-            {/* Action Bar Kantong */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] p-3 rounded-xl text-xs">
-              <div className="space-y-0.5">
-                <p className="font-bold text-[var(--accent-sand)]">Pos Anggaran / Pemisah Saldo:</p>
-                <p className="text-[var(--text-muted)] text-[11px]">
-                  Bagi saldo rekening ini ke pos belanja/operasional tanpa target agar tidak tercampur.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                {pockets.length > 0 && !isTransferringPocket && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPocketTransferDest(pockets[0].id);
-                      setIsTransferringPocket(true);
-                      setIsAddingPocket(false);
-                    }}
-                    className="brutal-btn brutal-btn-ghost text-xs py-1.5 px-3 flex items-center gap-1 font-bold"
-                  >
-                    <ArrowRightLeft className="w-3.5 h-3.5" />
-                    <span>Pindah Saldo</span>
-                  </button>
-                )}
-
-                {!isAddingPocket && (
-                  <button
-                    type="button"
-                    onClick={openCreatePocket}
-                    className="brutal-btn brutal-btn-sand text-xs py-1.5 px-3 flex items-center gap-1 font-bold shadow-[2px_2px_0px_#000]"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Buat Kantong</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* FORM TRANSFER SALDO ANTAR KANTONG / SALDO BEBAS */}
-            {isTransferringPocket && (
-              <form onSubmit={handleExecutePocketTransfer} className="p-3 bg-[var(--bg-elevated)] border-2 border-black dark:border-white/20 rounded-xl space-y-3">
-                <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
-                  <h4 className="font-heading font-bold text-xs text-[var(--text-primary)] flex items-center gap-1.5">
-                    <ArrowRightLeft className="w-3.5 h-3.5 text-[var(--accent-sand)]" />
-                    <span>Pindah Saldo Antar Pos / Kantong</span>
-                  </h4>
-                  <button 
-                    type="button" 
-                    onClick={() => setIsTransferringPocket(false)}
-                    className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                  >
-                    Batal
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Dari Sumber:</label>
-                    <select
-                      value={pocketTransferSource}
-                      onChange={e => setPocketTransferSource(e.target.value)}
-                      className="brutal-select text-xs py-1.5 w-full mt-1"
-                    >
-                      <option value="free">Saldo Bebas Rekening ({formatRupiah(unallocatedBalance)})</option>
-                      {pockets.map(p => (
-                        <option key={p.id} value={p.id}>
-                          {p.emoji || '🎯'} {p.name} ({formatRupiah(p.balance)})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Ke Tujuan:</label>
-                    <select
-                      value={pocketTransferDest}
-                      onChange={e => setPocketTransferDest(e.target.value)}
-                      className="brutal-select text-xs py-1.5 w-full mt-1"
-                    >
-                      <option value="free">Saldo Bebas Rekening ({formatRupiah(unallocatedBalance)})</option>
-                      {pockets.map(p => (
-                        <option key={p.id} value={p.id}>
-                          {p.emoji || '🎯'} {p.name} ({formatRupiah(p.balance)})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Nominal Dipindahkan (Rp)</label>
-                    <input
-                      type="number"
-                      required
-                      min="1"
-                      placeholder="e.g. 500000"
-                      value={pocketTransferAmount}
-                      onChange={e => setPocketTransferAmount(e.target.value)}
-                      className="brutal-input text-xs py-1.5 w-full mt-1 font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
-                  <button
-                    type="button"
-                    onClick={() => setIsTransferringPocket(false)}
-                    className="brutal-btn brutal-btn-ghost text-xs py-1 px-3"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    className="brutal-btn brutal-btn-sage text-xs py-1 px-3 flex items-center gap-1 font-bold shadow-[2px_2px_0px_#000]"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Pindahkan Sekarang</span>
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* FORM TAMBAH / EDIT KANTONG */}
-            {isAddingPocket && (
-              <form onSubmit={handleSavePocket} className="p-3 bg-[var(--bg-elevated)] border-2 border-black dark:border-white/20 rounded-xl space-y-3">
-                <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
-                  <h4 className="font-heading font-bold text-xs text-[var(--text-primary)]">
-                    {editingPocketId ? 'Edit Pos Kantong' : `+ Tambah Pos Kantong di ${account.name}`}
-                  </h4>
-                  <button 
-                    type="button" 
-                    onClick={() => {
-                      setIsAddingPocket(false);
-                      setEditingPocketId(null);
-                    }}
-                    className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                  >
-                    Batal
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Nama Pos Kantong</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Belanja Mingguan, Transportasi"
-                      value={pocketName}
-                      onChange={e => setPocketName(e.target.value)}
-                      className="brutal-input text-xs py-1.5 w-full mt-1"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Emoji</label>
-                    <div className="flex gap-1 mt-1 flex-wrap">
-                      {['🍔', '☕', '🚗', '💊', '🎮', '🏠', '🛒', '⚡'].map(em => (
-                        <button
-                          key={em}
-                          type="button"
-                          onClick={() => setPocketEmoji(em)}
-                          className={`w-7 h-7 text-sm rounded border flex items-center justify-center ${
-                            pocketEmoji === em ? 'border-amber-400 bg-amber-400/20' : 'border-slate-700 bg-slate-800'
-                          }`}
-                        >
-                          {em}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="text-[10px] font-mono text-[var(--text-secondary)] uppercase">Saldo Alokasi Pos Ini (Rp)</label>
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={pocketBalance}
-                      onChange={e => setPocketBalance(e.target.value)}
-                      className="brutal-input text-xs py-1.5 w-full mt-1 font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsAddingPocket(false);
-                      setEditingPocketId(null);
-                    }}
-                    className="brutal-btn brutal-btn-ghost text-xs py-1 px-3"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    className="brutal-btn brutal-btn-sage text-xs py-1 px-3 flex items-center gap-1 font-bold shadow-[2px_2px_0px_#000]"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    <span>{editingPocketId ? 'Simpan Perubahan' : 'Buat Kantong'}</span>
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* List Kantong Pos Anggaran */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto pr-1">
-              {pockets.length === 0 ? (
-                <div className="col-span-2 p-8 text-center text-xs font-mono text-[var(--text-muted)] bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)]">
-                  Belum ada pos kantong di akun ini. Buat kantong pemisah saldo seperti "Belanja Harian", "Transport", atau "Tagihan" agar dana tidak bocor halus.
-                </div>
-              ) : (
-                pockets.map(pocket => {
-                  return (
-                    <div
-                      key={pocket.id}
-                      className="p-3 bg-[var(--bg-elevated)] border-2 border-black dark:border-white/20 rounded-xl space-y-2 shadow-[2px_2px_0px_#000]"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xl">{pocket.emoji || '🍔'}</span>
-                          <div>
-                            <p className="font-heading font-bold text-xs text-[var(--text-primary)]">
-                              {pocket.name}
-                            </p>
-                            <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase">
-                              Pos Anggaran
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => openEditPocket(pocket)}
-                            className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                            title="Edit Kantong"
-                          >
-                            <Pencil className="w-3 h-3" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onDeletePocket(account.id, pocket.id)}
-                            className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-terracotta)]"
-                            title="Hapus Kantong"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="pt-1">
-                        <span className="text-[10px] font-mono text-[var(--text-secondary)] block">Saldo Alokasi:</span>
-                        <div className="text-sm font-mono font-bold text-white">
-                          {formatRupiah(pocket.balance || 0)}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        )}
-
       </div>
-    </div>
+
+      {/* AKSI CEPAT */}
+      <div className="ax-qa">
+        <button type="button" className="brutal-btn brutal-btn-sand" onClick={closeThen(() => onSelectForTransaction(account.id))}><Plus className="w-4 h-4" />Catat</button>
+        <button type="button" className="brutal-btn brutal-btn-blue" onClick={closeThen(() => onSelectForTransfer(account.id))}><ArrowRightLeft className="w-4 h-4" />Transfer</button>
+        <button type="button" className="brutal-btn brutal-btn-ghost" onClick={closeThen(() => onEditAccount(account))}><Pencil className="w-4 h-4" />Edit</button>
+      </div>
+
+      {/* TAB */}
+      <div className="ax-seg" role="tablist" aria-label="Isi detail akun" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        <button type="button" role="tab" aria-selected={activeTab === 'mutations'} data-on={activeTab === 'mutations'} data-k="sand" onClick={() => setActiveTab('mutations')}>
+          <History className="w-4 h-4" />Mutasi ({accountMutations.length})
+        </button>
+        <button type="button" role="tab" aria-selected={activeTab === 'pockets'} data-on={activeTab === 'pockets'} data-k="sage" onClick={() => setActiveTab('pockets')}>
+          <Layers className="w-4 h-4" />Kantong ({pockets.length})
+        </button>
+      </div>
+
+      {/* TAB 1: MUTASI */}
+      {activeTab === 'mutations' && (
+        <>
+          <input type="text" className="brutal-input" placeholder="Cari mutasi di akun ini..." value={txSearch} onChange={e => setTxSearch(e.target.value)} aria-label="Cari mutasi" />
+          <div className="ax-chipset scroll" role="radiogroup" aria-label="Filter jenis mutasi">
+            {(['all', 'income', 'expense', 'transfer'] as const).map(k => (
+              <button key={k} type="button" role="radio" aria-checked={txTypeFilter === k} onClick={() => setTxTypeFilter(k)}>
+                {k === 'all' ? 'Semua' : k === 'income' ? 'Masuk' : k === 'expense' ? 'Keluar' : 'Transfer'}
+              </button>
+            ))}
+          </div>
+          {filteredMutations.length === 0 ? (
+            <div className="ax-emptyh"><p>Belum ada mutasi</p><small>Belum ada riwayat transaksi yang melibatkan akun ini.</small></div>
+          ) : (
+            <div className="ax-txl">
+              {filteredMutations.map(tx => {
+                const isIncome = tx.type === 'income' || (tx.type === 'transfer' && tx.toAccountId === account.id);
+                const otherAccName = tx.type === 'transfer'
+                  ? accounts.find(a => a.id === (isIncome ? tx.accountId : tx.toAccountId))?.name || 'Akun Lain'
+                  : null;
+                return (
+                  <article key={tx.id} className="ax-tx flat">
+                    <span className="ax-txi" style={{ background: tx.type === 'transfer' ? 'var(--accent-blue)' : isIncome ? 'var(--accent-sage)' : 'var(--accent-terracotta)' }}>
+                      {tx.type === 'transfer' ? <ArrowRightLeft className="w-4 h-4" /> : isIncome ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
+                    </span>
+                    <div className="ax-txm">
+                      <b>{tx.type === 'transfer' ? (isIncome ? `Transfer masuk dari ${otherAccName}` : `Transfer keluar ke ${otherAccName}`) : tx.category || 'Transaksi'}</b>
+                      <small>{tx.date}{tx.note ? ` · “${tx.note}”` : ''}</small>
+                    </div>
+                    <div className="ax-txr">
+                      <span className={isIncome ? 'pos' : 'neg'}>{isIncome ? '+' : '-'}{formatRupiah(tx.amount)}</span>
+                      <div className="ax-acts">
+                        <button type="button" className="ax-iconbtn" title="Edit" aria-label="Edit transaksi" onClick={closeThen(() => onEditTransaction(tx))}><Pencil className="w-3.5 h-3.5" /></button>
+                        <button type="button" className="ax-iconbtn del" title="Hapus" aria-label="Hapus transaksi" onClick={closeThen(() => onDeleteTransaction(tx))}><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* TAB 2: KANTONG */}
+      {activeTab === 'pockets' && (
+        <>
+          <div className="ax-dhead">
+            <p className="ax-sec-sub" style={{ margin: 0, flex: 1 }}>Bagi saldo rekening ini ke pos belanja/operasional agar tidak tercampur.</p>
+          </div>
+          <div className="ax-btnrow">
+            {pockets.length > 0 && !isTransferringPocket && (
+              <button type="button" className="brutal-btn brutal-btn-blue" onClick={() => { setPocketTransferDest(pockets[0].id); setIsTransferringPocket(true); setIsAddingPocket(false); }}>
+                <ArrowRightLeft className="w-4 h-4" />Pindah saldo
+              </button>
+            )}
+            {!isAddingPocket && (
+              <button type="button" className="brutal-btn brutal-btn-sage" onClick={openCreatePocket}><Plus className="w-4 h-4" />Buat kantong</button>
+            )}
+          </div>
+
+          {/* FORM PINDAH SALDO */}
+          {isTransferringPocket && (
+            <form onSubmit={handleExecutePocketTransfer} className="ax-subform">
+              <h4>Pindah saldo antar pos / kantong</h4>
+              <div>
+                <label className="brutal-label" htmlFor="pk-src">Dari sumber</label>
+                <select id="pk-src" className="brutal-select" value={pocketTransferSource} onChange={e => setPocketTransferSource(e.target.value)}>
+                  <option value="free">Saldo bebas rekening ({formatRupiah(unallocatedBalance)})</option>
+                  {pockets.map(pk => <option key={pk.id} value={pk.id}>{pk.emoji || '🎯'} {pk.name} ({formatRupiah(pk.balance)})</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="brutal-label" htmlFor="pk-dst">Ke tujuan</label>
+                <select id="pk-dst" className="brutal-select" value={pocketTransferDest} onChange={e => setPocketTransferDest(e.target.value)}>
+                  <option value="free">Saldo bebas rekening ({formatRupiah(unallocatedBalance)})</option>
+                  {pockets.map(pk => <option key={pk.id} value={pk.id}>{pk.emoji || '🎯'} {pk.name} ({formatRupiah(pk.balance)})</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="brutal-label" htmlFor="pk-amt">Nominal dipindahkan (Rp)</label>
+                <input id="pk-amt" type="number" required min="1" placeholder="500000" className="brutal-input" value={pocketTransferAmount} onChange={e => setPocketTransferAmount(e.target.value)} />
+              </div>
+              <div className="ax-btnrow">
+                <button type="button" className="brutal-btn brutal-btn-ghost" onClick={() => setIsTransferringPocket(false)}>Batal</button>
+                <button type="submit" className="brutal-btn brutal-btn-blue"><Check className="w-4 h-4" />Pindahkan</button>
+              </div>
+            </form>
+          )}
+
+          {/* FORM TAMBAH / EDIT KANTONG */}
+          {isAddingPocket && (
+            <form onSubmit={handleSavePocket} className="ax-subform">
+              <h4>{editingPocketId ? 'Edit pos kantong' : `Tambah pos kantong di ${account.name}`}</h4>
+              <div>
+                <label className="brutal-label" htmlFor="pk-name">Nama pos kantong</label>
+                <input id="pk-name" type="text" required placeholder="Belanja Mingguan, Transportasi" className="brutal-input" value={pocketName} onChange={e => setPocketName(e.target.value)} />
+              </div>
+              <div>
+                <span className="brutal-label">Emoji</span>
+                <div className="ax-emojis">
+                  {['🍔', '☕', '🚗', '💊', '🎮', '🏠', '🛒', '⚡'].map(em => (
+                    <button key={em} type="button" aria-pressed={pocketEmoji === em} aria-label={`Emoji ${em}`} onClick={() => setPocketEmoji(em)}>{em}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="brutal-label" htmlFor="pk-bal">Saldo alokasi pos ini (Rp)</label>
+                <input id="pk-bal" type="number" placeholder="0" className="brutal-input" value={pocketBalance} onChange={e => setPocketBalance(e.target.value)} />
+              </div>
+              <div className="ax-btnrow">
+                <button type="button" className="brutal-btn brutal-btn-ghost" onClick={() => { setIsAddingPocket(false); setEditingPocketId(null); }}>Batal</button>
+                <button type="submit" className="brutal-btn brutal-btn-sage"><Check className="w-4 h-4" />{editingPocketId ? 'Simpan perubahan' : 'Buat kantong'}</button>
+              </div>
+            </form>
+          )}
+
+          {/* DAFTAR KANTONG */}
+          {pockets.length === 0 ? (
+            <div className="ax-emptyh"><p>Belum ada pos kantong</p><small>Buat kantong pemisah saldo seperti "Belanja Harian", "Transport", atau "Tagihan" agar dana tidak bocor halus.</small></div>
+          ) : (
+            <div className="ax-txl">
+              {pockets.map(pocket => (
+                <article key={pocket.id} className="ax-pk">
+                  <span className="ax-pk-e" aria-hidden="true">{pocket.emoji || '🍔'}</span>
+                  <div className="ax-pk-m"><b>{pocket.name}</b><small>Pos anggaran</small></div>
+                  <div className="ax-pk-r">
+                    <span className="ax-pk-v">{formatRupiah(pocket.balance || 0)}</span>
+                    <div className="ax-acts">
+                      <button type="button" className="ax-iconbtn" title="Edit kantong" aria-label={`Edit kantong ${pocket.name}`} onClick={() => openEditPocket(pocket)}><Pencil className="w-3.5 h-3.5" /></button>
+                      <button type="button" className="ax-iconbtn del" title="Hapus kantong" aria-label={`Hapus kantong ${pocket.name}`} onClick={() => onDeletePocket(account.id, pocket.id)}><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </ModalFrame>
   );
 }
