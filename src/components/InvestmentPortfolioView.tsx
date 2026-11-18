@@ -15,16 +15,22 @@ import {
   X,
   AlertCircle
 } from 'lucide-react';
-import type { Ledger, InvestmentAsset, InvestmentAssetType } from '../types';
+import type { Account, Ledger, InvestmentAsset, InvestmentAssetType, InvestmentEntry, InvestmentEntryKind } from '../types';
 import { 
   ASSET_TYPE_LABELS, 
   calculateInvestmentSummary, 
   createInvestmentAsset, 
   updateInvestmentAsset, 
-  deleteInvestmentAsset 
+  deleteInvestmentAsset,
+  getInvestmentEntries,
+  addInvestmentEntry,
+  updateInvestmentEntry,
+  deleteInvestmentEntry,
+  calculateAssetReturn
 } from '../services/investmentService';
 import { evaluateMathExpression, formatRupiah } from '../utils/calculator';
 import { ModalFrame } from './ui/ModalFrame';
+import { AssetDetailModal, AssetEntryModal, KIND_META, type EntryValues } from './InvestmentModals';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { calcNoteOf } from './ObligationForms';
 
@@ -32,6 +38,10 @@ interface Props {
   currentLedger: Ledger;
   investments: InvestmentAsset[];
   onRefreshInvestments: () => Promise<void>;
+  /** Akun, untuk catatan dana yang mengubah saldo. */
+  accounts: Account[];
+  /** Muat ulang akun, transaksi, dan investasi setelah catatan dana tersimpan. */
+  onDataChanged: () => Promise<void>;
   showToast: (text: string, type?: 'success' | 'error' | 'info') => void;
 }
 
@@ -39,6 +49,8 @@ export function InvestmentPortfolioView({
   currentLedger,
   investments,
   onRefreshInvestments,
+  accounts,
+  onDataChanged,
   showToast
 }: Props) {
   // Filter type
@@ -48,6 +60,54 @@ export function InvestmentPortfolioView({
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<InvestmentAsset | null>(null);
   const [quickUpdateAsset, setQuickUpdateAsset] = useState<InvestmentAsset | null>(null);
+
+  // Riwayat dana (tambah dana, hasil, tarik, tutup)
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [entryReq, setEntryReq] = useState<{ kind: InvestmentEntryKind; assetId: string; entry?: InvestmentEntry } | null>(null);
+  const [entryToDelete, setEntryToDelete] = useState<InvestmentEntry | null>(null);
+  const [entryError, setEntryError] = useState<string | null>(null);
+  const [entryBusy, setEntryBusy] = useState(false);
+  const [entriesVersion, setEntriesVersion] = useState(0);
+  const allEntries = useMemo(() => getInvestmentEntries(), [entriesVersion, investments]); // eslint-disable-line react-hooks/exhaustive-deps
+  const entriesOf = (assetId: string) => allEntries.filter(e => e.assetId === assetId);
+
+  async function afterEntryChange() {
+    setEntriesVersion(v => v + 1);
+    await onDataChanged();
+  }
+
+  async function handleEntrySubmit(v: EntryValues) {
+    if (!entryReq) return;
+    setEntryBusy(true);
+    setEntryError(null);
+    try {
+      if (entryReq.entry) {
+        await updateInvestmentEntry(entryReq.entry.id, v);
+        showToast('Catatan diperbarui.', 'success');
+      } else {
+        await addInvestmentEntry({ assetId: entryReq.assetId, kind: entryReq.kind, ...v });
+        showToast(entryReq.kind === 'close' ? 'Aset ditutup dan hasilnya dicatat.' : `${KIND_META[entryReq.kind].label} dicatat.`, 'success');
+      }
+      setEntryReq(null);
+      await afterEntryChange();
+    } catch (err: any) {
+      setEntryError(err?.message || 'Gagal menyimpan catatan.');
+    } finally {
+      setEntryBusy(false);
+    }
+  }
+
+  async function confirmDeleteEntry() {
+    if (!entryToDelete) return;
+    try {
+      await deleteInvestmentEntry(entryToDelete.id);
+      showToast('Catatan dihapus dan saldo akun dikembalikan.', 'info');
+      setEntryToDelete(null);
+      await afterEntryChange();
+    } catch (err: any) {
+      showToast(err?.message || 'Gagal menghapus catatan.', 'error');
+    }
+  }
   const [assetToDelete, setAssetToDelete] = useState<InvestmentAsset | null>(null);
 
   useEffect(() => {
@@ -314,21 +374,23 @@ export function InvestmentPortfolioView({
         </div>
       ) : (
         <div className="ax-acc-grid">
-          {filteredAssets.map(asset => {
+          {[...filteredAssets].sort((a, b) => Number(a.status === 'closed') - Number(b.status === 'closed')).map(asset => {
             const gainLoss = asset.currentValue - asset.initialCapital;
             const gainLossPct = asset.initialCapital > 0 ? (gainLoss / asset.initialCapital) * 100 : 0;
             const meta = ASSET_TYPE_LABELS[asset.type] || ASSET_TYPE_LABELS.other;
             const up = gainLoss >= 0;
             const openQuick = () => { setQuickUpdateAsset(asset); setQuickValue(String(asset.currentValue)); };
+            const closed = asset.status === 'closed';
+            const ret = calculateAssetReturn(asset, entriesOf(asset.id));
             return (
-              <article key={asset.id} className="ax-ac ob static" style={{ '--c': meta.color } as React.CSSProperties}>
+              <article key={asset.id} className={`ax-ac ob static ${closed ? 'off' : ''}`} style={{ '--c': meta.color } as React.CSSProperties}>
                 <div className="ax-ac-h">
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', minWidth: 0 }}>
                     {asset.symbolOrTicker && <span className="ax-ticker">{asset.symbolOrTicker}</span>}
                     <span className="ax-tag" style={{ backgroundColor: meta.bg }}>{meta.label}</span>
+                    {closed && <span className="ax-tag n">Selesai</span>}
                   </div>
                   <div className="ax-acts">
-                    <button type="button" className="ax-iconbtn" onClick={openQuick} title="Perbarui nilai pasar terkini" aria-label={`Perbarui nilai ${asset.name}`}><RefreshCw className="w-3.5 h-3.5" /></button>
                     <button type="button" className="ax-iconbtn" onClick={() => openEditModal(asset)} title="Edit detail aset" aria-label={`Edit ${asset.name}`}><Pencil className="w-3.5 h-3.5" /></button>
                     <button type="button" className="ax-iconbtn del" onClick={() => setAssetToDelete(asset)} title="Hapus aset" aria-label={`Hapus ${asset.name}`}><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
@@ -354,16 +416,85 @@ export function InvestmentPortfolioView({
                   </span>
                 </div>
 
+                {(ret.yieldTotal > 0 || ret.cashedOut > 0 || ret.topupTotal > 0) && (
+                  <div className="ax-ob-list">
+                    {ret.topupTotal > 0 && <div className="ax-ob-row2"><span>Dana tambahan</span><b>{formatRupiah(ret.topupTotal)}</b></div>}
+                    {ret.yieldTotal > 0 && <div className="ax-ob-row2"><span>Hasil terkumpul</span><b style={{ color: 'var(--accent-sage-light)' }}>+{formatRupiah(ret.yieldTotal)}</b></div>}
+                    {ret.cashedOut > 0 && <div className="ax-ob-row2"><span>Sudah dicairkan</span><b>{formatRupiah(ret.cashedOut)}</b></div>}
+                    <div className="ax-ob-row2"><span>ROI total</span><b>{ret.roiTotal >= 0 ? '+' : ''}{ret.roiTotal.toFixed(1)}%</b></div>
+                  </div>
+                )}
+
                 {asset.notes && <p className="ax-gnote">"{asset.notes}"</p>}
+
+                <div className="ax-ob-act">
+                  <button type="button" className="brutal-btn brutal-btn-lavender" onClick={() => setDetailId(asset.id)}>
+                    <Layers className="w-3.5 h-3.5" />{closed ? 'Lihat riwayat' : 'Kelola dana & riwayat'}
+                  </button>
+                </div>
 
                 <div className="ax-ac-f">
                   <span>Update: {asset.lastUpdated || 'Hari ini'}</span>
-                  <button type="button" className="ax-link" onClick={openQuick}>Ubah nilai →</button>
+                  {!closed && <button type="button" className="ax-link" onClick={openQuick}>Ubah nilai →</button>}
                 </div>
               </article>
             );
           })}
         </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* DETAIL ASET, RIWAYAT DANA, DAN FORM CATATAN                          */}
+      {/* =================================================================== */}
+      {(() => {
+        const asset = detailId ? investments.find(a => a.id === detailId) : null;
+        if (!asset) return null;
+        const meta = ASSET_TYPE_LABELS[asset.type] || ASSET_TYPE_LABELS.other;
+        const entries = entriesOf(asset.id);
+        return (
+          <AssetDetailModal
+            asset={asset}
+            entries={entries}
+            accounts={accounts}
+            ret={calculateAssetReturn(asset, entries)}
+            typeLabel={meta.label}
+            color={meta.color}
+            onAction={(kind) => { setEntryError(null); setEntryReq({ kind, assetId: asset.id }); }}
+            onEditEntry={(e) => { setEntryError(null); setEntryReq({ kind: e.kind, assetId: asset.id, entry: e }); }}
+            onDeleteEntry={setEntryToDelete}
+            onClose={() => setDetailId(null)}
+          />
+        );
+      })()}
+
+      {entryReq && (() => {
+        const asset = investments.find(a => a.id === entryReq.assetId);
+        if (!asset) return null;
+        return (
+          <AssetEntryModal
+            key={entryReq.entry?.id ?? entryReq.kind}
+            kind={entryReq.kind}
+            asset={asset}
+            accounts={accounts}
+            initial={entryReq.entry}
+            busy={entryBusy}
+            error={entryError}
+            onSubmit={handleEntrySubmit}
+            onClose={() => setEntryReq(null)}
+          />
+        );
+      })()}
+
+      {entryToDelete && (
+        <ConfirmDeleteModal
+          title="Hapus Catatan Dana?"
+          kind={KIND_META[entryToDelete.kind].label}
+          name={`${entryToDelete.date} · ${formatRupiah(entryToDelete.amount)}`}
+          notes={[{ tone: 'danger', text: 'Efeknya dibatalkan: modal atau nilai aset dikembalikan dan transaksi kasnya ikut dihapus, sehingga saldo akun kembali seperti sebelum catatan ini.' }]}
+          confirmLabel="Ya, hapus catatan"
+          onClose={() => setEntryToDelete(null)}
+          onConfirm={confirmDeleteEntry}
+        />
       )}
 
       {/* =================================================================== */}
@@ -517,7 +648,7 @@ export function InvestmentPortfolioView({
           name={assetToDelete.name}
           detailLabel="Nilai pasar"
           detail={formatRupiah(assetToDelete.currentValue)}
-          notes={[{ tone: 'danger', text: 'Aset akan dihapus dari portofolio. Data yang dihapus tidak dapat dipulihkan.' }]}
+          notes={[{ tone: 'danger', text: 'Aset beserta riwayat dananya akan dihapus dari portofolio dan tidak dapat dipulihkan. Transaksi kas yang pernah dicatat tetap tersimpan di riwayat transaksi.' }]}
           confirmLabel="Ya, hapus aset"
           onClose={() => setAssetToDelete(null)}
           onConfirm={confirmDeleteAsset}

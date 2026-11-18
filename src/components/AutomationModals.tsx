@@ -1,3 +1,4 @@
+import { freeBalanceText, getFreeBalance } from '../utils/accountBalance';
 import type { CSSProperties, FormEvent, ReactNode } from 'react';
 import { ArrowRightLeft, Calculator, Check, Info, Landmark, Pencil, PiggyBank, Receipt, TrendingDown, TrendingUp, Zap } from 'lucide-react';
 import type { Account, AutomationCycle, AutomationType, CustomIntervalUnit } from '../types';
@@ -35,7 +36,7 @@ function AccountPick(p: { label: string; accounts: Account[]; value: string; onC
               <button key={acc.id} type="button" role="radio" aria-checked={p.value === acc.id} disabled={off} className="ax-acc"
                 style={off ? { opacity: 0.45 } : undefined} onClick={() => p.onChange(acc.id)}>
                 <b>{acc.name}</b>
-                <small>{off ? p.disabledNote : `${ACC_TYPE[acc.type] || acc.type} · ${formatRupiah(acc.balance)}`}</small>
+                <small>{off ? p.disabledNote : `${ACC_TYPE[acc.type] || acc.type} · ${freeBalanceText(acc)}`}</small>
               </button>
             );
           })}

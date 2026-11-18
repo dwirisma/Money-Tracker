@@ -74,6 +74,17 @@ export function toggleAutopilotRule(id: string) {
   save(getAutopilotRules().map(r => (r.id === id ? { ...r, isActive: !r.isActive, lastError: null } : r)));
 }
 
+/** Ubah akun sumber, nominal, dan (khusus top-up) siklus/jadwal sebuah aturan. Target & jenis tidak bisa diganti. */
+export function updateAutopilotRule(id: string, patch: Partial<Pick<AutopilotRule, 'sourceAccountId' | 'amount' | 'cycle' | 'nextRunDate'>>) {
+  const rule = getAutopilotRules().find(r => r.id === id);
+  if (!rule) throw new Error('Aturan tidak ditemukan.');
+  const next = { ...rule, ...patch };
+  if (!next.sourceAccountId) throw new Error('Pilih akun sumber dana.');
+  if (next.kind !== 'pay_bill' && !(next.amount > 0)) throw new Error('Nominal harus lebih dari 0.');
+  if (next.kind === 'goal_topup' && !next.nextRunDate) throw new Error('Tanggal eksekusi wajib diisi.');
+  save(getAutopilotRules().map(r => (r.id === id ? { ...next, lastError: null } : r)));
+}
+
 export function deleteAutopilotRule(id: string) {
   save(getAutopilotRules().filter(r => r.id !== id));
 }

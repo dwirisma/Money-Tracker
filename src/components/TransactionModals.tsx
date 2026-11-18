@@ -1,3 +1,4 @@
+import { freeBalanceText, getFreeBalance } from '../utils/accountBalance';
 import type { FormEvent } from 'react';
 import { ArrowRightLeft, Calculator, Check, Info, Pencil, Trash2, TrendingDown, TrendingUp } from 'lucide-react';
 import type { Account, Transaction } from '../types';
@@ -80,7 +81,7 @@ export function EditTransactionModal(p: EditProps) {
             <div>
               <label className="brutal-label" htmlFor="edit-tx-src">Akun asal (pengirim)</label>
               <select id="edit-tx-src" className="brutal-select" value={p.accountId} onChange={e => p.onAccountChange(e.target.value)} required>
-                {p.accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name} — {formatRupiah(acc.balance)}</option>)}
+                {p.accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name} — {freeBalanceText(acc)}</option>)}
               </select>
             </div>
             <button type="button" className="ax-swap" title="Tukar akun asal dan tujuan" aria-label="Tukar akun asal dan tujuan"
@@ -92,7 +93,7 @@ export function EditTransactionModal(p: EditProps) {
               <select id="edit-tx-dst" className="brutal-select" value={p.toAccountId} onChange={e => p.onToAccountChange(e.target.value)} required>
                 {p.accounts.map(acc => (
                   <option key={acc.id} value={acc.id} disabled={acc.id === p.accountId}>
-                    {acc.name} {acc.id === p.accountId ? '(tidak boleh sama)' : `— ${formatRupiah(acc.balance)}`}
+                    {acc.name} {acc.id === p.accountId ? '(tidak boleh sama)' : `— ${freeBalanceText(acc)}`}
                   </option>
                 ))}
               </select>
@@ -105,7 +106,7 @@ export function EditTransactionModal(p: EditProps) {
               <div className="ax-accs" role="radiogroup" aria-label="Akun sumber">
                 {p.accounts.map(acc => (
                   <button key={acc.id} type="button" role="radio" aria-checked={p.accountId === acc.id} className="ax-acc" onClick={() => p.onAccountChange(acc.id)}>
-                    <b>{acc.name}</b><small>{formatRupiah(acc.balance)}</small>
+                    <b>{acc.name}</b><small>{freeBalanceText(acc)}</small>
                   </button>
                 ))}
               </div>

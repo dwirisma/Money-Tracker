@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export type CategoryKind = 'expense' | 'income';
 export type CategoryLists = Record<CategoryKind, string[]>;
@@ -30,6 +30,17 @@ function save(v: CategoryLists) {
   try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* preferensi tidak tersimpan jika storage penuh */ }
 }
 
+/** Pastikan sebuah kategori ada di daftar (dipakai fitur otomatis, mis. investasi). Aman dipanggil berulang. */
+export function ensureCategory(kind: CategoryKind, name: string) {
+  const cur = load();
+  if (cur[kind].some(c => c.toLowerCase() === name.toLowerCase())) return;
+  const arr = cur[kind];
+  const at = arr.indexOf(LOCKED_CATEGORY);
+  const next = at >= 0 ? [...arr.slice(0, at), name, ...arr.slice(at)] : [...arr, name];
+  save({ ...cur, [kind]: next });
+  try { window.dispatchEvent(new Event('artha-categories-updated')); } catch { /* abaikan */ }
+}
+
 /** Mengembalikan pesan error, atau null jika nama valid. */
 function validate(list: string[], name: string, ignore?: string): string | null {
   const n = name.trim();
@@ -41,6 +52,12 @@ function validate(list: string[], name: string, ignore?: string): string | null 
 
 export function useCategories() {
   const [lists, setLists] = useState<CategoryLists>(load);
+
+  useEffect(() => {
+    const onUpdate = () => setLists(load());
+    window.addEventListener('artha-categories-updated', onUpdate);
+    return () => window.removeEventListener('artha-categories-updated', onUpdate);
+  }, []);
 
   const commit = useCallback((next: CategoryLists) => { setLists(next); save(next); }, []);
 

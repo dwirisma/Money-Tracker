@@ -1,5 +1,7 @@
 import type { CSSProperties, FormEvent, MouseEvent } from 'react';
-import { Archive, CalendarDays, Check, Clock, FileText, Gift, Plus, RefreshCw, RotateCcw, Settings, Trash2, Utensils, Zap } from 'lucide-react';
+import type { Account } from '../types';
+import { freeBalanceText } from '../utils/accountBalance';
+import { Archive, Banknote, CalendarDays, Check, Clock, FileText, Gift, Plus, RefreshCw, RotateCcw, Settings, Trash2, Utensils, Zap } from 'lucide-react';
 import { ModalFrame } from './ui/ModalFrame';
 import { calcNoteOf } from './ObligationForms';
 
@@ -46,7 +48,7 @@ export function SalaryHistorySection(p: HistoryProps) {
         <div className="ax-emptyh">
           <FileText className="w-7 h-7" style={{ margin: '0 auto 6px', opacity: 0.6 }} />
           <p>Belum ada riwayat gaji tersimpan</p>
-          <small>Saat Anda menekan <b>"Simpan & Otomatiskan Gaji"</b>, detail slip gaji bulan aktif beserta total jam lembur dan ceklis makan akan diarsipkan di sini.</small>
+          <small>Slip gaji diarsipkan <b>otomatis</b> saat Anda pindah periode atau setelah tanggal tutup buku (tgl 20), lengkap dengan total jam lembur dan ceklis makan. Arsip tetap bisa diedit.</small>
         </div>
       ) : (
         <div className="ax-hist-grid">
@@ -216,6 +218,10 @@ interface SettingsProps {
   custom: { basicSalary: number; housingAllowance: number; shiftAllowance: number; housingDeduction: number };
   onCustom: (key: 'basicSalary' | 'housingAllowance' | 'shiftAllowance' | 'housingDeduction', v: number) => void;
   autoOT: boolean; onAutoOT: (v: boolean) => void;
+  /** Otomasi gaji: masukkan take home pay ke rekening pada tanggal gajian. */
+  payrollEnabled: boolean; onPayrollEnabled: (v: boolean) => void;
+  payrollAccountId: string; onPayrollAccount: (id: string) => void;
+  accounts: Account[];
   autoOTHours: number; onAutoOTHours: (n: number) => void;
   year: number | string;
   holidayCount: number;
@@ -293,6 +299,30 @@ export function SalarySettingsModal(p: SettingsProps) {
                 onChange={e => p.onAutoOTHours(Math.max(0, parseFloat(e.target.value) || 0))} />
             </div>
           )}
+        </div>
+
+        <div className="ax-sl-box">
+          <div className="ax-sl-bik">
+            <button type="button" role="switch" aria-checked={p.payrollEnabled} className="ax-tg" onClick={() => p.onPayrollEnabled(!p.payrollEnabled)}
+              title="Aktifkan/Nonaktifkan otomasi gaji" aria-label="Otomasi gaji"><i /></button>
+            <div>
+              <b><Banknote className="w-3.5 h-3.5 inline -mt-0.5 mr-1" style={{ color: 'var(--accent-sage)' }} />Otomasi gaji</b>
+              <small>Take home pay otomatis masuk ke rekening pada tanggal gajian. Nominalnya diperbarui otomatis saat lembur, makan, atau komponen berubah, dan dikunci setelah periode ditutup.</small>
+            </div>
+          </div>
+          {p.payrollEnabled && (
+            <div>
+              <div className="ax-fl"><span>Rekening penerima gaji</span></div>
+              <div className="ax-accs" role="radiogroup" aria-label="Rekening penerima gaji">
+                {p.accounts.filter(a => !a.isArchived && a.type !== 'credit_card').map(a => (
+                  <button key={a.id} type="button" role="radio" aria-checked={p.payrollAccountId === a.id} className="ax-acc" onClick={() => p.onPayrollAccount(a.id)}>
+                    <b>{a.name}</b><small>{freeBalanceText(a)}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <p className="ax-fieldhint" style={{ margin: 0 }}>Periode gaji diarsipkan otomatis saat Anda pindah periode atau setelah tanggal tutup buku (tgl 20), dan tetap bisa diedit.</p>
         </div>
 
         <div className="ax-sl-box">

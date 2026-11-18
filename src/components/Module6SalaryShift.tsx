@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { freeBalanceText, getFreeBalance } from '../utils/accountBalance';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -59,7 +60,8 @@ import {
   DEFAULT_MEAL_RATE
 } from '../utils/salaryCalculator';
 import { 
-  batchSaveSalaryAndAutomation,
+  archiveSalaryPeriod,
+  upsertPayrollAutomation,
   fetchSalaryHistories,
   deleteSalaryHistoryDoc,
   saveShiftScheduleToFirestore,
@@ -165,10 +167,24 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   const [medicalBikAmount, setMedicalBikAmount] = useState<number>(1500000);
   const [medicalBikInput, setMedicalBikInput] = useState<string>('1500000');
 
-  const [targetAccountId, setTargetAccountId] = useState<string>(() => {
-    const bankAcc = accounts.find(a => a.type === 'bank' && !a.isArchived);
-    return bankAcc?.id || accounts[0]?.id || '';
-  });
+  // Otomasi gaji (saklar di Pengaturan Gaji), disimpan per buku kas
+  const payrollKey = `artha_payroll_auto_${activeLedger?.id ?? ''}`;
+  const readPayroll = (): { enabled: boolean; accountId: string } | null => {
+    try { const raw = localStorage.getItem(payrollKey); return raw ? JSON.parse(raw) : null; } catch { return null; }
+  };
+  const [payrollStored, setPayrollStored] = useState<{ enabled: boolean; accountId: string } | null>(readPayroll);
+  useEffect(() => { setPayrollStored(readPayroll()); }, [activeLedger?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  /** Belum pernah diatur: aktif bila Anda sudah punya aturan Payroll (migrasi dari tombol lama). */
+  const payrollAuto = useMemo(() => {
+    if (payrollStored) return payrollStored;
+    const existing = automations.find(a => a.ledgerId === activeLedger?.id && a.type === 'income' && a.name.toLowerCase().includes('gaji'));
+    const bank = accounts.find(a => a.type === 'bank' && !a.isArchived);
+    return { enabled: !!existing, accountId: existing?.sourceAccountId || bank?.id || accounts[0]?.id || '' };
+  }, [payrollStored, automations, accounts, activeLedger?.id]);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [historiesLoaded, setHistoriesLoaded] = useState(false);
+  const [loadedKey, setLoadedKey] = useState('');
+  const [dirtyKey, setDirtyKey] = useState<string | null>(null);
 
   // Unique Month Key untuk penyimpanan lokal per Buku Kas & Grup Shift
   const monthKey = `${currentYear}-${String(currentMonthIndex + 1).padStart(2, '0')}`;
@@ -256,7 +272,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   const [isSubmittingAuto, setIsSubmittingAuto] = useState<boolean>(false);
 
   // Filter tampilan kalender (semua hari vs hanya hari lembur / kerja / libur)
-  const [calendarFilter, setCalendarFilter] = useState<'all' | 'work' | 'off' | 'holiday' | 'overtime'>('all');
+  const [calendarFilter, setCalendarFilter] = useState<'all' | 'work' | 'off' | 'holiday' | 'overtime' | 'meal'>('all');
 
   // Arsip Riwayat Gaji Bulanan State
   const [salaryHistories, setSalaryHistories] = useState<SalaryHistoryRecord[]>([]);
@@ -282,6 +298,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
       console.error('Gagal memuat riwayat gaji:', err);
     } finally {
       setIsLoadingHistory(false);
+      setHistoriesLoaded(true);
     }
   };
 
@@ -335,7 +352,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
         console.error('Gagal membaca custom salary settings:', e);
       }
     };
-    loadSettings();
+    loadSettings().finally(() => setSettingsLoaded(true));
   }, [activeLedger?.id]);
 
   // Muat ulang add-ons saat monthKey atau activeLedger berubah
@@ -381,6 +398,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
           );
           setShiftDays(refreshed);
           saveStoredShiftLogs(activeLedger.id, storageKey, refreshed);
+          setLoadedKey(storageKey);
           return;
         }
       } catch (e) {
@@ -399,6 +417,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
         );
         setShiftDays(refreshed);
         saveStoredShiftLogs(activeLedger.id, storageKey, refreshed);
+          setLoadedKey(storageKey);
       } else if (isMounted) {
         const fresh = generateShiftCalendar(
           currentMonthIndex,
@@ -410,6 +429,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
         );
         setShiftDays(fresh);
         saveStoredShiftLogs(activeLedger.id, storageKey, fresh);
+        setLoadedKey(storageKey);
       }
     };
 
@@ -420,6 +440,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   // Simpan perubahan shiftDays ke LocalStorage & Sync ke Firestore
   const handleUpdateShiftDays = (newDays: ShiftDayLog[]) => {
     setShiftDays(newDays);
+    setDirtyKey(monthKey);
     if (activeLedger) {
       const storageKey = `${monthKey}_grp_${selectedGroup}`;
       saveStoredShiftLogs(activeLedger.id, storageKey, newDays);
@@ -523,18 +544,9 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
     showToast(`Tanggal merah manual pada ${dateStr} dihapus.`, 'info');
   };
 
-  // Kosongkan Semua Ceklis Makan Periode Ini (0x Makan)
-  const handleClearAllMeals = () => {
-    const updated = shiftDays.map(d => ({
-      ...d,
-      meals: { breakfast: false, lunch: false, dinner: false }
-    }));
-    handleUpdateShiftDays(updated);
-    showToast('Semua ceklis makan telah dikosongkan (0x makan).', 'info');
-  };
-
   // Navigasi Periode Cut-Off (Bulan Sebelumnya / Bulan Berikutnya)
   const handlePrevPeriod = () => {
+    leavePeriod();
     if (currentMonthIndex === 0) {
       setCurrentMonthIndex(11);
       setCurrentYear(prev => prev - 1);
@@ -544,6 +556,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   };
 
   const handleNextPeriod = () => {
+    leavePeriod();
     if (currentMonthIndex === 11) {
       setCurrentMonthIndex(0);
       setCurrentYear(prev => prev + 1);
@@ -553,6 +566,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   };
 
   const handleResetToCurrentPeriod = () => {
+    leavePeriod();
     const cur = getInitialCutoffPeriod();
     setCurrentYear(cur.year);
     setCurrentMonthIndex(cur.monthIndex);
@@ -597,6 +611,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   // Handler CRUD Komponen Tambahan Gaji (Add-On / Bonus / THR)
   const handleUpdateAddOns = (newAddOns: SalaryAddOn[]) => {
     setAddOns(newAddOns);
+    setDirtyKey(monthKey);
     if (activeLedger) {
       saveStoredSalaryAddOns(activeLedger.id, monthKey, newAddOns);
     }
@@ -814,6 +829,12 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
       setCustomSalarySettings(payload);
       localStorage.setItem(`${STORAGE_KEY_CUSTOM_SALARY}${activeLedger.id}`, JSON.stringify(payload));
       await saveSalarySettingsToFirestore(undefined, activeLedger.id, payload);
+      localStorage.setItem(payrollKey, JSON.stringify(payrollAuto));
+      setPayrollStored(payrollAuto);
+      if (payrollAuto.enabled) {
+        const up = upcomingSnapshot();
+        if (up) await syncPayrollRule(up.salary, up.key);
+      }
 
       const newBaseRate = ((payload.basicSalary || BASIC_SALARY) + (payload.housingAllowance || HOUSING_ALLOWANCE)) / 173;
       const refreshed = refreshShiftLogsMetadata(
@@ -864,6 +885,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   };
 
   const handleSelectHistoryPeriod = (periodStr: string) => {
+    leavePeriod();
     const [yStr, mStr] = periodStr.split('-');
     const y = parseInt(yStr, 10);
     const m = parseInt(mStr, 10) - 1;
@@ -892,60 +914,133 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   };
 
   // Batch Write ke Firestore (Automations & Salary History)
-  const handleSaveSalary = async () => {
-    if (!activeLedger) {
-      showToast('Buku Kas tidak aktif!', 'error');
-      return;
-    }
+  // =====================================================================
+  // ARSIP GAJI OTOMATIS & OTOMASI GAJI (menggantikan tombol "Simpan & Otomatiskan")
+  // - Periode diarsipkan saat Anda pindah periode, atau otomatis setelah tanggal tutup buku (tgl 20).
+  // - Arsip tetap bisa diedit: mengubah lembur/makan/komponen pada periode yang sudah diarsipkan menyimpan ulang otomatis.
+  // - Saklar "Otomasi gaji" (Pengaturan): memperbarui aturan Pemasukan "Payroll" untuk tanggal gajian terdekat.
+  // =====================================================================
+  const pad2 = (n: number) => String(n).padStart(2, '0');
+  const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
+  /** Periode (tahun, bulan 0-11) berakhir tanggal 20 bulan itu; "ended" mulai tanggal 21. */
+  const isPeriodEnded = (y: number, m: number) => todayStr() > `${y}-${pad2(m + 1)}-20`;
+  const periodKeyOf = (y: number, m: number) => `${y}-${pad2(m + 1)}`;
+  const prevPeriodOf = (p: { year: number; monthIndex: number }) => (p.monthIndex === 0 ? { year: p.year - 1, monthIndex: 11 } : { year: p.year, monthIndex: p.monthIndex - 1 });
+  const historyOf = (key: string) => salaryHistories.find(h => h.ledgerId === activeLedger?.id && h.period === key);
 
-    const targetAcc = accounts.find(a => a.id === targetAccountId) || accounts[0];
-    if (!targetAcc) {
-      showToast('Pilih akun bank penerima gaji terlebih dahulu!', 'error');
-      return;
-    }
+  /** Hitung gaji sebuah periode dari data tersimpan (kalender, lembur, makan, komponen tambahan). */
+  const buildSnapshot = (y: number, m: number): { key: string; salary: SalaryBreakdown } | null => {
+    if (!activeLedger) return null;
+    const key = periodKeyOf(y, m);
+    const stored = getStoredShiftLogs(activeLedger.id, `${key}_grp_${selectedGroup}`);
+    const days = stored && stored.length > 0
+      ? refreshShiftLogsMetadata(stored, selectedGroup, mergedHolidays, autoOTPerSunday, isAutoOTEnabled, otBaseRate)
+      : generateShiftCalendar(m, y, selectedGroup, mergedHolidays, autoOTPerSunday, isAutoOTEnabled);
+    const periodAddOns = getStoredSalaryAddOns(activeLedger.id, key);
+    const autoOT = isAutoOTEnabled ? days.reduce((sum, d) => sum + (d.hasAutoOT ? (d.autoOTHours || autoOTPerSunday) : 0), 0) : 0;
+    return {
+      key,
+      salary: calculateSalaryBreakdown(days, ptkpStatus, mealRate, y, m, autoOT, periodAddOns, isMedicalBikEnabled ? medicalBikAmount : 0, {
+        basicSalary: customSalarySettings.basicSalary || BASIC_SALARY,
+        housingAllowance: customSalarySettings.housingAllowance || HOUSING_ALLOWANCE,
+        shiftAllowance: customSalarySettings.shiftAllowance || SHIFT_ALLOWANCE,
+        housingDeduction: customSalarySettings.housingDeduction || HOUSING_DEDUCTION
+      })
+    };
+  };
 
-    setIsSubmittingAuto(true);
+  /** Periode dengan tanggal gajian terdekat yang belum lewat (periode yang baru berakhir, atau periode berjalan). */
+  const upcomingSnapshot = () => {
+    const cur = getInitialCutoffPeriod();
+    for (const p of [prevPeriodOf(cur), cur]) {
+      const snap = buildSnapshot(p.year, p.monthIndex);
+      if (snap && snap.salary.paydayDate >= todayStr()) return snap;
+    }
+    return null;
+  };
+
+  /** Perbarui aturan Pemasukan "Payroll" hanya untuk tanggal gajian terdekat (tanggal yang sudah lewat tidak disentuh agar tidak terpicu ulang). */
+  const syncPayrollRule = async (sal: SalaryBreakdown, key: string) => {
+    if (!activeLedger || !payrollAuto.enabled || !payrollAuto.accountId) return;
+    if (!(sal.netSalary > 0) || sal.paydayDate < todayStr()) return;
+    if (upcomingSnapshot()?.key !== key) return;
+    const existing = automations.find(a => a.ledgerId === activeLedger.id && a.type === 'income' && a.name.toLowerCase().includes('gaji'));
+    await upsertPayrollAutomation({
+      ledgerId: activeLedger.id,
+      targetAccountId: payrollAuto.accountId,
+      netSalary: sal.netSalary,
+      paydayDate: sal.paydayDate,
+      paydayNumber: parseInt(sal.paydayDate.split('-')[2], 10),
+      noteDesc: `Estimasi Gaji Group ${selectedGroup} (periode ${key}) • Total OT ${sal.totalOTHours}j • Makan ${sal.totalMealCount}x`,
+      existingRuleId: existing?.id
+    });
+    onAutomationUpdated?.();
+  };
+
+  /** Simpan (atau simpan ulang) arsip sebuah periode. */
+  const archivePeriod = async (y: number, m: number, notify = false) => {
+    if (!activeLedger) return;
+    const snap = buildSnapshot(y, m);
+    if (!snap) return;
     try {
-      const existingRule = automations.find(a => 
-        a.ledgerId === activeLedger.id && 
-        a.name.toLowerCase().includes('gaji') && 
-        a.type === 'income'
-      );
-
-      const paydayNumber = parseInt(salary.paydayDate.split('-')[2], 10);
-      const activeAddOnNames = (addOns || []).filter(a => a.isEnabled).map(a => `${a.name} (+${formatRupiah(a.amount)})`).join(', ');
-      const addOnsNote = activeAddOnNames ? ` • Tambahan: ${activeAddOnNames}` : '';
-      const bikNote = isMedicalBikEnabled ? ` • Med BIK: +${formatRupiah(medicalBikAmount)}` : '';
-      const noteDesc = `Estimasi Gaji Group ${selectedGroup} (${periodLabel}) • Auto OT: ${salary.autoOTHours}j • Total OT: ${formatRupiah(salary.totalOTAmount)} (${salary.totalOTHours}j | Indeks: ${salary.totalOTIndex}x)${addOnsNote}${bikNote} • Pajak TER (${salary.terCategory} - ${salary.terRate}%): ${formatRupiah(salary.terTaxAmount)} • Rek: ${targetAcc.name}`;
-
-      const { historyRecord } = await batchSaveSalaryAndAutomation({
+      const rec = await archiveSalaryPeriod({
         ledgerId: activeLedger.id,
-        period: monthKey,
-        totalOtHours: salary.totalOTHours,
-        totalMeals: salary.totalMealCount,
-        totalAddOns: salary.totalAddOns,
-        netSalary: salary.netSalary,
-        grossSalary: salary.grossIncome,
-        targetAccountId: targetAcc.id,
-        paydayDate: salary.paydayDate,
-        paydayNumber,
-        noteDesc,
-        existingRuleId: existingRule?.id
+        period: snap.key,
+        totalOtHours: snap.salary.totalOTHours,
+        totalMeals: snap.salary.totalMealCount,
+        totalAddOns: snap.salary.totalAddOns,
+        netSalary: snap.salary.netSalary,
+        grossSalary: snap.salary.grossIncome
       });
-
-      setSalaryHistories(prev => [historyRecord, ...prev.filter(h => h.id !== historyRecord.id)]);
-      showToast(`Batch Write Berhasil! Arsip periode ${monthKey} disimpan & Otomasi Gaji ${formatRupiah(salary.netSalary)} aktif!`, 'success');
-
-      if (onAutomationUpdated) {
-        onAutomationUpdated();
-      }
+      setSalaryHistories(prev => [rec, ...prev.filter(h => !(h.period === rec.period && h.ledgerId === rec.ledgerId))]);
+      await syncPayrollRule(snap.salary, snap.key);
+      if (notify) showToast(`Periode ${formatPeriodLabel(snap.key)} diarsipkan otomatis. Masih bisa diedit kapan saja.`, 'info');
     } catch (err) {
-      console.error('Gagal menyimpan otomasi dan riwayat gaji:', err);
-      showToast('Terjadi kesalahan saat memproses simpan gaji ke Firestore.', 'error');
-    } finally {
-      setIsSubmittingAuto(false);
+      console.warn('Gagal mengarsipkan periode gaji:', err);
     }
   };
+
+  /** Dipanggil saat meninggalkan periode yang sedang dilihat. */
+  const leavePeriod = () => {
+    if (!activeLedger) return;
+    const cur = getInitialCutoffPeriod();
+    const behind = (cur.year * 12 + cur.monthIndex) - (currentYear * 12 + currentMonthIndex);
+    const hasActivity = shiftDays.some(d => d.overtimeHours > 0 || d.meals.breakfast || d.meals.lunch || d.meals.dinner) || addOns.length > 0;
+    const recentlyEnded = isPeriodEnded(currentYear, currentMonthIndex) && behind >= 0 && behind <= 1;
+    if (historyOf(monthKey) || hasActivity || recentlyEnded) void archivePeriod(currentYear, currentMonthIndex, true);
+  };
+
+  // Saat aplikasi dibuka: finalkan periode yang baru berakhir (bila belum diarsipkan setelah tanggal tutup buku) dan segarkan aturan Payroll.
+  const finalizedLedgerRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeLedger || !settingsLoaded || !historiesLoaded) return;
+    if (finalizedLedgerRef.current === activeLedger.id) return;
+    finalizedLedgerRef.current = activeLedger.id;
+    (async () => {
+      const cur = getInitialCutoffPeriod();
+      const ended = prevPeriodOf(cur);
+      const rec = historyOf(periodKeyOf(ended.year, ended.monthIndex));
+      const endMs = new Date(ended.year, ended.monthIndex, 20, 23, 59, 59).getTime();
+      if (!rec || Number(rec.createdAt) < endMs) await archivePeriod(ended.year, ended.monthIndex, true);
+      const up = upcomingSnapshot();
+      if (up) await syncPayrollRule(up.salary, up.key);
+    })();
+  }, [activeLedger?.id, settingsLoaded, historiesLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mengedit periode (kalender atau komponen tambahan): simpan ulang arsipnya, atau perbarui aturan Payroll bila periode itu belum diarsipkan.
+  useEffect(() => {
+    if (!dirtyKey || dirtyKey !== monthKey || loadedKey !== periodStorageKey) return;
+    const timer = setTimeout(async () => {
+      if (historyOf(monthKey) || isPeriodEnded(currentYear, currentMonthIndex)) {
+        await archivePeriod(currentYear, currentMonthIndex);
+      } else {
+        const snap = buildSnapshot(currentYear, currentMonthIndex);
+        if (snap) await syncPayrollRule(snap.salary, snap.key);
+      }
+      setDirtyKey(null);
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [dirtyKey, shiftDays, addOns]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filter hari untuk kalender
   const filteredDays = useMemo(() => {
@@ -953,6 +1048,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
     if (calendarFilter === 'off') return shiftDays.filter(d => !d.isWorkDay && !d.isPublicHoliday);
     if (calendarFilter === 'holiday') return shiftDays.filter(d => d.isPublicHoliday);
     if (calendarFilter === 'overtime') return shiftDays.filter(d => d.overtimeHours > 0 || d.hasAutoOT);
+    if (calendarFilter === 'meal') return shiftDays.filter(d => d.meals.breakfast || d.meals.lunch || d.meals.dinner);
     return shiftDays;
   }, [shiftDays, calendarFilter]);
 
@@ -961,6 +1057,7 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   const offDaysCount = shiftDays.filter(d => !d.isWorkDay && !d.isPublicHoliday).length;
   const holidaysCount = shiftDays.filter(d => d.isPublicHoliday).length;
   const otDaysCount = shiftDays.filter(d => d.overtimeHours > 0 || d.hasAutoOT).length;
+  const mealDays = shiftDays.filter(d => d.meals.breakfast || d.meals.lunch || d.meals.dinner);
 
   // Daftar hari libur untuk tahun aktif (ditampilkan di modal pengaturan)
   const activeYearHolidays = useMemo(() => {
@@ -1073,8 +1170,28 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
             <button type="button" role="radio" aria-checked={calendarFilter === 'off'} onClick={() => setCalendarFilter('off')}>Off ({offDaysCount})</button>
             <button type="button" role="radio" aria-checked={calendarFilter === 'holiday'} onClick={() => setCalendarFilter('holiday')}>Tanggal merah ({holidaysCount})</button>
             <button type="button" role="radio" aria-checked={calendarFilter === 'overtime'} onClick={() => setCalendarFilter('overtime')}>Lembur ({otDaysCount})</button>
-            <button type="button" className="ax-chip-danger" onClick={handleClearAllMeals} title="Kosongkan semua ceklis makan periode ini (0x makan)">0x makan</button>
+            <button type="button" role="radio" aria-checked={calendarFilter === 'meal'} onClick={() => setCalendarFilter('meal')}>Makan ({mealDays.length})</button>
           </div>
+
+          {calendarFilter === 'meal' && (
+            <div className="ax-mealdates">
+              {mealDays.length === 0 ? (
+                <span className="ax-fieldhint" style={{ margin: 0 }}>Belum ada ceklis makan pada periode ini.</span>
+              ) : (
+                <>
+                  <div className="ax-fl"><span>Tanggal makan · {mealDays.length} hari · {salary.totalMealCount}x makan</span></div>
+                  <div className="ax-mealdates-l">
+                    {mealDays.map(d => (
+                      <button key={d.date} type="button" onClick={() => openEditDayModal(d)} title={`${d.date} · klik untuk ubah`}>
+                        <b>{d.dayNumber}</b>
+                        <span>{d.meals.breakfast ? 'P' : ''}{d.meals.lunch ? 'S' : ''}{d.meals.dinner ? 'M' : ''}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Ringkasan kalender */}
           <div className="ax-gstats">
@@ -1353,27 +1470,15 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
               </div>
             )}
 
-            <div style={{ marginTop: 10 }}>
-              <div className="ax-fl"><span>Rekening bank tujuan transfer gaji</span></div>
-              <div className="ax-accs" role="radiogroup" aria-label="Rekening tujuan gaji">
-                {accounts.filter(a => !a.isArchived).map(acc => (
-                  <button key={acc.id} type="button" role="radio" aria-checked={targetAccountId === acc.id} className="ax-acc" onClick={() => setTargetAccountId(acc.id)}>
-                    <b>{acc.name}</b><small>{SLIP_ACC_TYPE[acc.type] || acc.type} · {formatRupiah(acc.balance)}</small>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <p className="ax-fieldhint" style={{ margin: '8px 0 0' }}>
+              {payrollAuto.enabled
+                ? 'Otomasi gaji aktif: take home pay masuk otomatis pada tanggal gajian (atur rekeningnya di Pengaturan).'
+                : 'Otomasi gaji nonaktif. Aktifkan di Pengaturan bila ingin gaji masuk otomatis ke rekening.'}
+            </p>
+            <p className="ax-fieldhint" style={{ margin: '4px 0 0' }}>
+              Slip ini diarsipkan otomatis saat Anda pindah periode atau setelah tanggal tutup buku (tgl 20), dan tetap bisa diedit.
+            </p>
           </div>
-
-          <button
-            type="button"
-            onClick={handleSaveSalary}
-            disabled={isSubmittingAuto || salary.netSalary <= 0}
-            className="brutal-btn brutal-btn-sand ax-sl-save"
-          >
-            <Zap className="w-4 h-4" />
-            <span>{isSubmittingAuto ? 'Menyimpan ke Firestore...' : 'Simpan & Otomatiskan Gaji'}</span>
-          </button>
         </section>
 
       </div>
@@ -1425,6 +1530,9 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
           custom={customSalarySettings}
           onCustom={(key, v) => setCustomSalarySettings({ ...customSalarySettings, [key]: v })}
           autoOT={isAutoOTEnabled} onAutoOT={setIsAutoOTEnabled}
+          payrollEnabled={payrollAuto.enabled} onPayrollEnabled={(v) => setPayrollStored({ ...payrollAuto, enabled: v })}
+          payrollAccountId={payrollAuto.accountId} onPayrollAccount={(id) => setPayrollStored({ ...payrollAuto, accountId: id })}
+          accounts={accounts}
           autoOTHours={autoOTPerSunday} onAutoOTHours={setAutoOTPerSunday}
           year={currentYear}
           holidayCount={activeYearHolidays.length}

@@ -1,3 +1,4 @@
+import { freeBalanceText, getFreeBalance } from '../utils/accountBalance';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   TrendingUp,
@@ -432,7 +433,7 @@ export function AddTransactionView({
                   <div className="ax-accs" role="radiogroup" aria-label="Akun">
                     {accounts.map(acc => (
                       <button key={acc.id} type="button" role="radio" aria-checked={accountId === acc.id} className="ax-acc" onClick={() => setAccountId(acc.id)}>
-                        <b>{acc.name}</b><small>{formatRupiah(acc.balance)}</small>
+                        <b>{acc.name}</b><small>{freeBalanceText(acc)}</small>
                       </button>
                     ))}
                   </div>
@@ -482,7 +483,7 @@ export function AddTransactionView({
                   <label className="brutal-label" htmlFor="tf-src">Dari akun</label>
                   <select id="tf-src" value={transferSource} onChange={(e) => setTransferSource(e.target.value)} className="brutal-select" required>
                     {accounts.length === 0 ? <option value="">Belum ada akun di buku ini</option> : accounts.map(acc => (
-                      <option key={acc.id} value={acc.id}>{acc.name} — {formatRupiah(acc.balance)}</option>
+                      <option key={acc.id} value={acc.id}>{acc.name} — {freeBalanceText(acc)}</option>
                     ))}
                   </select>
                 </div>
@@ -494,7 +495,7 @@ export function AddTransactionView({
                   <select id="tf-dst" value={transferDest} onChange={(e) => setTransferDest(e.target.value)} className="brutal-select" required>
                     {accounts.length === 0 ? <option value="">Belum ada akun di buku ini</option> : accounts.map(acc => (
                       <option key={acc.id} value={acc.id} disabled={acc.id === transferSource}>
-                        {acc.name} {acc.id === transferSource ? '(Akun Asal)' : `— ${formatRupiah(acc.balance)}`}
+                        {acc.name} {acc.id === transferSource ? '(Akun Asal)' : `— ${freeBalanceText(acc)}`}
                       </option>
                     ))}
                   </select>
@@ -546,7 +547,7 @@ export function AddTransactionView({
             </div>
             <div className="ax-list" style={{ maxHeight: 220, overflowY: 'auto' }}>
               {accounts.map(acc => (
-                <div key={acc.id} className="ax-mini"><span>{acc.name}</span><span>{formatRupiah(acc.balance)}</span></div>
+                <div key={acc.id} className="ax-mini"><span>{acc.name}</span><span>{freeBalanceText(acc)}</span></div>
               ))}
             </div>
           </section>

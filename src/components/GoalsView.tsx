@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { Zap } from 'lucide-react';
 import { Award, Calendar, Coins, Compass, Pencil, Plus, Target, Trash2, Wallet, CheckCircle2 } from 'lucide-react';
 import type { Account, Goal } from '../types';
 import { formatRupiah } from '../utils/calculator';
@@ -19,6 +20,9 @@ interface Props {
   onEditGoal: (g: Goal) => void;
   onDeleteGoal: (g: Goal) => void;
   onAllocate: (g: Goal) => void;
+  /** Autopilot: apakah target sudah punya aturan top-up, dan buka jendela buat/ubah aturan. */
+  autoOn?: (id: string) => boolean;
+  onAutopilot?: (id: string) => void;
 }
 
 const R = 26;
@@ -154,6 +158,12 @@ export function GoalsView(p: Props) {
                   <button type="button" className="brutal-btn brutal-btn-sand" disabled={g.isCompleted} onClick={() => p.onAllocate(g)}>
                     <Coins className="w-3.5 h-3.5" />{g.isCompleted ? 'Target selesai tercapai 🎉' : 'Alokasikan dana'}
                   </button>
+                  {p.onAutopilot && !g.isCompleted && (
+                    <button type="button" className={`ax-iconbtn ${p.autoOn?.(g.id) ? 'on' : ''}`} onClick={() => p.onAutopilot!(g.id)}
+                      aria-pressed={!!p.autoOn?.(g.id)}
+                      title={p.autoOn?.(g.id) ? 'Autopilot aktif: ketuk untuk mengubah' : 'Otomatiskan setoran ke target ini'}
+                      aria-label={`Autopilot target ${g.name}`}><Zap className="w-3.5 h-3.5" /></button>
+                  )}
                 </div>
               </article>
             );

@@ -626,7 +626,7 @@ body:has(.ax-modal){overflow:hidden}
 .ax-gstats small{display:block;font:800 9px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary)}
 .ax-gstats b{display:block;margin-top:2px;font:800 15px var(--font-heading)}
 .ax-gstats em{font:700 10px var(--font-mono);font-style:normal;color:var(--text-secondary)}
-.ax-days{display:grid;gap:10px;grid-template-columns:repeat(2,minmax(0,1fr));max-height:680px;overflow-y:auto;padding:2px 4px 6px 2px;overscroll-behavior:contain}
+.ax-days{display:grid;gap:10px;grid-template-columns:repeat(2,minmax(0,1fr));padding:2px}
 @media(min-width:640px){.ax-days{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(min-width:1280px){.ax-days{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .ax-sd{display:flex;flex-direction:column;gap:6px;padding:9px 10px;background:var(--bg-elevated);color:var(--text-primary);border:2px solid var(--border-color);border-radius:14px;box-shadow:var(--shadow-sm);cursor:pointer;user-select:none;transition:transform .12s,box-shadow .12s;min-width:0}
@@ -748,3 +748,38 @@ body:has(.ax-modal){overflow:hidden}
 .ax-bgt-h b{font:800 13px var(--font-heading)}.ax-bgt-h small{font:700 10.5px var(--font-mono);color:var(--text-secondary)}
 .ax-addcat{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .ax-addcat .brutal-input{flex:1 1 160px;min-width:0}
+
+/* ===== Filter makan ===== */
+.ax-mealdates{display:flex;flex-direction:column;gap:6px;padding:9px 11px;background:var(--bg-elevated);border:2px solid var(--border-subtle);border-radius:14px}
+.ax-mealdates-l{display:flex;flex-wrap:wrap;gap:6px}
+.ax-mealdates-l button{display:inline-flex;align-items:center;gap:5px;min-height:32px;padding:0 10px;background:var(--bg-surface);color:var(--text-primary);border:2px solid var(--border-color);border-radius:10px;box-shadow:var(--shadow-sm);cursor:pointer}
+.ax-mealdates-l button:active{transform:translate(2px,2px);box-shadow:none}
+.ax-mealdates-l b{font:800 14px var(--font-heading)}
+.ax-mealdates-l span{font:800 10px var(--font-mono);color:var(--accent-blue-light);letter-spacing:.04em}
+
+/* ===== Saldo bebas & panel Saldo Akun ===== */
+.ax-ac-total{margin-top:3px;font:700 10.5px/1.35 var(--font-mono);color:var(--text-secondary)}
+.ax-sa{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.ax-sa li{--c:var(--accent-sage);min-width:0}
+.ax-sa-t{display:flex;align-items:center;gap:6px;min-width:0}
+.ax-sa-t b{flex:1;min-width:0;font:800 13px var(--font-heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ax-sa-v{flex:none;font:800 13px var(--font-heading);white-space:nowrap}
+.ax-sa-v.neg{color:var(--accent-terracotta-light)}
+.ax-sa .ax-share{margin-top:4px;height:6px}
+
+/* ===== Tombol Autopilot di kartu ===== */
+.ax-iconbtn.on{background:var(--accent-sand);color:#14141a}
+.ax-iconbtn.on svg{fill:#14141a}
+
+/* ===== Investasi: aksi dana & riwayat ===== */
+.ax-invact{display:grid;gap:8px;grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(min-width:640px){.ax-invact{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.ax-invact button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 10px;background:var(--c);color:#14141a;border:2px solid var(--border-color);border-radius:12px;box-shadow:var(--shadow-sm);font:800 13px var(--font-heading);cursor:pointer}
+.ax-invact button:active{transform:translate(2px,2px);box-shadow:none}
+.ax-ent{--c:var(--accent-sage);display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--bg-elevated);border:2px solid var(--border-subtle);border-left:6px solid var(--c);border-radius:12px;min-width:0}
+.ax-ent .ax-ic{background:var(--c);flex:none}
+.ax-ent .b{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.ax-ent .b b{font:800 13px var(--font-heading)}
+.ax-ent .b small{font:700 10.5px/1.35 var(--font-mono);color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis}
+.ax-ent .v{flex:none;font:800 13px var(--font-heading);white-space:nowrap}
+.ax-ent .a{flex:none;display:inline-flex;gap:2px}

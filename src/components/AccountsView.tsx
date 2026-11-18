@@ -1,3 +1,4 @@
+import { getFreeBalance, getPocketTotal } from '../utils/accountBalance';
 import type { CSSProperties } from 'react';
 import { Landmark, Smartphone, CreditCard, Wallet, Pencil, Plus, Trash2, type LucideIcon } from 'lucide-react';
 import type { Account } from '../types';
@@ -109,10 +110,13 @@ export function AccountsView({ ledgerName, accounts, totals, isLoading, onAddAcc
 
                 <div>
                   <div className="ax-ac-l">
-                    <span>{isCredit ? 'Tagihan berjalan' : 'Saldo tersedia'}</span>
+                    <span>{isCredit ? 'Tagihan berjalan' : acc.pockets && acc.pockets.length > 0 ? 'Saldo bebas' : 'Saldo tersedia'}</span>
                     {acc.pockets && acc.pockets.length > 0 && <span className="ax-pocket">{acc.pockets.length} kantong</span>}
                   </div>
-                  <div className={`ax-ac-bal ${isCredit ? 'cr' : ''}`}>{formatRupiah(acc.balance)}</div>
+                  <div className={`ax-ac-bal ${isCredit ? 'cr' : ''}`}>{formatRupiah(getFreeBalance(acc))}</div>
+                  {!isCredit && acc.pockets && acc.pockets.length > 0 && (
+                    <div className="ax-ac-total">Total rekening {formatRupiah(acc.balance)} · di kantong {formatRupiah(getPocketTotal(acc))}</div>
+                  )}
                   {!isCredit && (
                     <>
                       <div className="ax-share" aria-hidden="true"><i style={{ width: `${share}%` }} /></div>

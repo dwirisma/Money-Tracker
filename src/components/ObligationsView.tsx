@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { Zap } from 'lucide-react';
 import { AlertTriangle, Banknote, Calendar, CheckCircle2, Clock, CreditCard, Pencil, Plus, Receipt, RotateCw, Trash2 } from 'lucide-react';
 import type { Bill, Debt } from '../types';
 import { formatRupiah } from '../utils/calculator';
@@ -37,6 +38,9 @@ interface Props {
   onPayDebt: (d: Debt) => void;
   onEditDebt: (d: Debt) => void;
   onDeleteDebt: (d: Debt) => void;
+  /** Autopilot: apakah target sudah punya aturan, dan buka jendela buat/ubah aturan. */
+  autoOn?: (kind: 'pay_bill' | 'pay_debt', id: string) => boolean;
+  onAutopilot?: (kind: 'pay_bill' | 'pay_debt', id: string) => void;
 }
 
 type Due = ReturnType<typeof getBillDueStatus>;
@@ -133,6 +137,12 @@ export function ObligationsView(p: Props) {
                   </div>
                   <div className="ax-ob-act" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
                     <button type="button" className="brutal-btn brutal-btn-blue" onClick={() => p.onPayBill(b)}><CreditCard className="w-3.5 h-3.5" />Bayar sekarang</button>
+                    {p.onAutopilot && (
+                      <button type="button" className={`ax-iconbtn ${p.autoOn?.('pay_bill', b.id) ? 'on' : ''}`} onClick={() => p.onAutopilot!('pay_bill', b.id)}
+                        aria-pressed={!!p.autoOn?.('pay_bill', b.id)}
+                        title={p.autoOn?.('pay_bill', b.id) ? 'Autopilot aktif: ketuk untuk mengubah' : 'Otomatiskan pembayaran tagihan ini'}
+                        aria-label={`Autopilot tagihan ${b.name}`}><Zap className="w-3.5 h-3.5" /></button>
+                    )}
                     <button type="button" className="ax-iconbtn" onClick={() => p.onEditBill(b)} title="Edit tagihan" aria-label={`Edit tagihan ${b.name}`}><Pencil className="w-3.5 h-3.5" /></button>
                     <button type="button" className="ax-iconbtn del" onClick={() => p.onDeleteBill(b)} title="Hapus tagihan" aria-label={`Hapus tagihan ${b.name}`}><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
@@ -184,6 +194,12 @@ export function ObligationsView(p: Props) {
                     <button type="button" className="brutal-btn brutal-btn-terracotta" disabled={d.isPaidOff} onClick={() => p.onPayDebt(d)}>
                       <Banknote className="w-3.5 h-3.5" />{d.isPaidOff ? 'Utang telah lunas 🎉' : 'Bayar cicilan'}
                     </button>
+                    {p.onAutopilot && !d.isPaidOff && (
+                      <button type="button" className={`ax-iconbtn ${p.autoOn?.('pay_debt', d.id) ? 'on' : ''}`} onClick={() => p.onAutopilot!('pay_debt', d.id)}
+                        aria-pressed={!!p.autoOn?.('pay_debt', d.id)}
+                        title={p.autoOn?.('pay_debt', d.id) ? 'Autopilot aktif: ketuk untuk mengubah' : 'Otomatiskan cicilan utang ini'}
+                        aria-label={`Autopilot utang ${d.name}`}><Zap className="w-3.5 h-3.5" /></button>
+                    )}
                     <button type="button" className="ax-iconbtn" onClick={() => p.onEditDebt(d)} title="Edit utang" aria-label={`Edit utang ${d.name}`}><Pencil className="w-3.5 h-3.5" /></button>
                     <button type="button" className="ax-iconbtn del" onClick={() => p.onDeleteDebt(d)} title="Hapus utang" aria-label={`Hapus utang ${d.name}`}><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>

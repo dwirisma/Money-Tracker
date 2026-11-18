@@ -875,7 +875,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       </section>
 
       {/* INSIGHT */}
-      <p className="ax-ai-tip" style={{ margin: 0 }}>
+      <p className="ax-ai-tip" style={{ margin: '0 0 12px' }}>
         <span aria-hidden="true"><Sparkles className="w-4 h-4" /></span>
         <span style={{ color: 'inherit', fontWeight: 600 }}><b>Insight periode ini:</b> {insightMessage}</span>
       </p>

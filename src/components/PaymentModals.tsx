@@ -1,3 +1,4 @@
+import { freeBalanceText, getFreeBalance } from '../utils/accountBalance';
 import type { FormEvent } from 'react';
 import { Banknote, Calculator, Check, CreditCard, Info, RotateCw, AlertTriangle } from 'lucide-react';
 import type { Account, Bill, Debt } from '../types';
@@ -32,7 +33,7 @@ export function PayBillModal(p: PayBillProps) {
   const parsed = evaluateMathExpression(p.amount).result;
   const payAmount = isVariable ? parsed : (parsed > 0 ? parsed : b.fixedAmount || 0);
   const selected = p.accounts.find(a => a.id === p.sourceAccount);
-  const short = !!selected && selected.type !== 'credit_card' && payAmount > 0 && selected.balance < payAmount;
+  const short = !!selected && selected.type !== 'credit_card' && payAmount > 0 && getFreeBalance(selected) < payAmount;
   const suggest = isVariable ? (b.lastNominal || 0) : (b.fixedAmount || 0);
   const cycle = b.cycle as string;
 
@@ -88,7 +89,7 @@ export function PayBillModal(p: PayBillProps) {
               {p.accounts.map(acc => (
                 <button key={acc.id} type="button" role="radio" aria-checked={p.sourceAccount === acc.id} className="ax-acc" onClick={() => p.onSourceChange(acc.id)}>
                   <b>{acc.name}</b>
-                  <small>{ACC_TYPE[acc.type] || acc.type} · {formatRupiah(acc.balance)}</small>
+                  <small>{ACC_TYPE[acc.type] || acc.type} · {freeBalanceText(acc)}</small>
                 </button>
               ))}
             </div>
@@ -99,7 +100,7 @@ export function PayBillModal(p: PayBillProps) {
         {short && (
           <div className="ax-warn t" role="alert">
             <AlertTriangle className="w-4 h-4" />
-            <span>Saldo <b>{selected?.name}</b> ({formatRupiah(selected?.balance || 0)}) lebih kecil dari tagihan. Saldo akun akan menjadi minus.</span>
+            <span>Saldo bebas <b>{selected?.name}</b> ({selected ? freeBalanceText(selected) : formatRupiah(0)}) lebih kecil dari tagihan. Saldo akun akan menjadi minus.</span>
           </div>
         )}
 
@@ -153,7 +154,7 @@ export function PayDebtModal(p: PayDebtProps) {
   const over = payAmount > d.remainingDebt;
   const settles = payAmount > 0 && after === 0;
   const selected = p.accounts.find(a => a.id === p.sourceAccount);
-  const short = !!selected && selected.type !== 'credit_card' && payAmount > 0 && selected.balance < payAmount;
+  const short = !!selected && selected.type !== 'credit_card' && payAmount > 0 && getFreeBalance(selected) < payAmount;
 
   return (
     <ModalFrame
@@ -227,7 +228,7 @@ export function PayDebtModal(p: PayDebtProps) {
             <div className="ax-accs" role="radiogroup" aria-label="Akun sumber dana">
               {p.accounts.map(acc => (
                 <button key={acc.id} type="button" role="radio" aria-checked={p.sourceAccount === acc.id} className="ax-acc" onClick={() => p.onSourceChange(acc.id)}>
-                  <b>{acc.name}</b><small>{ACC_TYPE[acc.type] || acc.type} · {formatRupiah(acc.balance)}</small>
+                  <b>{acc.name}</b><small>{ACC_TYPE[acc.type] || acc.type} · {freeBalanceText(acc)}</small>
                 </button>
               ))}
             </div>
@@ -237,7 +238,7 @@ export function PayDebtModal(p: PayDebtProps) {
         {short && (
           <div className="ax-warn t" role="alert">
             <AlertTriangle className="w-4 h-4" />
-            <span>Saldo <b>{selected?.name}</b> ({formatRupiah(selected?.balance || 0)}) lebih kecil dari cicilan. Saldo akun akan menjadi minus.</span>
+            <span>Saldo bebas <b>{selected?.name}</b> ({selected ? freeBalanceText(selected) : formatRupiah(0)}) lebih kecil dari cicilan. Saldo akun akan menjadi minus.</span>
           </div>
         )}
 

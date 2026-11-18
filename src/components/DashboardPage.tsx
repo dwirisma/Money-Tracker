@@ -1,3 +1,4 @@
+import { getFreeBalance } from '../utils/accountBalance';
 import { useMemo, useState } from 'react';
 import { 
   Activity, 
@@ -246,7 +247,7 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
       </section>
 
       {/* TREN 6 BULAN */}
-      <section className="ax-b s12 ax-panel">
+      <section className="ax-b s8 ax-panel">
         <div className="ax-ph">
           <h3><span className="ax-ic" style={{ background: 'var(--accent-blue)' }}><TrendingUp className="w-3.5 h-3.5" /></span>Tren 6 Bulan</h3>
           <div className="ax-leg">
@@ -298,6 +299,42 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
         <div className="ax-foot">
           <span>Komparasi bulan ke bulan</span>
           <button type="button" className="ax-link" onClick={() => onNavigate('module5')}>Laporan & Analitik →</button>
+        </div>
+      </section>
+
+      {/* SALDO AKUN (saldo bebas per akun; total tetap di kartu kekayaan) */}
+      <section className="ax-b s4 ax-panel">
+        <div className="ax-ph">
+          <h3><span className="ax-ic" style={{ background: 'var(--accent-sage)' }}><Wallet className="w-3.5 h-3.5" /></span>Saldo Akun</h3>
+        </div>
+        {(() => {
+          const list = accounts.filter(a => !a.isArchived);
+          const assets = list.filter(a => a.type !== 'credit_card').reduce((sum, a) => sum + a.balance, 0);
+          return list.length === 0 ? (
+            <p className="ax-empty">Belum ada akun di buku kas ini.</p>
+          ) : (
+            <ul className="ax-sa">
+              {list.map(a => {
+                const credit = a.type === 'credit_card';
+                const pk = a.pockets?.length || 0;
+                const share = !credit && assets > 0 ? Math.max(0, Math.min(100, (a.balance / assets) * 100)) : 0;
+                return (
+                  <li key={a.id} style={{ '--c': a.colorAccent || 'var(--accent-sage)' } as React.CSSProperties}>
+                    <div className="ax-sa-t">
+                      <b title={a.name}>{a.name}</b>
+                      {pk > 0 && <span className="ax-pocket">{pk} kantong</span>}
+                      <span className={`ax-sa-v ${credit ? 'neg' : ''}`}><Money value={getFreeBalance(a)} /></span>
+                    </div>
+                    {!credit && <div className="ax-share" aria-hidden="true"><i style={{ width: `${share}%` }} /></div>}
+                  </li>
+                );
+              })}
+            </ul>
+          );
+        })()}
+        <div className="ax-foot">
+          <span>Saldo bebas per akun</span>
+          <button type="button" className="ax-link" onClick={() => onNavigate('module1')}>Akun & Saldo →</button>
         </div>
       </section>
 

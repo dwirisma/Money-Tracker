@@ -3248,3 +3248,109 @@ export async function fetchSalarySettingsFromFirestore(
 
 
 
+
+
+// =========================================================================
+// ARSIP GAJI OTOMATIS & ATURAN PAYROLL (dipisah dari batch lama agar bisa dipanggil sendiri-sendiri)
+// =========================================================================
+export interface ArchiveSalaryParams {
+  userId?: string;
+  ledgerId: string;
+  period: string; // "YYYY-MM"
+  totalOtHours: number;
+  totalMeals: number;
+  totalAddOns?: number;
+  netSalary: number;
+  grossSalary: number;
+}
+
+/** Simpan arsip gaji sebuah periode; bila sudah ada, diperbarui (id tetap). */
+export async function archiveSalaryPeriod(params: ArchiveSalaryParams): Promise<SalaryHistoryRecord> {
+  const userId = params.userId || DEFAULT_USER_ID;
+  const existing = getLocalSalaryHistories().find(h => h.ledgerId === params.ledgerId && h.period === params.period);
+  const historyId = existing?.id ?? `salhist_${params.ledgerId}_${params.period.replace('-', '_')}_${Date.now()}`;
+  const record: SalaryHistoryRecord = {
+    id: historyId,
+    ledgerId: params.ledgerId,
+    period: params.period,
+    totalOtHours: params.totalOtHours,
+    totalMeals: params.totalMeals,
+    totalAddOns: params.totalAddOns || 0,
+    netSalary: params.netSalary,
+    grossSalary: params.grossSalary,
+    createdAt: Date.now()
+  };
+
+  const others = getLocalSalaryHistories().filter(h => !(h.ledgerId === params.ledgerId && h.period === params.period));
+  saveLocalSalaryHistories([record, ...others]);
+
+  try {
+    const clean = JSON.parse(JSON.stringify({
+      id: historyId, ledgerId: record.ledgerId, period: record.period, totalOtHours: record.totalOtHours,
+      totalMeals: record.totalMeals, totalAddOns: record.totalAddOns, netSalary: record.netSalary, grossSalary: record.grossSalary
+    }));
+    await setDoc(doc(db, 'users', userId, 'salary_history', historyId), { ...clean, createdAt: serverTimestamp() });
+  } catch (err) {
+    console.warn('Arsip gaji tersimpan lokal (Firestore offline):', err);
+  }
+  return record;
+}
+
+export interface PayrollRuleParams {
+  userId?: string;
+  ledgerId: string;
+  targetAccountId: string;
+  netSalary: number;
+  paydayDate: string;
+  paydayNumber: number;
+  noteDesc: string;
+  existingRuleId?: string;
+}
+
+/** Buat atau perbarui aturan Pemasukan "Payroll Gaji" (nominal, rekening, dan tanggal gajian terdekat). */
+export async function upsertPayrollAutomation(params: PayrollRuleParams): Promise<AutomationRule> {
+  const userId = params.userId || DEFAULT_USER_ID;
+  const ruleId = params.existingRuleId || `auto_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  const base: AutomationRule = {
+    id: ruleId,
+    ledgerId: params.ledgerId,
+    name: 'Payroll Gaji Shift Group C',
+    type: 'income',
+    amount: params.netSalary,
+    category: 'Gaji Bulanan',
+    sourceAccountId: params.targetAccountId,
+    toAccountId: null,
+    cycle: 'monthly',
+    monthlyDay: params.paydayNumber,
+    nextRunDate: params.paydayDate,
+    lastRunDate: null,
+    executionCount: 0,
+    isActive: true,
+    colorAccent: '#2dd4a7',
+    note: params.noteDesc,
+    createdAt: Date.now()
+  };
+
+  const list = getLocalAutomations();
+  const idx = list.findIndex(a => a.id === ruleId);
+  let saved = base;
+  if (idx >= 0) {
+    saved = { ...list[idx], amount: params.netSalary, sourceAccountId: params.targetAccountId, nextRunDate: params.paydayDate, monthlyDay: params.paydayNumber, note: params.noteDesc, isActive: true };
+    list[idx] = saved;
+  } else {
+    list.unshift(base);
+  }
+  saveLocalAutomations(list);
+
+  try {
+    const clean = JSON.parse(JSON.stringify({
+      id: ruleId, ledgerId: saved.ledgerId, name: saved.name, type: 'income', amount: saved.amount, category: saved.category,
+      sourceAccountId: saved.sourceAccountId, cycle: 'monthly', monthlyDay: saved.monthlyDay, nextRunDate: saved.nextRunDate,
+      isActive: true, colorAccent: saved.colorAccent, note: saved.note
+    }));
+    await setDoc(doc(db, 'users', userId, 'automations', ruleId), { ...clean, updatedAt: serverTimestamp() }, { merge: true });
+  } catch (err) {
+    console.warn('Aturan Payroll tersimpan lokal (Firestore offline):', err);
+  }
+  return saved;
+}

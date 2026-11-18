@@ -1,3 +1,4 @@
+import { freeBalanceText, getFreeBalance } from '../utils/accountBalance';
 import type { CSSProperties, FormEvent } from 'react';
 import { AlertTriangle, Calculator, Check, Coins, Info, Pencil, Sparkles, Target } from 'lucide-react';
 import type { Account, Goal, GoalType } from '../types';
@@ -37,7 +38,7 @@ export function AllocateGoalModal(p: AllocateProps) {
   const afterSaved = g.currentAmount + Math.max(0, alloc);
   const reaches = alloc > 0 && afterSaved >= g.targetAmount;
   const selected = p.accounts.find(a => a.id === p.sourceAccount);
-  const short = !!selected && selected.type !== 'credit_card' && alloc > 0 && selected.balance < alloc;
+  const short = !!selected && selected.type !== 'credit_card' && alloc > 0 && getFreeBalance(selected) < alloc;
   const noSource = !p.sourceAccount;
   const blocked = isSinking && noSource;
 
@@ -111,7 +112,7 @@ export function AllocateGoalModal(p: AllocateProps) {
             )}
             {p.accounts.map(acc => (
               <button key={acc.id} type="button" role="radio" aria-checked={p.sourceAccount === acc.id} className="ax-acc" onClick={() => p.onSourceChange(acc.id)}>
-                <b>{acc.name}</b><small>{ACC_TYPE[acc.type] || acc.type} · {formatRupiah(acc.balance)}</small>
+                <b>{acc.name}</b><small>{ACC_TYPE[acc.type] || acc.type} · {freeBalanceText(acc)}</small>
               </button>
             ))}
           </div>
@@ -120,7 +121,7 @@ export function AllocateGoalModal(p: AllocateProps) {
         {short && (
           <div className="ax-warn t" role="alert">
             <AlertTriangle className="w-4 h-4" />
-            <span>Saldo <b>{selected?.name}</b> ({formatRupiah(selected?.balance || 0)}) lebih kecil dari alokasi. Saldo akun akan menjadi minus.</span>
+            <span>Saldo bebas <b>{selected?.name}</b> ({selected ? freeBalanceText(selected) : formatRupiah(0)}) lebih kecil dari alokasi. Saldo akun akan menjadi minus.</span>
           </div>
         )}
 
@@ -264,7 +265,7 @@ export function GoalFormModal(p: GoalFormProps) {
               <div className="ax-accs" role="radiogroup" aria-label="Akun sumber utama">
                 {p.accounts.map(acc => (
                   <button key={acc.id} type="button" role="radio" aria-checked={p.sourceAccount === acc.id} className="ax-acc" onClick={() => p.onSourceAccount(acc.id)}>
-                    <b>{acc.name}</b><small>{ACC_TYPE[acc.type] || acc.type} · {formatRupiah(acc.balance)}</small>
+                    <b>{acc.name}</b><small>{ACC_TYPE[acc.type] || acc.type} · {freeBalanceText(acc)}</small>
                   </button>
                 ))}
               </div>

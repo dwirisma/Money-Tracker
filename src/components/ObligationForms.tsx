@@ -1,3 +1,4 @@
+import { freeBalanceText, getFreeBalance } from '../utils/accountBalance';
 import type { CSSProperties, FormEvent } from 'react';
 import { Banknote, Calculator, Check, Pencil, Receipt } from 'lucide-react';
 import type { Account, BillCycle, CustomIntervalUnit } from '../types';
@@ -175,7 +176,7 @@ export function AddBillModal(p: AddBillProps) {
             </button>
             {p.accounts.map(acc => (
               <button key={acc.id} type="button" role="radio" aria-checked={p.sourceAccount === acc.id} className="ax-acc" onClick={() => p.onSourceAccount(acc.id)}>
-                <b>{acc.name}</b><small>{ACC_TYPE[acc.type] || acc.type} · {formatRupiah(acc.balance)}</small>
+                <b>{acc.name}</b><small>{ACC_TYPE[acc.type] || acc.type} · {freeBalanceText(acc)}</small>
               </button>
             ))}
           </div>
@@ -382,7 +383,7 @@ export function EditBillModal(p: EditBillProps) {
             </button>
             {p.accounts.map(acc => (
               <button key={acc.id} type="button" role="radio" aria-checked={p.sourceAccount === acc.id} className="ax-acc" onClick={() => p.onSourceAccount(acc.id)}>
-                <b>{acc.name}</b><small>{ACC_TYPE[acc.type] || acc.type} · {formatRupiah(acc.balance)}</small>
+                <b>{acc.name}</b><small>{ACC_TYPE[acc.type] || acc.type} · {freeBalanceText(acc)}</small>
               </button>
             ))}
           </div>

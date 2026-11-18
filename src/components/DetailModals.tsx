@@ -1,3 +1,4 @@
+import { freeBalanceText, getFreeBalance } from '../utils/accountBalance';
 import type { MouseEvent, ReactNode } from 'react';
 import { Banknote, Calendar, Coins, CreditCard, History, Pencil, Receipt, Trash2, Zap, ArrowRightLeft, TrendingDown, TrendingUp } from 'lucide-react';
 import type { Account, AutomationRule, Bill, Debt, Goal, Transaction } from '../types';
@@ -144,7 +145,7 @@ export function BillDetailModal(p: Base & { bill: Bill; transactions: Transactio
       facts={[
         { label: 'Jatuh tempo berikutnya', value: <><Calendar className="w-3.5 h-3.5 inline mr-1" />{b.nextPaymentDate}</> },
         { label: 'Status pembayaran', value: <DueBadge status={due} /> },
-        ...(src ? [{ label: 'Akun kas sumber', value: `${src.name} (${formatRupiah(src.balance)})` }] : [])
+        ...(src ? [{ label: 'Akun kas sumber', value: `${src.name} (${freeBalanceText(src)})` }] : [])
       ]}
       note={b.note ? { label: 'Catatan', text: b.note } : undefined}
       historyTitle="Riwayat pembayaran"

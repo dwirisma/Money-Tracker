@@ -321,5 +321,29 @@ export interface InvestmentAsset {
   colorAccent?: string;
   notes?: string;
   lastUpdated?: string; // YYYY-MM-DD
+  /** 'closed' = aset sudah dicairkan/ditutup; tidak dihitung di total portofolio. */
+  status?: 'active' | 'closed';
+  closedAt?: string; // YYYY-MM-DD
   createdAt: number | string;
+}
+
+/** Catatan arus dana pada sebuah aset investasi. */
+export type InvestmentEntryKind = 'topup' | 'yield' | 'withdraw' | 'close';
+
+export interface InvestmentEntry {
+  id: string;
+  assetId: string;
+  ledgerId: string;
+  kind: InvestmentEntryKind;
+  date: string; // YYYY-MM-DD
+  amount: number; // uang yang keluar (topup) atau masuk (yield/withdraw/close) pada akun
+  accountId: string;
+  transactionId?: string;
+  capitalDelta: number; // perubahan modal aset (topup +, withdraw -)
+  valueDelta: number; // perubahan nilai pasar aset (withdraw -)
+  capitalReduced?: number; // khusus withdraw
+  realized?: number; // untung/rugi terealisasi (withdraw/close)
+  closedAsset?: boolean; // catatan ini menutup aset
+  note?: string;
+  createdAt: number;
 }

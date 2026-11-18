@@ -137,7 +137,8 @@ import { ObligationsView } from './components/ObligationsView';
 import { AccountsView } from './components/AccountsView';
 import { DashboardPage } from './components/DashboardPage';
 import { SettingsPage } from './components/SettingsPage';
-import { AutopilotList, AutopilotFields, submitAutopilot, emptyApDraft, type ApDraft } from './components/AutopilotPanel';
+import { AutopilotList, AutopilotFields, AutopilotRuleModal, submitAutopilot, emptyApDraft, type ApDraft, type ApRequest } from './components/AutopilotPanel';
+import { getAutopilotRules } from './services/autopilotService';
 import type { AutopilotKind } from './services/autopilotService';
 import { SixMonthReport } from './components/SixMonthReport';
 import { scanReceipt } from './services/receiptScanService';
@@ -198,6 +199,7 @@ export default function App() {
   const [apKind, setApKind] = useState<AutopilotKind | null>(null);
   const [apDraft, setApDraft] = useState<ApDraft>(emptyApDraft);
   const [apVersion, setApVersion] = useState(0);
+  const [apRequest, setApRequest] = useState<ApRequest | null>(null);
   function handleCreateAutopilot(e: React.FormEvent) {
     e.preventDefault();
     if (!apKind) return;
@@ -213,6 +215,14 @@ export default function App() {
 
   // Autopilot: jalankan aturan lalu muat ulang data yang terpengaruh
   useEffect(() => { if (!isAddAutomationOpen) { setApKind(null); setApDraft(emptyApDraft()); } }, [isAddAutomationOpen]);
+
+  /** Apakah target (tagihan/utang/target) sudah punya aturan Autopilot di buku kas aktif. */
+  function findApRule(kind: AutopilotKind, targetId: string) {
+    return getAutopilotRules().find(r => r.ledgerId === currentLedger.id && r.kind === kind && r.targetId === targetId);
+  }
+  function openAutopilot(kind: AutopilotKind, targetId: string) {
+    setApRequest({ kind, targetId, ruleId: findApRule(kind, targetId)?.id });
+  }
 
   async function runAutopilotAndRefresh(ledgerId: string): Promise<AutopilotResult> {
     const res = await runAutopilot(ledgerId);
@@ -2276,21 +2286,6 @@ export default function App() {
                 </button>
               )}
 
-              {/* Saat Modul 6 Aktif: Tampilkan Tombol "Komponen Gaji (Bonus/THR)" */}
-              {activeModule === 'module6' && (
-                <button
-                  id="header-btn-add-salary-addon"
-                  type="button"
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent('open-salary-addon-modal'));
-                  }}
-                  className="brutal-btn brutal-btn-sand text-xs py-1.5 px-2 sm:px-3 flex items-center gap-1 shadow-[2px_2px_0px_#000] font-bold"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Komponen Gaji (Bonus/THR)</span>
-                  <span className="sm:hidden">+ Bonus/THR</span>
-                </button>
-              )}
             </div>
 
           </div>
@@ -2386,6 +2381,15 @@ export default function App() {
               const fresh = await fetchInvestmentsByLedger(undefined, activeLedgerIdState);
               setInvestments(fresh);
             }}
+            accounts={accounts}
+            onDataChanged={async () => {
+              const [a, t, inv] = await Promise.all([
+                fetchAccountsByLedger(undefined, activeLedgerIdState),
+                fetchTransactionsByLedger(undefined, activeLedgerIdState),
+                fetchInvestmentsByLedger(undefined, activeLedgerIdState)
+              ]);
+              setAccounts(a); setTransactions(t); setInvestments(inv);
+            }}
             showToast={showToast}
           />
         </div>
@@ -2409,6 +2413,8 @@ export default function App() {
         {/* =================================================================== */}
         <div id="container-modul-2" className={activeModule === 'module2' ? 'space-y-3' : 'hidden'}>
           <GoalsView
+            autoOn={(id) => !!findApRule('goal_topup', id)}
+            onAutopilot={(id) => openAutopilot('goal_topup', id)}
             ledgerName={currentLedger.name}
             goals={goals}
             filteredGoals={filteredGoals}
@@ -2431,6 +2437,8 @@ export default function App() {
         {/* =================================================================== */}
         <div id="container-modul-3" className={activeModule === 'module3' ? 'space-y-3' : 'hidden'}>
           <ObligationsView
+            autoOn={(kind, id) => !!findApRule(kind, id)}
+            onAutopilot={openAutopilot}
             ledgerName={currentLedger.name}
             bills={bills}
             debts={debts}
@@ -2459,17 +2467,7 @@ export default function App() {
         {/* KONTEN MODUL 4: OTOMATISASI TRANSAKSI (AUTO-INCOME/EXPENSE/TRANSFER)*/}
         {/* =================================================================== */}
         <div id="container-modul-4" className={activeModule === 'module4' ? 'space-y-3' : 'hidden'}>
-          <AutopilotList
-            ledgerId={currentLedger.id}
-            accounts={accounts}
-            goals={goals}
-            bills={bills}
-            debts={debts}
-            version={apVersion}
-            onRun={() => runAutopilotAndRefresh(currentLedger.id)}
-          />
-          
-          <AutomationsView
+<AutomationsView
             ledgerName={currentLedger.name}
             automations={automations}
             filteredAutomations={filteredAutomations}
@@ -2485,6 +2483,17 @@ export default function App() {
             onExecute={handleManualExecuteAutomation}
             onEdit={openEditAutomationModal}
             onDelete={promptDeleteAutomation}
+          />
+
+          <AutopilotList
+            ledgerId={currentLedger.id}
+            accounts={accounts}
+            goals={goals}
+            bills={bills}
+            debts={debts}
+            version={apVersion}
+            onRun={() => runAutopilotAndRefresh(currentLedger.id)}
+            onChanged={() => setApVersion(v => v + 1)}
           />
         </div>
         {/* AKHIR KONTEN MODUL 4 */}
@@ -2527,6 +2536,20 @@ export default function App() {
       </main>
 
       {/* =================================================================== */}
+      {/* AUTOPILOT: BUAT/UBAH ATURAN DARI KARTU TAGIHAN, UTANG, TARGET */}
+      {apRequest && (
+        <AutopilotRuleModal
+          request={apRequest}
+          ledgerId={currentLedger.id}
+          accounts={accounts}
+          goals={goals}
+          bills={bills}
+          debts={debts}
+          onClose={() => setApRequest(null)}
+          onSaved={(message) => { showToast(message, 'success'); setApVersion(v => v + 1); setApRequest(null); }}
+        />
+      )}
+
       {/* MODAL 0: BUAT BUKU KAS BARU (NEW LEDGER MODAL)                      */}
       {/* =================================================================== */}
       {isAddLedgerOpen && (

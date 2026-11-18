@@ -12,7 +12,9 @@ import {
   where 
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { InvestmentAsset, InvestmentAssetType } from '../types';
+import { InvestmentAsset, InvestmentAssetType, InvestmentEntry, InvestmentEntryKind } from '../types';
+import { createTransaction, deleteTransaction } from './cashManagementService';
+import { ensureCategory } from '../hooks/useCategories';
 
 const STORAGE_KEY_INVESTMENTS = 'artha_offline_investments';
 
@@ -207,6 +209,7 @@ export async function deleteInvestmentAsset(
 ): Promise<void> {
   const all = getLocalInvestments().filter(i => i.id !== assetId);
   saveLocalInvestments(all);
+  try { localStorage.setItem('artha_offline_investment_entries', JSON.stringify(getInvestmentEntries().filter(e => e.assetId !== assetId))); } catch { /* abaikan */ }
 
   try {
     if (db) {
@@ -238,6 +241,7 @@ export function calculateInvestmentSummary(assets: InvestmentAsset[]): Investmen
   let totalCurrentValue = 0;
   const byType: Record<string, { capital: number; currentValue: number }> = {};
 
+  assets = assets.filter(a => a.status !== 'closed');
   assets.forEach(a => {
     totalCapital += Number(a.initialCapital) || 0;
     totalCurrentValue += Number(a.currentValue) || 0;
@@ -273,4 +277,196 @@ export function calculateInvestmentSummary(assets: InvestmentAsset[]): Investmen
     assetCount: assets.length,
     breakdown
   };
+}
+
+
+/* ======================================================================
+ * RIWAYAT DANA ASET: Tambah dana, Hasil (panen/dividen), Tarik, Tutup aset
+ * Setiap catatan membuat transaksi kas (saldo akun ikut berubah) dan mengubah modal/nilai aset.
+ * ====================================================================== */
+const STORAGE_KEY_ENTRIES = 'artha_offline_investment_entries';
+
+/** Kategori transaksi kas yang dipakai fitur ini. */
+export const INV_CATEGORY = { topup: 'Investasi', yield: 'Hasil Investasi', cashout: 'Pencairan Investasi' } as const;
+
+export function getInvestmentEntries(assetId?: string): InvestmentEntry[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_ENTRIES);
+    const parsed = raw ? JSON.parse(raw) : [];
+    const list: InvestmentEntry[] = Array.isArray(parsed) ? parsed : [];
+    return assetId ? list.filter(e => e.assetId === assetId) : list;
+  } catch {
+    return [];
+  }
+}
+
+function saveInvestmentEntries(list: InvestmentEntry[]) {
+  try { localStorage.setItem(STORAGE_KEY_ENTRIES, JSON.stringify(list)); } catch (e) { console.warn('Gagal menyimpan riwayat investasi:', e); }
+}
+
+export interface InvestmentEntryInput {
+  assetId: string;
+  kind: InvestmentEntryKind;
+  date: string;
+  amount: number;
+  accountId: string;
+  note?: string;
+  /** Khusus 'withdraw': modal yang dikurangi. Kosong = proporsional. */
+  capitalReduced?: number;
+}
+
+/** Modal yang berkurang bila sebagian nilai aset ditarik (proporsional terhadap nilai pasar). */
+export function suggestCapitalReduced(asset: Pick<InvestmentAsset, 'initialCapital' | 'currentValue'>, amount: number): number {
+  if (!(asset.currentValue > 0)) return asset.initialCapital;
+  return Math.round(asset.initialCapital * Math.min(1, Math.max(0, amount) / asset.currentValue));
+}
+
+async function applyEntry(userId: string, input: InvestmentEntryInput): Promise<InvestmentEntry> {
+  const asset = getLocalInvestments().find(a => a.id === input.assetId);
+  if (!asset) throw new Error('Aset investasi tidak ditemukan!');
+  if (asset.status === 'closed') throw new Error('Aset sudah ditutup. Hapus catatan "Tutup aset" untuk membukanya kembali.');
+  const amount = Math.round(Number(input.amount) || 0);
+  if (!(amount > 0)) throw new Error('Nominal harus lebih dari 0.');
+  if (!input.accountId) throw new Error('Pilih akun terlebih dahulu.');
+  if (!input.date) throw new Error('Tanggal wajib diisi.');
+
+  let capitalDelta = 0;
+  let valueDelta = 0;
+  let capitalReduced: number | undefined;
+  let realized: number | undefined;
+  let closedAsset = false;
+  let txType: 'income' | 'expense' = 'income';
+  let category: string = INV_CATEGORY.yield;
+  let defaultNote = '';
+  const patch: Partial<Omit<InvestmentAsset, 'id' | 'ledgerId' | 'createdAt'>> = { lastUpdated: asset.lastUpdated };
+
+  if (input.kind === 'topup') {
+    txType = 'expense';
+    category = INV_CATEGORY.topup;
+    defaultNote = `Tambah dana: ${asset.name}`;
+    capitalDelta = amount;
+    patch.initialCapital = asset.initialCapital + amount;
+  } else if (input.kind === 'yield') {
+    category = INV_CATEGORY.yield;
+    defaultNote = `Hasil: ${asset.name}`;
+  } else if (input.kind === 'withdraw') {
+    category = INV_CATEGORY.cashout;
+    defaultNote = `Penarikan: ${asset.name}`;
+    if (amount > asset.currentValue) throw new Error('Penarikan melebihi nilai pasar aset. Gunakan "Tutup aset" bila ingin mencairkan seluruhnya.');
+    capitalReduced = Math.min(asset.initialCapital, Math.max(0, Math.round(input.capitalReduced ?? suggestCapitalReduced(asset, amount))));
+    realized = amount - capitalReduced;
+    capitalDelta = -capitalReduced;
+    valueDelta = -amount;
+    patch.initialCapital = asset.initialCapital - capitalReduced;
+    patch.currentValue = asset.currentValue - amount;
+    if (patch.currentValue <= 0) { closedAsset = true; patch.status = 'closed'; patch.closedAt = input.date; }
+  } else {
+    category = INV_CATEGORY.cashout;
+    defaultNote = `Tutup aset: ${asset.name}`;
+    realized = amount - asset.initialCapital;
+    closedAsset = true;
+    patch.status = 'closed';
+    patch.closedAt = input.date;
+  }
+
+  const tx = await createTransaction(userId, {
+    ledgerId: asset.ledgerId,
+    accountId: input.accountId,
+    type: txType,
+    amount,
+    category,
+    note: input.note?.trim() || defaultNote,
+    date: input.date
+  });
+  ensureCategory(txType, category);
+
+  await updateInvestmentAsset(userId, asset.id, patch);
+
+  const entry: InvestmentEntry = {
+    id: `invent_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    assetId: asset.id,
+    ledgerId: asset.ledgerId,
+    kind: input.kind,
+    date: input.date,
+    amount,
+    accountId: input.accountId,
+    transactionId: tx.id,
+    capitalDelta,
+    valueDelta,
+    capitalReduced,
+    realized,
+    closedAsset: closedAsset || undefined,
+    note: input.note?.trim() || undefined,
+    createdAt: Date.now()
+  };
+  saveInvestmentEntries([entry, ...getInvestmentEntries()]);
+  return entry;
+}
+
+async function reverseEntry(userId: string, entry: InvestmentEntry): Promise<void> {
+  const asset = getLocalInvestments().find(a => a.id === entry.assetId);
+  if (asset) {
+    const patch: Partial<Omit<InvestmentAsset, 'id' | 'ledgerId' | 'createdAt'>> = { lastUpdated: asset.lastUpdated };
+    if (entry.capitalDelta) patch.initialCapital = Math.max(0, asset.initialCapital - entry.capitalDelta);
+    if (entry.valueDelta) patch.currentValue = Math.max(0, asset.currentValue - entry.valueDelta);
+    if (entry.closedAsset) { patch.status = 'active'; patch.closedAt = ''; }
+    await updateInvestmentAsset(userId, asset.id, patch);
+  }
+  if (entry.transactionId) await deleteTransaction(userId, entry.transactionId);
+  saveInvestmentEntries(getInvestmentEntries().filter(e => e.id !== entry.id));
+}
+
+export function addInvestmentEntry(input: InvestmentEntryInput, userId: string = 'demo_user_artha') {
+  return applyEntry(userId, input);
+}
+
+export async function deleteInvestmentEntry(entryId: string, userId: string = 'demo_user_artha'): Promise<void> {
+  const entry = getInvestmentEntries().find(e => e.id === entryId);
+  if (!entry) throw new Error('Catatan tidak ditemukan.');
+  await reverseEntry(userId, entry);
+}
+
+/** Ubah catatan: batalkan efek lama lalu terapkan nilai baru (dengan pemulihan bila gagal). */
+export async function updateInvestmentEntry(
+  entryId: string,
+  next: Pick<InvestmentEntryInput, 'date' | 'amount' | 'accountId' | 'note' | 'capitalReduced'>,
+  userId: string = 'demo_user_artha'
+): Promise<InvestmentEntry> {
+  const old = getInvestmentEntries().find(e => e.id === entryId);
+  if (!old) throw new Error('Catatan tidak ditemukan.');
+  const oldInput: InvestmentEntryInput = {
+    assetId: old.assetId, kind: old.kind, date: old.date, amount: old.amount, accountId: old.accountId, note: old.note, capitalReduced: old.capitalReduced
+  };
+  await reverseEntry(userId, old);
+  try {
+    return await applyEntry(userId, { ...oldInput, ...next });
+  } catch (err) {
+    await applyEntry(userId, oldInput);
+    throw err;
+  }
+}
+
+export interface AssetReturn {
+  invested: number;      // modal sisa + modal yang sudah ditarik
+  valueNow: number;      // nilai pasar saat ini (0 bila aset sudah ditutup)
+  unrealized: number;    // untung/rugi belum terealisasi
+  yieldTotal: number;    // total hasil (panen/dividen)
+  cashedOut: number;     // total uang dari penarikan + penutupan
+  realizedTotal: number; // untung/rugi terealisasi dari penarikan + penutupan
+  topupTotal: number;    // total dana tambahan
+  roiTotal: number;      // ROI total dalam persen, memperhitungkan semua arus dana
+}
+
+export function calculateAssetReturn(asset: InvestmentAsset, entries: InvestmentEntry[]): AssetReturn {
+  const closed = asset.status === 'closed';
+  const sum = (fn: (e: InvestmentEntry) => number) => entries.reduce((s, e) => s + fn(e), 0);
+  const capWithdrawn = sum(e => (e.kind === 'withdraw' ? e.capitalReduced || 0 : 0));
+  const yieldTotal = sum(e => (e.kind === 'yield' ? e.amount : 0));
+  const cashedOut = sum(e => (e.kind === 'withdraw' || e.kind === 'close' ? e.amount : 0));
+  const realizedTotal = sum(e => (e.kind === 'withdraw' || e.kind === 'close' ? e.realized || 0 : 0));
+  const topupTotal = sum(e => (e.kind === 'topup' ? e.amount : 0));
+  const valueNow = closed ? 0 : asset.currentValue;
+  const invested = asset.initialCapital + capWithdrawn;
+  const roiTotal = invested > 0 ? ((valueNow + yieldTotal + cashedOut - invested) / invested) * 100 : 0;
+  return { invested, valueNow, unrealized: closed ? 0 : asset.currentValue - asset.initialCapital, yieldTotal, cashedOut, realizedTotal, topupTotal, roiTotal };
 }
