@@ -9,9 +9,10 @@
  * - Otomatis memecah operasi per 450 dokumen (di bawah batas 500 operasi batch Firestore).
  * - Seluruh perubahan langsung terdeteksi secara real-time oleh listener `onSnapshot`.
  */
-import { doc, writeBatch, type DocumentData } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, writeBatch, type DocumentData } from 'firebase/firestore';
 import { ARTHA_USER_DOC_ID, db, OperationType, handleFirestoreError } from '../config/firebase';
 import { LOCKED_CATEGORY } from '../hooks/useCategories';
+import { toLocalDateStr } from '../utils/localDate';
 
 const BATCH_CHUNK_SIZE = 450;
 
@@ -707,3 +708,184 @@ export async function executeBackupRestore(
     targetUserDocId,
   };
 }
+
+// =============================================================================
+// EXPORT / DOWNLOAD BACKUP (.JSON) LANGSUNG DARI CLOUD FIRESTORE
+// =============================================================================
+
+export interface BackupDownloadResult {
+  fileName: string;
+  totalDocuments: number;
+  countsByCollection: Record<string, number>;
+  exportedAt: string;
+  targetUserDocId: string;
+}
+
+const EXPORT_SUBCOLLECTIONS = [
+  'ledgers',
+  'accounts',
+  'transactions',
+  'bills',
+  'debts',
+  'goals',
+  'automations',
+  'investments',
+  'investmentEntries',
+  'autopilot',
+  'salaryHistory',
+  'shiftSchedules',
+  'salaryAddons',
+  'salarySettings',
+  'budgets',
+] as const;
+
+const EXPORT_SETTING_DOCS = ['categories', 'shift', 'preferences', 'holidays'] as const;
+
+const SENSITIVE_KEY_PATTERN = /(api[_-]?key|secret|private[_-]?key|access[_-]?token|refresh[_-]?token|password)/i;
+
+/**
+ * Menormalkan data dokumen Firestore agar siap di-serialize ke JSON:
+ * - Konversi Firestore Timestamp menjadi milidetik epoch (number)
+ * - Hapus field sensitif (mis. apiKey/secret/token/password) jika ada
+ */
+function serializeFirestoreValue(value: unknown, stripSensitive = false): unknown {
+  if (value === null || value === undefined) return value;
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'toMillis' in value &&
+    typeof (value as { toMillis: unknown }).toMillis === 'function'
+  ) {
+    return (value as { toMillis: () => number }).toMillis();
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => serializeFirestoreValue(item, stripSensitive));
+  }
+  if (isPlainObject(value)) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (stripSensitive && SENSITIVE_KEY_PATTERN.test(k)) continue;
+      if (v !== undefined) {
+        out[k] = serializeFirestoreValue(v, stripSensitive);
+      }
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Mengambil seluruh koleksi & pengaturan terbaru dari `users/user_artha/...`
+ * di database `(default)` dan langsung memicu download file `artha-backup-YYYY-MM-DD.json`
+ * yang kompatibel 1:1 dengan fitur Restore Backup (.json).
+ */
+export async function downloadCloudBackupJson(
+  targetUserDocId: string = ARTHA_USER_DOC_ID
+): Promise<BackupDownloadResult> {
+  const exportedAt = new Date().toISOString();
+  const countsByCollection: Record<string, number> = {};
+  let totalDocuments = 0;
+
+  const backupPayload: Record<string, unknown> = {
+    exportedAt,
+    source: 'artha-cloud-firestore',
+    version: 2,
+    userDocId: targetUserDocId,
+  };
+
+  // 1. Ambil seluruh subkoleksi secara paralel
+  const collectionReads = await Promise.all(
+    EXPORT_SUBCOLLECTIONS.map(async (colName) => {
+      const path = `users/${targetUserDocId}/${colName}`;
+      try {
+        const snap = await getDocs(collection(db, 'users', targetUserDocId, colName));
+        const docs = snap.docs.map((d) => {
+          const clean = serializeFirestoreValue(d.data(), false) as Record<string, unknown>;
+          return {
+            id: d.id,
+            ...clean,
+          };
+        });
+        return { colName, docs };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('missing or insufficient')) {
+          handleFirestoreError(error, OperationType.LIST, path);
+        }
+        throw new Error(`Gagal membaca koleksi "${colName}" dari Firestore: ${msg}`);
+      }
+    })
+  );
+
+  for (const { colName, docs } of collectionReads) {
+    backupPayload[colName] = docs;
+    if (docs.length > 0) {
+      countsByCollection[colName] = docs.length;
+      totalDocuments += docs.length;
+    }
+  }
+
+  // 2. Ambil dokumen pengaturan (categories, shift, preferences, holidays)
+  const settingsObj: Record<string, unknown> = {};
+  let settingsCount = 0;
+
+  const settingReads = await Promise.all(
+    EXPORT_SETTING_DOCS.map(async (settingId) => {
+      const path = `users/${targetUserDocId}/settings/${settingId}`;
+      try {
+        const snap = await getDoc(doc(db, 'users', targetUserDocId, 'settings', settingId));
+        if (!snap.exists()) return { settingId, data: null };
+        const clean = serializeFirestoreValue(snap.data(), true) as Record<string, unknown>;
+        return { settingId, data: clean };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('missing or insufficient')) {
+          handleFirestoreError(error, OperationType.GET, path);
+        }
+        throw new Error(`Gagal membaca pengaturan "${settingId}" dari Firestore: ${msg}`);
+      }
+    })
+  );
+
+  for (const { settingId, data } of settingReads) {
+    if (data && Object.keys(data).length > 0) {
+      settingsObj[settingId] = data;
+      settingsCount += 1;
+    }
+  }
+
+  backupPayload.settings = settingsObj;
+  if (settingsCount > 0) {
+    countsByCollection.settings = settingsCount;
+    totalDocuments += settingsCount;
+  }
+
+  // 3. Picu download otomatis file JSON dengan tanggal lokal YYYY-MM-DD
+  const fileName = `artha-backup-${toLocalDateStr(new Date())}.json`;
+  const jsonText = JSON.stringify(backupPayload, null, 2);
+  const blob = new Blob([jsonText], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+
+  try {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  return {
+    fileName,
+    totalDocuments,
+    countsByCollection,
+    exportedAt,
+    targetUserDocId,
+  };
+}
+

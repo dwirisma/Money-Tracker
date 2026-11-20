@@ -8,6 +8,7 @@ import {
   User as UserIcon,
   ShieldCheck,
   Upload,
+  Download,
   FileJson,
   AlertTriangle,
   CheckCircle2,
@@ -20,8 +21,10 @@ import { useAuth } from '../context/AuthContext';
 import { ARTHA_USER_DOC_ID } from '../config/firebase';
 import {
   COLLECTION_LABELS,
+  downloadCloudBackupJson,
   executeBackupRestore,
   parseBackupJson,
+  type BackupDownloadResult,
   type ParsedBackupPlan,
   type RestoreProgress,
   type RestoreResult,
@@ -32,8 +35,10 @@ export function SettingsPage() {
   const { displayUserId, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // State Restore Backup (.json) -> Cloud Firestore (users/user_artha)
+  // State Download & Restore Backup (.json) <-> Cloud Firestore (users/user_artha)
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDownloadingBackup, setIsDownloadingBackup] = useState(false);
+  const [downloadResult, setDownloadResult] = useState<BackupDownloadResult | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string>('');
   const [pendingPlan, setPendingPlan] = useState<ParsedBackupPlan | null>(null);
   const [isReadingFile, setIsReadingFile] = useState(false);
@@ -58,8 +63,30 @@ export function SettingsPage() {
     }
   };
 
+  const handleDownloadBackup = async () => {
+    if (isDownloadingBackup || isRestoring || isReadingFile) return;
+    setIsDownloadingBackup(true);
+    setRestoreError(null);
+    setDownloadResult(null);
+    try {
+      const result = await downloadCloudBackupJson(ARTHA_USER_DOC_ID);
+      setDownloadResult(result);
+    } catch (err) {
+      const rawMsg =
+        err instanceof Error ? err.message : 'Gagal mengambil data backup dari Cloud Firestore.';
+      let friendlyMsg = rawMsg;
+      if (rawMsg.toLowerCase().includes('permission') || rawMsg.toLowerCase().includes('missing or insufficient')) {
+        friendlyMsg =
+          'Izin baca ditolak oleh Firestore Rules (permission-denied). Pastikan Rules pada database (default) mengizinkan akses baca ke users/user_artha untuk pengguna yang sudah login.';
+      }
+      setRestoreError(friendlyMsg);
+    } finally {
+      setIsDownloadingBackup(false);
+    }
+  };
+
   const handlePickBackupFile = () => {
-    if (isRestoring || isReadingFile) return;
+    if (isRestoring || isReadingFile || isDownloadingBackup) return;
     fileInputRef.current?.click();
   };
 
@@ -69,6 +96,7 @@ export function SettingsPage() {
 
     setRestoreError(null);
     setRestoreResult(null);
+    setDownloadResult(null);
     setRestoreProgress(null);
     setPendingPlan(null);
     setSelectedFileName(file.name);
@@ -234,14 +262,14 @@ export function SettingsPage() {
         </section>
       </div>
 
-      {/* RESTORE DATA DARI BACKUP (.JSON) */}
+      {/* BACKUP & RESTORE DATA (.JSON) */}
       <section className="ax-panel">
         <div className="ax-ph">
           <h3>
             <span className="ax-ic" style={{ background: 'var(--accent-sky)' }}>
               <Database className="w-3.5 h-3.5" />
             </span>
-            Restore Backup (.json)
+            Backup &amp; Restore Data (.json)
           </h3>
           <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
             users/{ARTHA_USER_DOC_ID}
@@ -259,27 +287,82 @@ export function SettingsPage() {
 
         <div className="ax-setrow" style={{ marginTop: 4 }}>
           <div>
-            <b>Pulihkan Data dari File Backup Lama</b>
+            <b>Cadangkan &amp; Pulihkan Data Cloud Firestore</b>
             <small>
-              Unggah file backup <code>.json</code> Artha (format ekspor standar maupun backup lama{' '}
-              <code>artha_offline_*</code>) untuk menulis langsung seluruh koleksi ke Cloud Firestore{' '}
-              <code>users/{ARTHA_USER_DOC_ID}</code>.
+              Unduh seluruh data terbaru dari <code>users/{ARTHA_USER_DOC_ID}</code> ke satu file{' '}
+              <code>.json</code>, atau unggah file backup lama (termasuk format <code>artha_offline_*</code>)
+              untuk dipulihkan langsung ke Cloud.
             </small>
           </div>
-          <button
-            type="button"
-            onClick={handlePickBackupFile}
-            disabled={isReadingFile || isRestoring}
-            className="brutal-btn brutal-btn-primary shrink-0"
-          >
-            {isReadingFile ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Upload className="w-4 h-4" />
-            )}
-            {isReadingFile ? 'Membaca File...' : 'Restore Backup (.json)'}
-          </button>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleDownloadBackup}
+              disabled={isDownloadingBackup || isReadingFile || isRestoring}
+              className="brutal-btn shrink-0"
+            >
+              {isDownloadingBackup ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              {isDownloadingBackup ? 'Menyiapkan Backup...' : 'Download Backup (.json)'}
+            </button>
+            <button
+              type="button"
+              onClick={handlePickBackupFile}
+              disabled={isDownloadingBackup || isReadingFile || isRestoring}
+              className="brutal-btn brutal-btn-primary shrink-0"
+            >
+              {isReadingFile ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4" />
+              )}
+              {isReadingFile ? 'Membaca File...' : 'Restore Backup (.json)'}
+            </button>
+          </div>
         </div>
+
+        {/* KONFIRMASI DOWNLOAD BACKUP BERHASIL */}
+        {downloadResult && (
+          <div className="mt-4 p-3.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-sage)] text-[#14141a] shadow-[3px_3px_0px_var(--border-color)] space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-heading font-bold text-sm">
+                    Backup Berhasil Diunduh ({downloadResult.totalDocuments} dokumen)
+                  </p>
+                  <p className="text-xs opacity-90 mt-0.5">
+                    File <code className="font-mono font-bold">{downloadResult.fileName}</code> telah tersimpan di
+                    perangkat Anda dan siap digunakan kembali kapan saja melalui tombol Restore Backup (.json).
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDownloadResult(null)}
+                aria-label="Tutup notifikasi download"
+                className="p-1 rounded border border-[#14141a]/40 hover:bg-black/10"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            {Object.keys(downloadResult.countsByCollection).length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {Object.entries(downloadResult.countsByCollection).map(([col, count]) => (
+                  <span
+                    key={col}
+                    className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-[#14141a] bg-white/80 text-[#14141a]"
+                  >
+                    {COLLECTION_LABELS[col] || col}: {count}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* KONFIRMASI SEBELUM MENIMPA / MERGE KE FIRESTORE */}
         {pendingPlan && (
