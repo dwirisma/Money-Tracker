@@ -27,16 +27,18 @@ import {
 import type { Account, Ledger, Transaction } from '../types';
 import { evaluateMathExpression, formatRupiah } from '../utils/calculator';
 import { useCategories, LOCKED_CATEGORY } from '../hooks/useCategories';
-import { getCategoryBudgets, saveCategoryBudgets, type CategoryBudgetMap } from '../services/budgetService';
+import { saveCategoryBudgets, type CategoryBudgetMap } from '../services/budgetService';
 import { scanReceipt, formatFileSize, type ReceiptData } from '../services/receiptScanService';
 import type { ModuleId } from './layout/navConfig';
 import { ModalFrame } from './ui/ModalFrame';
 import { CameraCaptureModal } from './CameraCaptureModal';
 
 interface Props {
+  uid: string;
   currentLedger: Ledger;
   accounts: Account[];
   recentTransactions: Transaction[];
+  categoryBudgets: CategoryBudgetMap;
   onSaveTransaction: (data: {
     type: 'income' | 'expense';
     amount: number;
@@ -57,9 +59,11 @@ interface Props {
 }
 
 export function AddTransactionView({
+  uid,
   currentLedger,
   accounts,
   recentTransactions,
+  categoryBudgets,
   onSaveTransaction,
   onExecuteTransfer,
   onNavigate,
@@ -93,19 +97,16 @@ export function AddTransactionView({
   const [editingCategory, setEditingCategory] = useState<{ kind: 'expense' | 'income'; oldName: string; newName: string } | null>(null);
   const categories = useCategories();
 
-  // Budget State per Kategori
-  const [categoryBudgets, setCategoryBudgets] = useState<CategoryBudgetMap>(() => getCategoryBudgets(currentLedger.id));
+  // Budget State per Kategori (tersinkron real-time dari Firestore)
   const [budgetInputs, setBudgetInputs] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const b = getCategoryBudgets(currentLedger.id);
-    setCategoryBudgets(b);
     const initialInputs: Record<string, string> = {};
     categories.lists.expense.forEach(c => {
-      initialInputs[c] = b[c] !== undefined ? String(b[c]) : '';
+      initialInputs[c] = categoryBudgets[c] !== undefined ? String(categoryBudgets[c]) : '';
     });
     setBudgetInputs(initialInputs);
-  }, [currentLedger.id, categories.lists.expense]);
+  }, [currentLedger.id, categories.lists.expense, categoryBudgets]);
 
   // Event listener untuk tombol 'Pengaturan Tab Transaksi' di header navbar
   useEffect(() => {
@@ -334,7 +335,7 @@ export function AddTransactionView({
   }
 
   // Budget and Category Handlers
-  function handleSaveAllBudgets(e?: React.FormEvent) {
+  async function handleSaveAllBudgets(e?: React.FormEvent) {
     if (e) e.preventDefault();
     const updated: CategoryBudgetMap = {};
     categories.lists.expense.forEach(cat => {
@@ -342,8 +343,7 @@ export function AddTransactionView({
       const num = parseInt(raw.replace(/[^\d]/g, ''), 10) || 0;
       updated[cat] = num;
     });
-    saveCategoryBudgets(currentLedger.id, updated);
-    setCategoryBudgets(updated);
+    await saveCategoryBudgets(uid, currentLedger.id, updated);
     showToast('Alokasi pagu dana bulanan berhasil disimpan!', 'success');
   }
 
@@ -366,7 +366,7 @@ export function AddTransactionView({
     showToast(`Kategori "${added}" berhasil ditambahkan!`, 'success');
   }
 
-  function handleRenameCategory() {
+  async function handleRenameCategory() {
     if (!editingCategory) return;
     const err = categories.rename(editingCategory.kind, editingCategory.oldName, editingCategory.newName);
     if (err) {
@@ -385,7 +385,7 @@ export function AddTransactionView({
       if (b[editingCategory.oldName] !== undefined) {
         b[editingCategory.newName] = b[editingCategory.oldName];
         delete b[editingCategory.oldName];
-        saveCategoryBudgets(currentLedger.id, b);
+        await saveCategoryBudgets(uid, currentLedger.id, b);
       }
     }
     setEditingCategory(null);

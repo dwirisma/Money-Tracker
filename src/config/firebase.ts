@@ -1,62 +1,108 @@
-/**
- * Firebase Initialization & Offline-First Persistence Configuration
- */
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { 
-  getFirestore, 
-  initializeFirestore, 
-  persistentLocalCache, 
-  persistentMultipleTabManager,
-  Firestore
-} from 'firebase/firestore';
-import { getAuth, Auth } from 'firebase/auth';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import firebaseConfig from '../../firebase-applet-config.json';
 
-// Mengambil konfigurasi dari window global atau environment variables
-declare global {
-  interface Window {
-    __FIREBASE_CONFIG__?: Record<string, string>;
+export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+
+export const db = firebaseConfig.firestoreDatabaseId
+  ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
+  : getFirestore(app);
+
+export const auth = getAuth(app);
+
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  };
+}
+
+export function handleFirestoreError(
+  error: unknown,
+  operationType: OperationType,
+  path: string | null
+): never {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo:
+        auth.currentUser?.providerData.map((provider) => ({
+          providerId: provider.providerId,
+          displayName: provider.displayName,
+          email: provider.email,
+          photoUrl: provider.photoURL,
+        })) || [],
+    },
+    operationType,
+    path,
+  };
+  console.error('Firestore Error:', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+export function logFirestoreListenerError(
+  error: unknown,
+  operationType: OperationType,
+  path: string | null
+): void {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo:
+        auth.currentUser?.providerData.map((provider) => ({
+          providerId: provider.providerId,
+          displayName: provider.displayName,
+          email: provider.email,
+          photoUrl: provider.photoURL,
+        })) || [],
+    },
+    operationType,
+    path,
+  };
+  console.error('Firestore Listener Error:', JSON.stringify(errInfo));
+}
+
+async function testConnection() {
+  try {
+    await getDocFromServer(doc(db, 'test', 'connection'));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.error('Koneksi ke Cloud Firestore gagal. Periksa konfigurasi Firebase atau jaringan internet Anda.');
+    }
+    // Permission denied / not found pada dokumen test adalah normal untuk aturan keamanan privat.
   }
 }
 
-const rawApiKey = import.meta.env.VITE_FIREBASE_API_KEY;
-const isValidApiKey = typeof rawApiKey === 'string' && rawApiKey.trim().length > 10;
-
-const firebaseConfig = {
-  apiKey: isValidApiKey ? rawApiKey : 'AIzaSyArthaOfflineDefaultKey12345678901',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'artha-finance-app.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'artha-finance-app',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'artha-finance-app.appspot.com',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '1029384756',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:1029384756:web:artha1234567890'
-};
-
-// Inisialisasi Firebase App (Cegah inisialisasi ganda)
-const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-
-// Inisialisasi Firestore dengan offline-first IndexedDB persistence
-let db: Firestore;
-
-try {
-  db = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-      tabManager: persistentMultipleTabManager()
-    })
-  });
-} catch {
-  // Fallback jika sudah pernah terinisialisasi
-  db = getFirestore(app);
-}
-
-// Inisialisasi Auth secara aman dengan fallback proteksi jika API Key belum diisi
-let auth: Auth;
-try {
-  auth = getAuth(app);
-} catch (err) {
-  console.warn('Firebase Auth offline fallback active:', err);
-  auth = {
-    currentUser: null,
-    onAuthStateChanged: () => () => {}
-  } as unknown as Auth;
-}
-
-export { app, db, auth };
+void testConnection();

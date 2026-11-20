@@ -1,10 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { setPrivacyMode } from '../utils/calculator';
+import { useAuth } from './AuthContext';
+import { subscribeUserPreferences, updateUserPreferences } from '../services/preferencesService';
 
 export type Theme = 'dark' | 'light';
-const KEY_THEME = 'artha_theme_v3'; // key baru: tampilan v3 dimulai dari tema terang
-const KEY_PRIVACY = 'artha_privacy';
-const KEY_SIDEBAR = 'artha_sidebar_collapsed';
 
 interface UIState {
   theme: Theme;
@@ -20,56 +19,98 @@ interface UIState {
 
 const UIContext = createContext<UIState | null>(null);
 
-function read(key: string): string | null {
-  try { return localStorage.getItem(key); } catch { return null; }
-}
-function write(key: string, value: string) {
-  try { localStorage.setItem(key, value); } catch { /* storage penuh/dinonaktifkan: preferensi tidak tersimpan */ }
-}
-
 export function UIProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => (read(KEY_THEME) === 'dark' ? 'dark' : 'light'));
-  const [privacy, setPrivacy] = useState<boolean>(() => read(KEY_PRIVACY) === 'true');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => read(KEY_SIDEBAR) === 'true');
+  const { uid } = useAuth();
+  const [theme, setTheme] = useState<Theme>('light');
+  const [privacy, setPrivacy] = useState<boolean>(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
 
-  // Sinkronkan ke <html>, meta theme-color, dan formatter global
+  // Sinkronisasi preferensi UI real-time dari Cloud Firestore
+  useEffect(() => {
+    if (!uid) {
+      setTheme('light');
+      setPrivacy(false);
+      setSidebarCollapsed(false);
+      setMobileDrawerOpen(false);
+      return;
+    }
+
+    const unsubscribe = subscribeUserPreferences(uid, (prefs) => {
+      setTheme(prefs.theme);
+      setPrivacy(prefs.privacy);
+      setSidebarCollapsed(prefs.sidebarCollapsed);
+    });
+    return () => unsubscribe();
+  }, [uid]);
+
+  // Sinkronkan ke <html> dan meta theme-color
   useEffect(() => {
     const root = document.documentElement;
     root.setAttribute('data-theme', theme);
     root.classList.toggle('dark', theme === 'dark');
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#16161c' : '#fff4dc');
-    write(KEY_THEME, theme);
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', theme === 'dark' ? '#16161c' : '#fff4dc');
   }, [theme]);
 
   // setPrivacyMode dipanggil sinkron saat render agar semua formatRupiah di render yang sama ikut tersensor
   setPrivacyMode(privacy);
-  useEffect(() => { write(KEY_PRIVACY, String(privacy)); }, [privacy]);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--sidebar-w', sidebarCollapsed ? '4.25rem' : '13.5rem');
-    write(KEY_SIDEBAR, String(sidebarCollapsed));
   }, [sidebarCollapsed]);
 
-  const toggleTheme = useCallback(() => setTheme(t => (t === 'dark' ? 'light' : 'dark')), []);
-  const togglePrivacy = useCallback(() => setPrivacy(p => !p), []);
-  const toggleSidebar = useCallback(() => setSidebarCollapsed(c => !c), []);
-  const toggleMobileDrawer = useCallback(() => setMobileDrawerOpen(o => !o), []);
+  const toggleTheme = useCallback(() => {
+    const next: Theme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    if (uid) {
+      void updateUserPreferences(uid, { theme: next });
+    }
+  }, [theme, uid]);
+
+  const togglePrivacy = useCallback(() => {
+    const next = !privacy;
+    setPrivacy(next);
+    if (uid) {
+      void updateUserPreferences(uid, { privacy: next });
+    }
+  }, [privacy, uid]);
+
+  const toggleSidebar = useCallback(() => {
+    const next = !sidebarCollapsed;
+    setSidebarCollapsed(next);
+    if (uid) {
+      void updateUserPreferences(uid, { sidebarCollapsed: next });
+    }
+  }, [sidebarCollapsed, uid]);
+
+  const toggleMobileDrawer = useCallback(() => setMobileDrawerOpen((o) => !o), []);
 
   const value = useMemo(
-    () => ({ 
-      theme, 
-      privacy, 
-      sidebarCollapsed, 
-      mobileDrawerOpen, 
-      toggleTheme, 
-      togglePrivacy, 
-      toggleSidebar, 
-      toggleMobileDrawer, 
-      setMobileDrawerOpen 
+    () => ({
+      theme,
+      privacy,
+      sidebarCollapsed,
+      mobileDrawerOpen,
+      toggleTheme,
+      togglePrivacy,
+      toggleSidebar,
+      toggleMobileDrawer,
+      setMobileDrawerOpen,
     }),
-    [theme, privacy, sidebarCollapsed, mobileDrawerOpen, toggleTheme, togglePrivacy, toggleSidebar, toggleMobileDrawer]
+    [
+      theme,
+      privacy,
+      sidebarCollapsed,
+      mobileDrawerOpen,
+      toggleTheme,
+      togglePrivacy,
+      toggleSidebar,
+      toggleMobileDrawer,
+    ]
   );
+
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
 }
 

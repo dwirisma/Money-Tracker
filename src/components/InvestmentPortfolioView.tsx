@@ -23,7 +23,6 @@ import {
   createInvestmentAsset, 
   updateInvestmentAsset, 
   deleteInvestmentAsset,
-  getInvestmentEntries,
   addInvestmentEntry,
   updateInvestmentEntry,
   deleteInvestmentEntry,
@@ -36,22 +35,20 @@ import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { calcNoteOf } from './ObligationForms';
 
 interface Props {
+  uid: string;
   currentLedger: Ledger;
   investments: InvestmentAsset[];
-  onRefreshInvestments: () => Promise<void>;
-  /** Akun, untuk catatan dana yang mengubah saldo. */
+  investmentEntries: InvestmentEntry[];
   accounts: Account[];
-  /** Muat ulang akun, transaksi, dan investasi setelah catatan dana tersimpan. */
-  onDataChanged: () => Promise<void>;
   showToast: (text: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 export function InvestmentPortfolioView({
+  uid,
   currentLedger,
   investments,
-  onRefreshInvestments,
+  investmentEntries,
   accounts,
-  onDataChanged,
   showToast
 }: Props) {
   // Filter type
@@ -68,14 +65,7 @@ export function InvestmentPortfolioView({
   const [entryToDelete, setEntryToDelete] = useState<InvestmentEntry | null>(null);
   const [entryError, setEntryError] = useState<string | null>(null);
   const [entryBusy, setEntryBusy] = useState(false);
-  const [entriesVersion, setEntriesVersion] = useState(0);
-  const allEntries = useMemo(() => getInvestmentEntries(), [entriesVersion, investments]); // eslint-disable-line react-hooks/exhaustive-deps
-  const entriesOf = (assetId: string) => allEntries.filter(e => e.assetId === assetId);
-
-  async function afterEntryChange() {
-    setEntriesVersion(v => v + 1);
-    await onDataChanged();
-  }
+  const entriesOf = (assetId: string) => investmentEntries.filter(e => e.assetId === assetId);
 
   async function handleEntrySubmit(v: EntryValues) {
     if (!entryReq) return;
@@ -83,14 +73,13 @@ export function InvestmentPortfolioView({
     setEntryError(null);
     try {
       if (entryReq.entry) {
-        await updateInvestmentEntry(entryReq.entry.id, v);
+        await updateInvestmentEntry(uid, entryReq.entry.id, v);
         showToast('Catatan diperbarui.', 'success');
       } else {
-        await addInvestmentEntry({ assetId: entryReq.assetId, kind: entryReq.kind, ...v });
+        await addInvestmentEntry(uid, { assetId: entryReq.assetId, kind: entryReq.kind, ...v });
         showToast(entryReq.kind === 'close' ? 'Aset ditutup dan hasilnya dicatat.' : `${KIND_META[entryReq.kind].label} dicatat.`, 'success');
       }
       setEntryReq(null);
-      await afterEntryChange();
     } catch (err: any) {
       setEntryError(err?.message || 'Gagal menyimpan catatan.');
     } finally {
@@ -101,10 +90,9 @@ export function InvestmentPortfolioView({
   async function confirmDeleteEntry() {
     if (!entryToDelete) return;
     try {
-      await deleteInvestmentEntry(entryToDelete.id);
+      await deleteInvestmentEntry(uid, entryToDelete.id);
       showToast('Catatan dihapus dan saldo akun dikembalikan.', 'info');
       setEntryToDelete(null);
-      await afterEntryChange();
     } catch (err: any) {
       showToast(err?.message || 'Gagal menghapus catatan.', 'error');
     }
@@ -203,7 +191,7 @@ export function InvestmentPortfolioView({
     const parsedUnits = units ? parseFloat(units.replace(',', '.')) : undefined;
 
     try {
-      await createInvestmentAsset(undefined, {
+      await createInvestmentAsset(uid, {
         ledgerId: currentLedger.id,
         name: name.trim(),
         symbolOrTicker: ticker.trim().toUpperCase() || undefined,
@@ -216,7 +204,6 @@ export function InvestmentPortfolioView({
         lastUpdated: toLocalDateStr(new Date())
       });
 
-      await onRefreshInvestments();
       setIsAddOpen(false);
       showToast(`Aset "${name.trim()}" berhasil ditambahkan ke portofolio!`, 'success');
     } catch (err: any) {
@@ -233,7 +220,7 @@ export function InvestmentPortfolioView({
     const parsedUnits = units ? parseFloat(units.replace(',', '.')) : undefined;
 
     try {
-      await updateInvestmentAsset(undefined, editingAsset.id, {
+      await updateInvestmentAsset(uid, editingAsset.id, {
         name: name.trim(),
         symbolOrTicker: ticker.trim().toUpperCase() || undefined,
         type,
@@ -245,7 +232,6 @@ export function InvestmentPortfolioView({
         lastUpdated: toLocalDateStr(new Date())
       });
 
-      await onRefreshInvestments();
       setEditingAsset(null);
       showToast(`Aset "${name.trim()}" berhasil diperbarui!`, 'success');
     } catch (err: any) {
@@ -264,12 +250,11 @@ export function InvestmentPortfolioView({
     }
 
     try {
-      await updateInvestmentAsset(undefined, quickUpdateAsset.id, {
+      await updateInvestmentAsset(uid, quickUpdateAsset.id, {
         currentValue: newVal,
         lastUpdated: toLocalDateStr(new Date())
       });
 
-      await onRefreshInvestments();
       setQuickUpdateAsset(null);
       showToast(`Nilai pasar "${quickUpdateAsset.name}" berhasil diupdate!`, 'success');
     } catch (err: any) {
@@ -281,8 +266,7 @@ export function InvestmentPortfolioView({
   async function confirmDeleteAsset() {
     if (!assetToDelete) return;
     try {
-      await deleteInvestmentAsset(undefined, assetToDelete.id);
-      await onRefreshInvestments();
+      await deleteInvestmentAsset(uid, assetToDelete.id);
       showToast(`Aset "${assetToDelete.name}" telah dihapus dari portofolio.`, 'info');
       setAssetToDelete(null);
     } catch (err: any) {

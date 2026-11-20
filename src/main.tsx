@@ -1,10 +1,16 @@
-import {createRoot} from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
-import {UIProvider} from './context/UIContext.tsx';
+import { AuthProvider } from './context/AuthContext.tsx';
+import { UIProvider } from './context/UIContext.tsx';
+import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
-  <UIProvider>
-    <App />
-  </UIProvider>
+  <ErrorBoundary>
+    <AuthProvider>
+      <UIProvider>
+        <App />
+      </UIProvider>
+    </AuthProvider>
+  </ErrorBoundary>
 );

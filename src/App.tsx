@@ -3,7 +3,7 @@ import { toLocalDateStr } from './utils/localDate';
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   BookOpen,
   Briefcase,
@@ -70,32 +70,34 @@ import {
   CustomIntervalUnit,
   AutomationRule,
   AutomationType,
-  AutomationCycle
+  AutomationCycle,
+  InvestmentAsset,
+  InvestmentEntry,
+  AccountPocket
 } from './types';
 import { 
-  fetchLedgers,
+  subscribeLedgers,
+  ensureDefaultLedger,
   createLedger,
   updateLedger,
   deleteLedger,
-  getActiveLedgerId,
-  setActiveLedgerId,
-  fetchAccountsByLedger, 
+  subscribeAccountsByLedger,
   createAccount, 
   updateAccountData,
   deleteAccount, 
   calculateNetWorthAccounts, 
-  fetchTransactionsByLedger, 
+  subscribeTransactionsByLedger,
   createTransaction, 
   updateTransactionWithBalanceSync,
   executeAccountTransfer, 
   deleteTransaction,
-  fetchGoalsByLedger,
+  subscribeGoalsByLedger,
   createGoal,
   updateGoalData,
   deleteGoal,
   allocateFundsToGoal,
   fetchGoalAllocationHistory,
-  fetchBillsByLedger,
+  subscribeBillsByLedger,
   createBill,
   updateBill,
   deleteBill,
@@ -104,12 +106,12 @@ import {
   stepBackPaymentDate,
   getCycleLabel,
   getBillDueStatus,
-  fetchDebtsByLedger,
+  subscribeDebtsByLedger,
   createDebt,
   updateDebt,
   deleteDebt,
   payDebtInstallment,
-  fetchAutomations,
+  subscribeAutomationsByLedger,
   createAutomation,
   updateAutomation,
   toggleAutomationActive,
@@ -122,6 +124,8 @@ import {
 } from './services/cashManagementService';
 import { evaluateMathExpression, formatRupiah } from './utils/calculator';
 import { useUI } from './context/UIContext';
+import { useAuth } from './context/AuthContext';
+import { LoginPage } from './components/LoginPage';
 import { AppNav } from './components/layout/AppNav';
 import { HeaderTools } from './components/layout/HeaderTools';
 import { AddBillModal, AddDebtModal, EditBillModal, EditDebtModal } from './components/ObligationForms';
@@ -139,11 +143,8 @@ import { AccountsView } from './components/AccountsView';
 import { DashboardPage } from './components/DashboardPage';
 import { SettingsPage } from './components/SettingsPage';
 import { AutopilotList, AutopilotFields, AutopilotRuleModal, submitAutopilot, emptyApDraft, type ApDraft, type ApRequest } from './components/AutopilotPanel';
-import { getAutopilotRules } from './services/autopilotService';
-import type { AutopilotKind } from './services/autopilotService';
+import { subscribeAutopilotRulesByLedger, runAutopilot, type AutopilotKind, type AutopilotResult, type AutopilotRule } from './services/autopilotService';
 import { SixMonthReport } from './components/SixMonthReport';
-import { PiggyBank as ApPiggy, Receipt as ApReceipt, Landmark as ApLandmark } from 'lucide-react';
-import { runAutopilot, type AutopilotResult } from './services/autopilotService';
 import { useCategories } from './hooks/useCategories';
 import type { ModuleId } from './components/layout/navConfig';
 import { AddTransactionView } from './components/AddTransactionView';
@@ -151,64 +152,83 @@ import { TransactionHistoryView } from './components/TransactionHistoryView';
 import { InvestmentPortfolioView } from './components/InvestmentPortfolioView';
 import { AccountDetailModal } from './components/AccountDetailModal';
 import { NotificationCenter } from './components/notifications/NotificationCenter';
-import { recordAutomationEvent } from './services/notificationService';
-import { fetchInvestmentsByLedger } from './services/investmentService';
-import type { InvestmentAsset, AccountPocket } from './types';
+import { subscribeInvestmentsByLedger, subscribeInvestmentEntriesByLedger } from './services/investmentService';
+import { subscribeUserPreferences, updateUserPreferences, DEFAULT_USER_PREFERENCES, type UserPreferences } from './services/preferencesService';
+import { subscribeCategoryBudgets, DEFAULT_CATEGORY_BUDGETS, type CategoryBudgetMap } from './services/budgetService';
+import { migrateLegacyDemoDataIfNeeded } from './services/migrationService';
 
 export default function App() {
+  const { user, uid, authReady } = useAuth();
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex items-center justify-center p-4">
+        <div className="brutal-card p-6 flex flex-col items-center gap-3 text-center max-w-xs w-full">
+          <div className="w-12 h-12 bg-[var(--accent-sand)] text-[#14141a] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[3px_3px_0px_#000] flex items-center justify-center font-heading font-bold text-2xl animate-pulse">
+            A
+          </div>
+          <p className="font-heading font-bold text-sm">Memeriksa sesi Artha Cloud...</p>
+          <p className="font-mono text-[11px] text-[var(--text-muted)]">Menghubungkan ke Firebase Auth & Firestore</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || !uid) {
+    return <LoginPage />;
+  }
+
+  return <AuthenticatedApp uid={uid} />;
+}
+
+function AuthenticatedApp({ uid }: { uid: string }) {
   // =========================================================================
-  // STATE NAVIGASI SPA
+  // STATE NAVIGASI SPA & CLOUD REAL-TIME DATA
   // =========================================================================
   const [isAddAutomationOpen, setIsAddAutomationOpen] = useState(false);  
   const [activeModule, setActiveModule] = useState<ModuleId>('dashboard');
-  const { toggleMobileDrawer } = useUI(); // langganan tema/privasi/drawer
+  const { toggleMobileDrawer } = useUI();
   const [investments, setInvestments] = useState<InvestmentAsset[]>([]);
+  const [investmentEntries, setInvestmentEntries] = useState<InvestmentEntry[]>([]);
+  const [autopilotRules, setAutopilotRules] = useState<AutopilotRule[]>([]);
+  const [userPrefs, setUserPrefs] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES);
+  const [categoryBudgets, setCategoryBudgets] = useState<CategoryBudgetMap>(DEFAULT_CATEGORY_BUDGETS);
   const categories = useCategories();
 
   // Autopilot di dalam modal "Aturan Baru"
   const [apKind, setApKind] = useState<AutopilotKind | null>(null);
   const [apDraft, setApDraft] = useState<ApDraft>(emptyApDraft);
-  const [apVersion, setApVersion] = useState(0);
   const [apRequest, setApRequest] = useState<ApRequest | null>(null);
-  function handleCreateAutopilot(e: React.FormEvent) {
+  async function handleCreateAutopilot(e: React.FormEvent) {
     e.preventDefault();
     if (!apKind) return;
     try {
-      submitAutopilot(apKind, apDraft, { ledgerId: currentLedger.id, accounts, goals, bills, debts });
+      await submitAutopilot(apKind, apDraft, { uid, ledgerId: currentLedger.id, accounts, goals, bills, debts });
       showToast('Aturan Autopilot disimpan.', 'success');
-      setApVersion(v => v + 1);
       setIsAddAutomationOpen(false);
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Gagal menyimpan aturan Autopilot.', 'error');
     }
   }
 
-  // Autopilot: jalankan aturan lalu muat ulang data yang terpengaruh
   useEffect(() => { if (!isAddAutomationOpen) { setApKind(null); setApDraft(emptyApDraft()); } }, [isAddAutomationOpen]);
 
   /** Apakah target (tagihan/utang/target) sudah punya aturan Autopilot di buku kas aktif. */
   function findApRule(kind: AutopilotKind, targetId: string) {
-    return getAutopilotRules().find(r => r.ledgerId === currentLedger.id && r.kind === kind && r.targetId === targetId);
+    return autopilotRules.find(r => r.ledgerId === currentLedger.id && r.kind === kind && r.targetId === targetId);
   }
   function openAutopilot(kind: AutopilotKind, targetId: string) {
     setApRequest({ kind, targetId, ruleId: findApRule(kind, targetId)?.id });
   }
 
   async function runAutopilotAndRefresh(ledgerId: string): Promise<AutopilotResult> {
-    const res = await runAutopilot(ledgerId);
+    const res = await runAutopilot(uid, ledgerId);
     if (res.executed.length > 0) {
-      const [a, t, g, b, d] = await Promise.all([
-        fetchAccountsByLedger(undefined, ledgerId), fetchTransactionsByLedger(undefined, ledgerId),
-        fetchGoalsByLedger(undefined, ledgerId), fetchBillsByLedger(undefined, ledgerId), fetchDebtsByLedger(undefined, ledgerId),
-      ]);
-      setAccounts(a); setTransactions(t); setGoals(g); setBills(b); setDebts(d);
-      res.executed.forEach(x => {
-        const acc = a.find(item => item.id === x.rule.sourceAccountId);
-        recordAutomationEvent(x.rule.name, x.rule.amount, acc?.name || 'Rekening');
-      });
       showToast(`Autopilot: ${res.executed.map(x => x.message).join(', ')}`, 'success');
     }
-    if (res.failed.length > 0) showToast(`Autopilot: ${res.failed.length} aturan gagal (${res.failed[0].error})`, 'error');
+    if (res.failed.length > 0) {
+      showToast(`Autopilot: ${res.failed.length} aturan gagal (${res.failed[0].error})`, 'error');
+    }
     return res;
   }
 
@@ -216,7 +236,7 @@ export default function App() {
   // STATE BUKU KAS (LEDGERS)
   // =========================================================================
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
-  const [activeLedgerIdState, setActiveLedgerIdState] = useState<string>(() => getActiveLedgerId());
+  const [activeLedgerIdState, setActiveLedgerIdState] = useState<string>('');
   const [isLedgerDropdownOpen, setIsLedgerDropdownOpen] = useState(false);
   const [isAddLedgerOpen, setIsAddLedgerOpen] = useState(false);
   const [newLedgerName, setNewLedgerName] = useState('');
@@ -513,84 +533,112 @@ export default function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Load Awal: Ledgers & Data Buku Kas Aktif
+  // =========================================================================
+  // REAL-TIME FIRESTORE LISTENERS: MIGRASI, PREFERENCES, LEDGERS & DATA PER BUKU KAS
+  // =========================================================================
+  const defaultLedgerRequestedRef = useRef(false);
+  const cronExecutedLedgersRef = useRef<Set<string>>(new Set());
+  const [migrationReady, setMigrationReady] = useState(false);
+  const [ledgersLoaded, setLedgersLoaded] = useState(false);
+
+  // 0. Migrasi otomatis satu kali dari users/demo_user_artha -> users/{uid}
   useEffect(() => {
-    async function init() {
-      setIsLoading(true);
-      const allLedgers = await fetchLedgers();
-      setLedgers(allLedgers);
+    let active = true;
+    setMigrationReady(false);
+    setLedgersLoaded(false);
+    defaultLedgerRequestedRef.current = false;
 
-      let currentId = activeLedgerIdState;
-      if (!allLedgers.find(l => l.id === currentId)) {
-        currentId = allLedgers[0]?.id || 'ledger_personal_default';
-        setActiveLedgerIdState(currentId);
-        setActiveLedgerId(currentId);
-      }
-
-      await loadLedgerData(currentId);
-
-      // EKSEKUSI CLIENT-SIDE CRON JOB SAAT APP INIT (MODUL 4)
-      try {
-        const cronResult = await checkAndRunAutomations(undefined, currentId);
-        if (cronResult.executedCount > 0) {
-          showToast(`${cronResult.executedCount} Transaksi Otomatis Berhasil Dieksekusi`, 'success');
-          // Muat ulang data terbaru yang terpengaruh eksekusi otomatis
-          const [freshAccs, freshTxs, freshAutos] = await Promise.all([
-            fetchAccountsByLedger(undefined, currentId),
-            fetchTransactionsByLedger(undefined, currentId),
-            fetchAutomations(undefined, currentId)
-          ]);
-          setAccounts(freshAccs);
-          setTransactions(freshTxs);
-          setAutomations(freshAutos);
+    migrateLegacyDemoDataIfNeeded(uid)
+      .then((res) => {
+        if (!active) return;
+        if (!res.skipped && res.migratedCount > 0) {
+          showToast(
+            `Data lama (${res.migratedCount} dokumen) berhasil dimigrasikan ke akun Cloud Anda!`,
+            'success'
+          );
         }
-      } catch (err) {
-        console.warn('Gagal menjalankan cron automations:', err);
-      }
+      })
+      .catch((err) => {
+        console.warn('Migrasi otomatis dilewati:', err);
+      })
+      .finally(() => {
+        if (active) setMigrationReady(true);
+      });
 
-      try {
-        await runAutopilotAndRefresh(currentId);
-      } catch (err) {
-        console.warn('Gagal menjalankan Autopilot:', err);
-      }
+    return () => {
+      active = false;
+    };
+  }, [uid]);
 
-      setIsLoading(false);
-    }
-    init();
-  }, []);
+  // 1. Listener Preferensi Pengguna (activeLedgerId, notifikasi, automationEvents)
+  useEffect(() => {
+    const unsub = subscribeUserPreferences(uid, (prefs) => {
+      setUserPrefs(prefs);
+    });
+    return unsub;
+  }, [uid]);
 
-  // Fungsi memuat data HANYA untuk buku kas yang dipilih
-  async function loadLedgerData(targetLedgerId: string) {
+  // 2. Listener Daftar Buku Kas
+  useEffect(() => {
     setIsLoading(true);
-    const [accs, txs, gls, bls, dts, autos, invs] = await Promise.all([
-      fetchAccountsByLedger(undefined, targetLedgerId),
-      fetchTransactionsByLedger(undefined, targetLedgerId),
-      fetchGoalsByLedger(undefined, targetLedgerId),
-      fetchBillsByLedger(undefined, targetLedgerId),
-      fetchDebtsByLedger(undefined, targetLedgerId),
-      fetchAutomations(undefined, targetLedgerId),
-      fetchInvestmentsByLedger(undefined, targetLedgerId)
-    ]);
-    setAccounts(accs);
-    setTransactions(txs);
-    setGoals(gls);
-    setBills(bls);
-    setDebts(dts);
-    setAutomations(autos);
-    setInvestments(invs);
+    const unsub = subscribeLedgers(uid, (list) => {
+      setLedgers(list);
+      setLedgersLoaded(true);
+    });
+    return unsub;
+  }, [uid]);
 
-    if (accs.length > 0) {
-      setTxAccountId(accs[0].id);
-      setTransferSource(accs[0].id);
-      setTransferDest(accs.length > 1 ? accs[1].id : '');
-      setNewGoalSourceAccount(accs[0].id);
-      setAllocSourceAccount(accs[0].id);
-      setNewBillSourceAccount(accs[0].id);
-      setPayBillSourceAccount(accs[0].id);
-      setPayDebtSourceAccount(accs[0].id);
-      setNewAutoSourceAccount(accs[0].id);
-      setNewAutoToAccount(accs.length > 1 ? accs[1].id : '');
-    } else {
+  // 2B. Auto-provision buku kas default HANYA setelah migrasi selesai & buku kas benar-benar kosong
+  useEffect(() => {
+    if (!migrationReady || !ledgersLoaded) return;
+    if (ledgers.length === 0 && !defaultLedgerRequestedRef.current) {
+      defaultLedgerRequestedRef.current = true;
+      void ensureDefaultLedger(uid).catch((err) => {
+        console.error('Gagal membuat buku kas default:', err);
+        setIsLoading(false);
+      });
+    }
+  }, [uid, migrationReady, ledgersLoaded, ledgers.length]);
+
+  // 3. Sinkronkan activeLedgerIdState terhadap daftar buku kas & preferensi cloud
+  useEffect(() => {
+    if (ledgers.length === 0) return;
+    if (activeLedgerIdState && ledgers.some((l) => l.id === activeLedgerIdState)) return;
+    const preferred =
+      userPrefs.activeLedgerId && ledgers.some((l) => l.id === userPrefs.activeLedgerId)
+        ? userPrefs.activeLedgerId
+        : ledgers[0].id;
+    setActiveLedgerIdState(preferred);
+  }, [ledgers, userPrefs.activeLedgerId, activeLedgerIdState]);
+
+  // 4. Real-time listeners seluruh koleksi untuk Buku Kas Aktif
+  useEffect(() => {
+    if (!activeLedgerIdState) return;
+    setIsLoading(true);
+    const unsubs = [
+      subscribeAccountsByLedger(uid, activeLedgerIdState, (accs) => {
+        setAccounts(accs);
+        setIsLoading(false);
+      }),
+      subscribeTransactionsByLedger(uid, activeLedgerIdState, setTransactions),
+      subscribeGoalsByLedger(uid, activeLedgerIdState, setGoals),
+      subscribeBillsByLedger(uid, activeLedgerIdState, setBills),
+      subscribeDebtsByLedger(uid, activeLedgerIdState, setDebts),
+      subscribeAutomationsByLedger(uid, activeLedgerIdState, setAutomations),
+      subscribeInvestmentsByLedger(uid, activeLedgerIdState, setInvestments),
+      subscribeInvestmentEntriesByLedger(uid, activeLedgerIdState, setInvestmentEntries),
+      subscribeAutopilotRulesByLedger(uid, activeLedgerIdState, setAutopilotRules),
+      subscribeCategoryBudgets(uid, activeLedgerIdState, setCategoryBudgets),
+    ];
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
+  }, [uid, activeLedgerIdState]);
+
+  // 5. Pastikan pilihan akun default pada form selalu valid saat daftar akun berubah
+  useEffect(() => {
+    if (accounts.length === 0) {
       setTxAccountId('');
       setTransferSource('');
       setTransferDest('');
@@ -601,9 +649,47 @@ export default function App() {
       setPayDebtSourceAccount('');
       setNewAutoSourceAccount('');
       setNewAutoToAccount('');
+      return;
     }
-    setIsLoading(false);
-  }
+    const ids = new Set(accounts.map((a) => a.id));
+    const firstId = accounts[0].id;
+    const secondId = accounts.length > 1 ? accounts[1].id : '';
+    setTxAccountId((prev) => (prev && ids.has(prev) ? prev : firstId));
+    setTransferSource((prev) => (prev && ids.has(prev) ? prev : firstId));
+    setTransferDest((prev) => (prev && ids.has(prev) ? prev : secondId));
+    setNewGoalSourceAccount((prev) => (prev && ids.has(prev) ? prev : firstId));
+    setAllocSourceAccount((prev) => (prev && ids.has(prev) ? prev : firstId));
+    setNewBillSourceAccount((prev) => (prev && ids.has(prev) ? prev : firstId));
+    setPayBillSourceAccount((prev) => (prev && ids.has(prev) ? prev : firstId));
+    setPayDebtSourceAccount((prev) => (prev && ids.has(prev) ? prev : firstId));
+    setNewAutoSourceAccount((prev) => (prev && ids.has(prev) ? prev : firstId));
+    setNewAutoToAccount((prev) => (prev && ids.has(prev) ? prev : secondId));
+  }, [accounts]);
+
+  // 6. Jalankan otomatisasi & autopilot sekali per sesi untuk buku kas aktif
+  useEffect(() => {
+    if (!activeLedgerIdState) return;
+    const key = `${uid}:${activeLedgerIdState}`;
+    if (cronExecutedLedgersRef.current.has(key)) return;
+    cronExecutedLedgersRef.current.add(key);
+
+    (async () => {
+      try {
+        const executed = await checkAndRunAutomations(uid, activeLedgerIdState);
+        if (executed.length > 0) {
+          showToast(`${executed.length} Transaksi Otomatis Berhasil Dieksekusi`, 'success');
+        }
+      } catch (err) {
+        console.warn('Gagal menjalankan cron automations:', err);
+      }
+
+      try {
+        await runAutopilotAndRefresh(activeLedgerIdState);
+      } catch (err) {
+        console.warn('Gagal menjalankan Autopilot:', err);
+      }
+    })();
+  }, [uid, activeLedgerIdState]);
 
   // Handler Beralih Buku Kas (Active Ledger Switcher)
   async function handleSwitchLedger(ledgerId: string) {
@@ -612,12 +698,11 @@ export default function App() {
       return;
     }
     setActiveLedgerIdState(ledgerId);
-    setActiveLedgerId(ledgerId);
     setIsLedgerDropdownOpen(false);
+    void updateUserPreferences(uid, { activeLedgerId: ledgerId });
 
     const targetLedger = ledgers.find(l => l.id === ledgerId);
     showToast(`Beralih ke Buku Kas: "${targetLedger?.name || ledgerId}"`, 'info');
-    await loadLedgerData(ledgerId);
   }
 
   // Handler Buat Buku Kas Baru
@@ -625,20 +710,19 @@ export default function App() {
     e.preventDefault();
     if (!newLedgerName.trim()) return;
 
-    const created = await createLedger(undefined, {
+    const created = await createLedger(uid, {
       name: newLedgerName.trim(),
       description: newLedgerDesc.trim(),
       colorAccent: newLedgerColor
     });
 
-    const updatedLedgers = [...ledgers, created];
-    setLedgers(updatedLedgers);
     setIsAddLedgerOpen(false);
     setNewLedgerName('');
     setNewLedgerDesc('');
 
     // Otomatis beralih ke buku kas yang baru dibuat
-    await handleSwitchLedger(created.id);
+    setActiveLedgerIdState(created.id);
+    void updateUserPreferences(uid, { activeLedgerId: created.id });
     showToast(`Buku Kas "${created.name}" berhasil dibuat & aktif!`, 'success');
   }
 
@@ -657,15 +741,15 @@ export default function App() {
     e.preventDefault();
     if (!editingLedger || !editLedgerName.trim()) return;
 
-    const updated = await updateLedger(undefined, editingLedger.id, {
-      name: editLedgerName.trim(),
+    const nextName = editLedgerName.trim();
+    await updateLedger(uid, editingLedger.id, {
+      name: nextName,
       description: editLedgerDesc.trim(),
       colorAccent: editLedgerColor
     });
 
-    setLedgers(prev => prev.map(l => l.id === updated.id ? updated : l));
     setEditingLedger(null);
-    showToast(`Buku Kas "${updated.name}" berhasil diperbarui!`, 'success');
+    showToast(`Buku Kas "${nextName}" berhasil diperbarui!`, 'success');
   }
 
   // Handler Buka Modal Konfirmasi Hapus Buku Kas
@@ -691,18 +775,15 @@ export default function App() {
       return;
     }
 
-    await deleteLedger(undefined, targetId);
-
     const remaining = ledgers.filter(l => l.id !== targetId);
-    setLedgers(remaining);
+    await deleteLedger(uid, targetId);
     setLedgerToDelete(null);
 
     // Jika yang dihapus adalah buku kas aktif, beralih ke buku kas pertama yang tersisa
-    if (activeLedgerIdState === targetId) {
+    if (activeLedgerIdState === targetId && remaining[0]) {
       const nextLedger = remaining[0];
       setActiveLedgerIdState(nextLedger.id);
-      setActiveLedgerId(nextLedger.id);
-      await loadLedgerData(nextLedger.id);
+      void updateUserPreferences(uid, { activeLedgerId: nextLedger.id });
       showToast(`Buku Kas "${targetName}" dihapus. Beralih ke "${nextLedger.name}".`, 'info');
     } else {
       showToast(`Buku Kas "${targetName}" berhasil dihapus.`, 'info');
@@ -769,18 +850,16 @@ export default function App() {
 
     const { result } = evaluateMathExpression(newAccBalance);
 
-    const created = await createAccount(undefined, {
-      ledgerId: activeLedgerIdState, // Terikat wajib ke Buku Kas Aktif
+    const created = await createAccount(uid, {
+      ledgerId: currentLedger.id,
       name: newAccName.trim(),
       type: newAccType,
       balance: result,
       colorAccent: newAccColor
     });
 
-    const updated = [...accounts, created];
-    setAccounts(updated);
     if (!txAccountId) setTxAccountId(created.id);
-    if (!transferDest && updated.length > 1) setTransferDest(created.id);
+    if (!transferDest && accounts.length >= 1) setTransferDest(created.id);
 
     setNewAccName('');
     setNewAccBalance('0');
@@ -800,17 +879,17 @@ export default function App() {
     e.preventDefault();
     if (!editingAccount || !editAccName.trim()) return;
 
+    const nextName = editAccName.trim();
     const { result } = evaluateMathExpression(editAccBalance);
-    const updated = await updateAccountData(undefined, editingAccount.id, {
-      name: editAccName.trim(),
+    await updateAccountData(uid, editingAccount.id, {
+      name: nextName,
       type: editAccType,
       balance: result,
       colorAccent: editAccColor
     });
 
-    setAccounts(prev => prev.map(a => a.id === updated.id ? updated : a));
     setEditingAccount(null);
-    showToast(`Akun "${updated.name}" berhasil diperbarui!`, 'success');
+    showToast(`Akun "${nextName}" berhasil diperbarui!`, 'success');
   }
 
   async function confirmExecuteDeleteAccount() {
@@ -818,11 +897,9 @@ export default function App() {
     const accId = accountToDelete.id;
     const accName = accountToDelete.name;
 
-    await deleteAccount(undefined, accId);
-    const updatedAccs = await fetchAccountsByLedger(undefined, activeLedgerIdState);
-    setAccounts(updatedAccs);
-    if (txAccountId === accId && updatedAccs.length > 0) {
-      setTxAccountId(updatedAccs[0].id);
+    await deleteAccount(uid, accId);
+    if (selectedAccountForDetail?.id === accId) {
+      setSelectedAccountForDetail(null);
     }
     setAccountToDelete(null);
     showToast(`Akun "${accName}" berhasil dihapus.`, 'info');
@@ -831,11 +908,7 @@ export default function App() {
   // Handler Sub-Kantong Alokasi Akun (Konsep Bank Jago)
   async function handleAddPocketToAccount(accountId: string, pocketData: Omit<AccountPocket, 'id' | 'createdAt'>) {
     try {
-      const updated = await addPocketToAccount(undefined, accountId, pocketData);
-      setAccounts(prev => prev.map(a => a.id === accountId ? updated : a));
-      if (selectedAccountForDetail?.id === accountId) {
-        setSelectedAccountForDetail(updated);
-      }
+      await addPocketToAccount(uid, accountId, pocketData);
       showToast('Kantong baru berhasil dibuat!', 'success');
     } catch (err: any) {
       showToast(err?.message || 'Gagal membuat kantong', 'error');
@@ -844,11 +917,7 @@ export default function App() {
 
   async function handleUpdatePocketInAccount(accountId: string, pocketId: string, updates: Partial<AccountPocket>) {
     try {
-      const updated = await updatePocketInAccount(undefined, accountId, pocketId, updates);
-      setAccounts(prev => prev.map(a => a.id === accountId ? updated : a));
-      if (selectedAccountForDetail?.id === accountId) {
-        setSelectedAccountForDetail(updated);
-      }
+      await updatePocketInAccount(uid, accountId, pocketId, updates);
       showToast('Kantong berhasil diperbarui!', 'success');
     } catch (err: any) {
       showToast(err?.message || 'Gagal memperbarui kantong', 'error');
@@ -857,11 +926,7 @@ export default function App() {
 
   async function handleDeletePocketFromAccount(accountId: string, pocketId: string) {
     try {
-      const updated = await deletePocketFromAccount(undefined, accountId, pocketId);
-      setAccounts(prev => prev.map(a => a.id === accountId ? updated : a));
-      if (selectedAccountForDetail?.id === accountId) {
-        setSelectedAccountForDetail(updated);
-      }
+      await deletePocketFromAccount(uid, accountId, pocketId);
       showToast('Kantong berhasil dihapus.', 'info');
     } catch (err: any) {
       showToast(err?.message || 'Gagal menghapus kantong', 'error');
@@ -884,8 +949,8 @@ export default function App() {
       return;
     }
 
-    const created = await createTransaction(undefined, {
-      ledgerId: activeLedgerIdState, // Terikat wajib ke Buku Kas Aktif
+    await createTransaction(uid, {
+      ledgerId: currentLedger.id,
       accountId: txAccountId,
       type: txType,
       amount: result,
@@ -893,11 +958,6 @@ export default function App() {
       note: txNote,
       date: txDate
     });
-
-    const refreshedAccs = await fetchAccountsByLedger(undefined, activeLedgerIdState);
-    const refreshedTxs = await fetchTransactionsByLedger(undefined, activeLedgerIdState);
-    setAccounts(refreshedAccs);
-    setTransactions(refreshedTxs);
 
     setTxAmount('');
     setTxNote('');
@@ -938,122 +998,75 @@ export default function App() {
       }
     }
 
-    await updateTransactionWithBalanceSync(undefined, editingTx, {
-      ledgerId: activeLedgerIdState,
-      accountId: editTxAccountId,
-      toAccountId: editTxType === 'transfer' ? editTxToAccountId : null,
-      goalId: editingTx.goalId,
-      type: editTxType,
-      amount: result,
-      category: editTxType === 'transfer' ? 'Transfer Saldo' : (editTxCategory || 'Lainnya'),
-      note: editTxNote,
-      date: editTxDate
-    });
+    try {
+      await updateTransactionWithBalanceSync(uid, editingTx.id, {
+        accountId: editTxAccountId,
+        toAccountId: editTxType === 'transfer' ? editTxToAccountId : null,
+        type: editTxType,
+        amount: result,
+        category: editTxType === 'transfer' ? 'Transfer Saldo' : (editTxCategory || 'Lainnya'),
+        note: editTxNote,
+        date: editTxDate
+      });
 
-    const [refreshedAccs, refreshedTxs, refreshedGoals, refreshedBills, refreshedDebts] = await Promise.all([
-      fetchAccountsByLedger(undefined, activeLedgerIdState),
-      fetchTransactionsByLedger(undefined, activeLedgerIdState),
-      fetchGoalsByLedger(undefined, activeLedgerIdState),
-      fetchBillsByLedger(undefined, activeLedgerIdState),
-      fetchDebtsByLedger(undefined, activeLedgerIdState)
-    ]);
-    setAccounts(refreshedAccs);
-    setTransactions(refreshedTxs);
-    setGoals(refreshedGoals);
-    setBills(refreshedBills);
-    setDebts(refreshedDebts);
+      if (selectedGoalForDetail && editingTx.goalId === selectedGoalForDetail.id) {
+        const updatedHistory = await fetchGoalAllocationHistory(uid, selectedGoalForDetail.id);
+        setGoalAllocationHistory(updatedHistory);
+      }
 
-    // Jika modal detail sedang terbuka untuk target ini, sinkronkan rinciannya secara realtime
-    if (selectedGoalForDetail && (editingTx.goalId === selectedGoalForDetail.id || selectedGoalForDetail.id === editingTx.goalId)) {
-      const updatedTarget = refreshedGoals.find(g => g.id === selectedGoalForDetail.id) || null;
-      if (updatedTarget) setSelectedGoalForDetail(updatedTarget);
-      const updatedHistory = await fetchGoalAllocationHistory(undefined, selectedGoalForDetail.id);
-      setGoalAllocationHistory(updatedHistory);
+      const wasGoal = Boolean(editingTx.goalId);
+      setEditingTx(null);
+      showToast(
+        wasGoal
+          ? 'Perubahan alokasi tersimpan! Saldo kas & dana target disinkronkan secara atomik.'
+          : 'Perubahan transaksi tersimpan & saldo disinkronisasi!',
+        'success'
+      );
+    } catch (err: any) {
+      showToast(err?.message || 'Gagal memperbarui transaksi.', 'error');
     }
-
-    setEditingTx(null);
-    showToast(
-      editingTx.goalId 
-        ? 'Perubahan alokasi tersimpan! Saldo kas & dana target disinkronkan secara atomik.' 
-        : 'Perubahan transaksi tersimpan & saldo disinkronisasi!',
-      'success'
-    );
   }
 
   async function confirmExecuteDeleteTx() {
     if (!txToDelete) return;
     const tx = txToDelete;
-
-    // Optimistic UI update: langsung tutup modal dan hapus dari state list
     setTxToDelete(null);
-    setTransactions(prev => prev.filter(t => t.id !== tx.id));
 
     try {
-      await deleteTransaction(undefined, tx.id);
-      showToast('Transaksi berhasil dihapus & saldo berhasil dipulihkan!', 'success');
-    } catch (err) {
+      await deleteTransaction(uid, tx.id);
+
+      if (selectedGoalForDetail && tx.goalId === selectedGoalForDetail.id) {
+        const updatedHistory = await fetchGoalAllocationHistory(uid, selectedGoalForDetail.id);
+        setGoalAllocationHistory(updatedHistory);
+      }
+
+      if (tx.goalId) {
+        showToast(
+          `Alokasi target berhasil dihapus! Saldo kas dikembalikan (+${formatRupiah(tx.amount)}) dan dana target otomatis dikurangi.`,
+          'success'
+        );
+      } else if (tx.billId) {
+        showToast(
+          `Pembayaran tagihan dibatalkan! Saldo dikembalikan (+${formatRupiah(tx.amount)}) dan tanggal jatuh tempo di-rollback ke periode sebelumnya.`,
+          'success'
+        );
+      } else if (tx.debtId) {
+        showToast(
+          `Pembayaran cicilan dibatalkan! Saldo dikembalikan (+${formatRupiah(tx.amount)}), sisa utang dipulihkan, dan jatuh tempo di-rollback.`,
+          'success'
+        );
+      } else {
+        const rollbackText = tx.type === 'expense'
+          ? `Saldo dikembalikan (+${formatRupiah(tx.amount)})`
+          : tx.type === 'income'
+          ? `Saldo dikoreksi (-${formatRupiah(tx.amount)})`
+          : 'Saldo transfer telah di-rollback';
+
+        showToast(`Transaksi berhasil dihapus! ${rollbackText}`, 'success');
+      }
+    } catch (err: any) {
       console.error('Error saat menghapus transaksi:', err);
-      showToast('Gagal menghapus transaksi dari database', 'error');
-    }
-
-    const [refreshedAccs, refreshedTxs, refreshedGoals, refreshedBills, refreshedDebts] = await Promise.all([
-      fetchAccountsByLedger(undefined, activeLedgerIdState),
-      fetchTransactionsByLedger(undefined, activeLedgerIdState),
-      fetchGoalsByLedger(undefined, activeLedgerIdState),
-      fetchBillsByLedger(undefined, activeLedgerIdState),
-      fetchDebtsByLedger(undefined, activeLedgerIdState)
-    ]);
-    setAccounts(refreshedAccs);
-    setTransactions(refreshedTxs);
-    setGoals(refreshedGoals);
-    setBills(refreshedBills);
-    setDebts(refreshedDebts);
-
-    // Jika modal detail target yang bersangkutan sedang terbuka, update tampilan secara realtime
-    if (selectedGoalForDetail && (tx.goalId === selectedGoalForDetail.id || selectedGoalForDetail.id === tx.goalId)) {
-      const updatedTarget = refreshedGoals.find(g => g.id === selectedGoalForDetail.id) || null;
-      if (updatedTarget) setSelectedGoalForDetail(updatedTarget);
-      const updatedHistory = await fetchGoalAllocationHistory(undefined, selectedGoalForDetail.id);
-      setGoalAllocationHistory(updatedHistory);
-    }
-
-    // Jika modal detail tagihan sedang terbuka, update tampilan secara realtime
-    if (selectedBillForDetail && tx.billId === selectedBillForDetail.id) {
-      const updatedB = refreshedBills.find(b => b.id === selectedBillForDetail.id) || null;
-      if (updatedB) setSelectedBillForDetail(updatedB);
-    }
-
-    // Jika modal detail utang sedang terbuka, update tampilan secara realtime
-    if (selectedDebtForDetail && tx.debtId === selectedDebtForDetail.id) {
-      const updatedD = refreshedDebts.find(d => d.id === selectedDebtForDetail.id) || null;
-      if (updatedD) setSelectedDebtForDetail(updatedD);
-    }
-
-    setTxToDelete(null);
-
-    if (tx.goalId) {
-      showToast(
-        `Alokasi target berhasil dihapus! Saldo kas dikembalikan (+${formatRupiah(tx.amount)}) dan dana target otomatis dikurangi.`,
-        'success'
-      );
-    } else if (tx.billId) {
-      showToast(
-        `Pembayaran tagihan dibatalkan! Saldo dikembalikan (+${formatRupiah(tx.amount)}) dan tanggal jatuh tempo di-rollback ke periode sebelumnya.`,
-        'success'
-      );
-    } else if (tx.debtId) {
-      showToast(
-        `Pembayaran cicilan dibatalkan! Saldo dikembalikan (+${formatRupiah(tx.amount)}), sisa utang dipulihkan, dan jatuh tempo di-rollback.`,
-        'success'
-      );
-    } else {
-      const rollbackText = tx.type === 'expense' 
-        ? `Saldo dikembalikan (+${formatRupiah(tx.amount)})`
-        : tx.type === 'income'
-        ? `Saldo dikoreksi (-${formatRupiah(tx.amount)})`
-        : 'Saldo transfer telah di-rollback';
-
-      showToast(`Transaksi berhasil dihapus! ${rollbackText}`, 'success');
+      showToast(err?.message || 'Gagal menghapus transaksi dari database', 'error');
     }
   }
 
@@ -1074,19 +1087,14 @@ export default function App() {
     }
 
     try {
-      await executeAccountTransfer(undefined, {
-        ledgerId: activeLedgerIdState,
-        sourceAccountId: transferSource,
-        destinationAccountId: transferDest,
+      await executeAccountTransfer(uid, {
+        ledgerId: currentLedger.id,
+        fromAccountId: transferSource,
+        toAccountId: transferDest,
         amount: result,
         note: transferNote,
         date: txDate
       });
-
-      const refreshedAccs = await fetchAccountsByLedger(undefined, activeLedgerIdState);
-      const refreshedTxs = await fetchTransactionsByLedger(undefined, activeLedgerIdState);
-      setAccounts(refreshedAccs);
-      setTransactions(refreshedTxs);
 
       setTransferAmount('');
       setTransferNote('');
@@ -1148,20 +1156,18 @@ export default function App() {
       return;
     }
 
-    const created = await createGoal(undefined, {
-      ledgerId: activeLedgerIdState,
+    const created = await createGoal(uid, {
+      ledgerId: currentLedger.id,
       name: newGoalName.trim(),
       type: newGoalType,
       targetAmount: targetVal,
-      initialAmount: initVal,
+      currentAmount: initVal,
+      isCompleted: initVal >= targetVal && targetVal > 0,
       deadline: newGoalDeadline,
       sourceAccountId: newGoalType === 'sinking_fund' ? (newGoalSourceAccount || (accounts[0]?.id || '')) : undefined,
       colorAccent: newGoalColor,
       note: newGoalNote
     });
-
-    const refreshedGoals = await fetchGoalsByLedger(undefined, activeLedgerIdState);
-    setGoals(refreshedGoals);
 
     setIsAddGoalOpen(false);
     setNewGoalName('');
@@ -1178,7 +1184,7 @@ export default function App() {
     setSelectedGoalForDetail(goal);
     setIsLoadingGoalHistory(true);
     try {
-      const history = await fetchGoalAllocationHistory(undefined, goal.id);
+      const history = await fetchGoalAllocationHistory(uid, goal.id);
       setGoalAllocationHistory(history);
     } catch (e) {
       console.warn('Gagal memuat riwayat target:', e);
@@ -1222,7 +1228,7 @@ export default function App() {
     }
 
     try {
-      await allocateFundsToGoal(undefined, {
+      await allocateFundsToGoal(uid, {
         goalId: allocatingGoal.id,
         amount: allocVal,
         sourceAccountId: allocSourceAccount || undefined,
@@ -1230,29 +1236,19 @@ export default function App() {
         note: allocNote
       });
 
-      const refreshedAccs = await fetchAccountsByLedger(undefined, activeLedgerIdState);
-      const refreshedTxs = await fetchTransactionsByLedger(undefined, activeLedgerIdState);
-      const refreshedGoals = await fetchGoalsByLedger(undefined, activeLedgerIdState);
-
-      setAccounts(refreshedAccs);
-      setTransactions(refreshedTxs);
-      setGoals(refreshedGoals);
-
-      // Sinkronkan modal detail jika target yang dialokasikan sedang dibuka
       if (selectedGoalForDetail && selectedGoalForDetail.id === allocatingGoal.id) {
-        const updatedTarget = refreshedGoals.find(g => g.id === allocatingGoal.id) || null;
-        setSelectedGoalForDetail(updatedTarget);
-        const updatedHistory = await fetchGoalAllocationHistory(undefined, allocatingGoal.id);
+        const updatedHistory = await fetchGoalAllocationHistory(uid, allocatingGoal.id);
         setGoalAllocationHistory(updatedHistory);
       }
 
+      const targetName = allocatingGoal.name;
+      const isNowCompleted = (allocatingGoal.currentAmount + allocVal) >= allocatingGoal.targetAmount;
       setAllocatingGoal(null);
 
-      const isNowCompleted = (allocatingGoal.currentAmount + allocVal) >= allocatingGoal.targetAmount;
       if (isNowCompleted) {
-        showToast(`🎉 Target "${allocatingGoal.name}" telah 100% TERCAPAI!`, 'success');
+        showToast(`🎉 Target "${targetName}" telah 100% TERCAPAI!`, 'success');
       } else {
-        showToast(`Dana ${formatRupiah(allocVal)} dialokasikan ke "${allocatingGoal.name}"!`, 'success');
+        showToast(`Dana ${formatRupiah(allocVal)} dialokasikan ke "${targetName}"!`, 'success');
       }
     } catch (err: any) {
       showToast(err.message || 'Gagal mengalokasikan dana.', 'error');
@@ -1283,8 +1279,9 @@ export default function App() {
       return;
     }
 
-    const updated = await updateGoalData(undefined, editingGoal.id, {
-      name: editGoalName.trim(),
+    const nextName = editGoalName.trim();
+    await updateGoalData(uid, editingGoal.id, {
+      name: nextName,
       type: editGoalType,
       targetAmount: targetVal,
       currentAmount: currentVal,
@@ -1294,19 +1291,19 @@ export default function App() {
       note: editGoalNote
     });
 
-    const refreshedGoals = await fetchGoalsByLedger(undefined, activeLedgerIdState);
-    setGoals(refreshedGoals);
     setEditingGoal(null);
-    showToast(`Target "${updated.name}" berhasil diperbarui!`, 'success');
+    showToast(`Target "${nextName}" berhasil diperbarui!`, 'success');
   }
 
   async function confirmExecuteDeleteGoal() {
     if (!goalToDelete) return;
     const name = goalToDelete.name;
-    await deleteGoal(undefined, goalToDelete.id);
+    const deletedId = goalToDelete.id;
+    await deleteGoal(uid, deletedId);
 
-    const refreshedGoals = await fetchGoalsByLedger(undefined, activeLedgerIdState);
-    setGoals(refreshedGoals);
+    if (selectedGoalForDetail?.id === deletedId) {
+      setSelectedGoalForDetail(null);
+    }
     setGoalToDelete(null);
     showToast(`Target "${name}" telah dihapus.`, 'info');
   }
@@ -1381,8 +1378,8 @@ export default function App() {
       lastNominalVal = Math.max(0, result || 0);
     }
 
-    const created = await createBill(undefined, {
-      ledgerId: activeLedgerIdState,
+    const created = await createBill(uid, {
+      ledgerId: currentLedger.id,
       name: newBillName.trim(),
       cycle: newBillCycle,
       customIntervalCount: newBillCycle === 'custom' ? newBillCustomCount : undefined,
@@ -1397,7 +1394,6 @@ export default function App() {
       note: newBillNote.trim()
     });
 
-    setBills(prev => [created, ...prev]);
     setIsAddBillOpen(false);
     setNewBillName('');
     setNewBillNote('');
@@ -1438,8 +1434,9 @@ export default function App() {
       lastNominalVal = Math.max(0, result || 0);
     }
 
-    const updated = await updateBill(undefined, editingBill.id, {
-      name: editBillName.trim(),
+    const nextName = editBillName.trim();
+    await updateBill(uid, editingBill.id, {
+      name: nextName,
       cycle: editBillCycle,
       customIntervalCount: editBillCycle === 'custom' ? editBillCustomCount : undefined,
       customIntervalUnit: editBillCycle === 'custom' ? editBillCustomUnit : undefined,
@@ -1453,20 +1450,16 @@ export default function App() {
       note: editBillNote.trim()
     });
 
-    setBills(prev => prev.map(b => b.id === updated.id ? updated : b));
-    if (selectedBillForDetail && selectedBillForDetail.id === updated.id) {
-      setSelectedBillForDetail(updated);
-    }
     setEditingBill(null);
-    showToast(`Tagihan "${updated.name}" berhasil diperbarui!`, 'success');
+    showToast(`Tagihan "${nextName}" berhasil diperbarui!`, 'success');
   }
 
   async function confirmExecuteDeleteBill() {
     if (!billToDelete) return;
     const name = billToDelete.name;
-    await deleteBill(undefined, billToDelete.id);
-    setBills(prev => prev.filter(b => b.id !== billToDelete.id));
-    if (selectedBillForDetail && selectedBillForDetail.id === billToDelete.id) {
+    const deletedId = billToDelete.id;
+    await deleteBill(uid, deletedId);
+    if (selectedBillForDetail && selectedBillForDetail.id === deletedId) {
       setSelectedBillForDetail(null);
     }
     setBillToDelete(null);
@@ -1510,20 +1503,13 @@ export default function App() {
     }
 
     try {
-      const result = await payBill(undefined, {
+      const result = await payBill(uid, {
         billId: payingBill.id,
         amount: payAmount,
         sourceAccountId: payBillSourceAccount,
         date: payBillDate,
         note: payBillNote
       });
-
-      setBills(prev => prev.map(b => b.id === result.bill.id ? result.bill : b));
-      if (selectedBillForDetail && selectedBillForDetail.id === result.bill.id) {
-        setSelectedBillForDetail(result.bill);
-      }
-      setAccounts(prev => prev.map(a => a.id === result.updatedAccount.id ? result.updatedAccount : a));
-      setTransactions(prev => [result.transaction, ...prev]);
 
       setPayingBill(null);
       showToast(`Tagihan "${result.bill.name}" dibayar! Jatuh tempo baru: ${result.bill.nextPaymentDate}`, 'success');
@@ -1571,8 +1557,8 @@ export default function App() {
       return;
     }
 
-    const created = await createDebt(undefined, {
-      ledgerId: activeLedgerIdState,
+    const created = await createDebt(uid, {
+      ledgerId: currentLedger.id,
       name: newDebtName.trim(),
       lender: newDebtLender.trim(),
       totalDebt: totalVal,
@@ -1586,7 +1572,6 @@ export default function App() {
       note: newDebtNote.trim()
     });
 
-    setDebts(prev => [created, ...prev]);
     setIsAddDebtOpen(false);
     setNewDebtName('');
     setNewDebtLender('');
@@ -1616,9 +1601,10 @@ export default function App() {
 
     const { result: totalVal } = evaluateMathExpression(editDebtTotal);
     const { result: remainVal } = evaluateMathExpression(editDebtRemaining);
+    const nextName = editDebtName.trim();
 
-    const updated = await updateDebt(undefined, editingDebt.id, {
-      name: editDebtName.trim(),
+    await updateDebt(uid, editingDebt.id, {
+      name: nextName,
       lender: editDebtLender.trim(),
       totalDebt: Math.max(1, totalVal || 0),
       remainingDebt: Math.max(0, remainVal || 0),
@@ -1631,20 +1617,16 @@ export default function App() {
       note: editDebtNote.trim()
     });
 
-    setDebts(prev => prev.map(d => d.id === updated.id ? updated : d));
-    if (selectedDebtForDetail && selectedDebtForDetail.id === updated.id) {
-      setSelectedDebtForDetail(updated);
-    }
     setEditingDebt(null);
-    showToast(`Data utang "${updated.name}" berhasil diperbarui!`, 'success');
+    showToast(`Data utang "${nextName}" berhasil diperbarui!`, 'success');
   }
 
   async function confirmExecuteDeleteDebt() {
     if (!debtToDelete) return;
     const name = debtToDelete.name;
-    await deleteDebt(undefined, debtToDelete.id);
-    setDebts(prev => prev.filter(d => d.id !== debtToDelete.id));
-    if (selectedDebtForDetail && selectedDebtForDetail.id === debtToDelete.id) {
+    const deletedId = debtToDelete.id;
+    await deleteDebt(uid, deletedId);
+    if (selectedDebtForDetail && selectedDebtForDetail.id === deletedId) {
       setSelectedDebtForDetail(null);
     }
     setDebtToDelete(null);
@@ -1677,20 +1659,13 @@ export default function App() {
     }
 
     try {
-      const result = await payDebtInstallment(undefined, {
+      const result = await payDebtInstallment(uid, {
         debtId: payingDebt.id,
         amount: payAmt,
         sourceAccountId: payDebtSourceAccount,
         date: payDebtDate,
         note: payDebtNote
       });
-
-      setDebts(prev => prev.map(d => d.id === result.debt.id ? result.debt : d));
-      if (selectedDebtForDetail && selectedDebtForDetail.id === result.debt.id) {
-        setSelectedDebtForDetail(result.debt);
-      }
-      setAccounts(prev => prev.map(a => a.id === result.updatedAccount.id ? result.updatedAccount : a));
-      setTransactions(prev => [result.transaction, ...prev]);
 
       setPayingDebt(null);
       if (result.debt.isPaidOff) {
@@ -1788,9 +1763,9 @@ export default function App() {
     }
 
     try {
-      const created = await createAutomation(undefined, {
-        ledgerId: activeLedgerIdState,
-        name: newAutoName,
+      const created = await createAutomation(uid, {
+        ledgerId: currentLedger.id,
+        name: newAutoName.trim(),
         type: newAutoType,
         amount: finalAmt,
         category: newAutoCategory,
@@ -1801,13 +1776,12 @@ export default function App() {
         customIntervalCount: newAutoCustomCount,
         customIntervalUnit: newAutoCustomUnit,
         nextRunDate: newAutoNextDate,
+        isActive: true,
         colorAccent: newAutoColor,
         note: newAutoNote
       });
 
-      setAutomations(prev => [created, ...prev]);
       setIsAddAutomationOpen(false);
-      // Reset form
       setNewAutoName('');
       setNewAutoAmount('5000000');
       setAutoCalcNotice(null);
@@ -1864,8 +1838,9 @@ export default function App() {
     }
 
     try {
-      const updated = await updateAutomation(undefined, editingAutomation.id, {
-        name: editAutoName.trim(),
+      const nextName = editAutoName.trim();
+      await updateAutomation(uid, editingAutomation.id, {
+        name: nextName,
         type: editAutoType,
         amount: finalAmt,
         category: editAutoCategory.trim() || undefined,
@@ -1880,12 +1855,8 @@ export default function App() {
         note: editAutoNote.trim()
       });
 
-      setAutomations(prev => prev.map(a => a.id === updated.id ? updated : a));
-      if (selectedAutomationForDetail && selectedAutomationForDetail.id === updated.id) {
-        setSelectedAutomationForDetail(updated);
-      }
       setEditingAutomation(null);
-      showToast(`Perubahan aturan "${updated.name}" berhasil disimpan!`, 'success');
+      showToast(`Perubahan aturan "${nextName}" berhasil disimpan!`, 'success');
     } catch (err: any) {
       showToast(err.message || 'Gagal menyimpan perubahan aturan otomatis.', 'error');
     }
@@ -1893,16 +1864,15 @@ export default function App() {
 
   async function handleToggleAutomation(ruleId: string, e?: React.MouseEvent) {
     e?.stopPropagation();
+    const target = automations.find(a => a.id === ruleId);
+    if (!target) return;
+    const nextActive = !target.isActive;
     try {
-      const toggled = await toggleAutomationActive(undefined, ruleId);
-      setAutomations(prev => prev.map(a => a.id === toggled.id ? toggled : a));
-      if (selectedAutomationForDetail && selectedAutomationForDetail.id === toggled.id) {
-        setSelectedAutomationForDetail(toggled);
-      }
+      await toggleAutomationActive(uid, ruleId, nextActive);
       showToast(
-        toggled.isActive 
-          ? `Aturan "${toggled.name}" telah DIAKTIFKAN.` 
-          : `Aturan "${toggled.name}" telah DINONAKTIFKAN.`,
+        nextActive
+          ? `Aturan "${target.name}" telah DIAKTIFKAN.`
+          : `Aturan "${target.name}" telah DINONAKTIFKAN.`,
         'info'
       );
     } catch (err: any) {
@@ -1917,13 +1887,14 @@ export default function App() {
 
   async function confirmExecuteDeleteAutomation() {
     if (!automationToDelete) return;
+    const targetId = automationToDelete.id;
+    const targetName = automationToDelete.name;
     try {
-      await deleteAutomation(undefined, automationToDelete.id);
-      setAutomations(prev => prev.filter(a => a.id !== automationToDelete.id));
-      if (selectedAutomationForDetail && selectedAutomationForDetail.id === automationToDelete.id) {
+      await deleteAutomation(uid, targetId);
+      if (selectedAutomationForDetail && selectedAutomationForDetail.id === targetId) {
         setSelectedAutomationForDetail(null);
       }
-      showToast(`Aturan otomatis "${automationToDelete.name}" berhasil dihapus.`, 'info');
+      showToast(`Aturan otomatis "${targetName}" berhasil dihapus.`, 'info');
       setAutomationToDelete(null);
     } catch (err: any) {
       showToast(err.message || 'Gagal menghapus aturan otomatis.', 'error');
@@ -1933,19 +1904,7 @@ export default function App() {
   async function handleManualExecuteAutomation(rule: AutomationRule, e?: React.MouseEvent) {
     e?.stopPropagation();
     try {
-      const result = await executeSingleAutomation(undefined, rule.id);
-      setAutomations(prev => prev.map(a => a.id === result.rule.id ? result.rule : a));
-      if (selectedAutomationForDetail && selectedAutomationForDetail.id === result.rule.id) {
-        setSelectedAutomationForDetail(result.rule);
-      }
-      // Update accounts and transactions in state
-      setAccounts(prev => {
-        const map = new Map(prev.map(a => [a.id, a]));
-        result.updatedAccounts.forEach(ua => map.set(ua.id, ua));
-        return Array.from(map.values());
-      });
-      setTransactions(prev => [result.transaction, ...prev]);
-
+      await executeSingleAutomation(uid, rule.id);
       showToast(`⚡ Aturan "${rule.name}" berhasil dieksekusi sekarang!`, 'success');
     } catch (err: any) {
       showToast(err.message || 'Gagal mengeksekusi aturan otomatis.', 'error');
@@ -1955,21 +1914,9 @@ export default function App() {
   async function handleRunCronManual() {
     setIsExecutingCron(true);
     try {
-      const res = await checkAndRunAutomations(undefined, activeLedgerIdState);
-      if (res.executedCount > 0) {
-        showToast(`${res.executedCount} Transaksi Otomatis Berhasil Dieksekusi`, 'success');
-        const [freshAccs, freshTxs, freshAutos] = await Promise.all([
-          fetchAccountsByLedger(undefined, activeLedgerIdState),
-          fetchTransactionsByLedger(undefined, activeLedgerIdState),
-          fetchAutomations(undefined, activeLedgerIdState)
-        ]);
-        setAccounts(freshAccs);
-        setTransactions(freshTxs);
-        setAutomations(freshAutos);
-        freshAutos.filter(a => a.lastRunDate && (a.executionCount ?? 0) > 0).slice(0, res.executedCount).forEach(rule => {
-          const acc = freshAccs.find(item => item.id === rule.sourceAccountId);
-          recordAutomationEvent(rule.name, rule.amount, acc?.name || 'Rekening');
-        });
+      const executed = await checkAndRunAutomations(uid, currentLedger.id);
+      if (executed.length > 0) {
+        showToast(`${executed.length} Transaksi Otomatis Berhasil Dieksekusi`, 'success');
       } else {
         showToast('Semua aturan otomatisasi sudah mutakhir (tidak ada yang jatuh tempo hari ini).', 'info');
       }
@@ -2159,6 +2106,7 @@ export default function App() {
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <HeaderTools />
               <NotificationCenter
+                uid={uid}
                 transactions={transactions}
                 bills={bills}
                 debts={debts}
@@ -2166,6 +2114,10 @@ export default function App() {
                 accounts={accounts}
                 currentLedgerId={currentLedger.id}
                 currentLedgerName={currentLedger.name}
+                categoryBudgets={categoryBudgets}
+                readIds={userPrefs.notificationsRead}
+                dismissedIds={userPrefs.notificationsDismissed}
+                autoEvents={userPrefs.automationEvents}
                 onNavigate={(mod) => setActiveModule(mod as ModuleId)}
               />
 
@@ -2291,12 +2243,14 @@ export default function App() {
         {/* KONTEN TAMBAH TRANSAKSI (DEDICATED VIEW DENGAN 3 TAB & KELOLA KATEGORI) */}
         <div id="container-add-transaction" className={activeModule === 'add_transaction' ? 'space-y-3' : 'hidden'}>
           <AddTransactionView
+            uid={uid}
             currentLedger={currentLedger}
             accounts={accounts}
             recentTransactions={transactions}
+            categoryBudgets={categoryBudgets}
             onSaveTransaction={async (data) => {
-              await createTransaction(undefined, {
-                ledgerId: activeLedgerIdState,
+              await createTransaction(uid, {
+                ledgerId: currentLedger.id,
                 accountId: data.accountId,
                 type: data.type,
                 amount: data.amount,
@@ -2304,25 +2258,17 @@ export default function App() {
                 note: data.note,
                 date: data.date
               });
-              const refreshedAccs = await fetchAccountsByLedger(undefined, activeLedgerIdState);
-              const refreshedTxs = await fetchTransactionsByLedger(undefined, activeLedgerIdState);
-              setAccounts(refreshedAccs);
-              setTransactions(refreshedTxs);
               showToast(`Transaksi ${data.type === 'income' ? 'Pemasukan' : 'Pengeluaran'} dicatat!`, 'success');
             }}
             onExecuteTransfer={async (data) => {
-              await executeAccountTransfer(undefined, {
-                ledgerId: activeLedgerIdState,
-                sourceAccountId: data.sourceAccountId,
-                destinationAccountId: data.destinationAccountId,
+              await executeAccountTransfer(uid, {
+                ledgerId: currentLedger.id,
+                fromAccountId: data.sourceAccountId,
+                toAccountId: data.destinationAccountId,
                 amount: data.amount,
                 note: data.note,
                 date: data.date
               });
-              const refreshedAccs = await fetchAccountsByLedger(undefined, activeLedgerIdState);
-              const refreshedTxs = await fetchTransactionsByLedger(undefined, activeLedgerIdState);
-              setAccounts(refreshedAccs);
-              setTransactions(refreshedTxs);
               showToast('Transfer saldo antar akun berhasil!', 'success');
             }}
             onNavigate={setActiveModule}
@@ -2345,21 +2291,11 @@ export default function App() {
         {/* KONTEN PORTOFOLIO INVESTASI */}
         <div id="container-investments" className={activeModule === 'investments' ? 'space-y-3' : 'hidden'}>
           <InvestmentPortfolioView
+            uid={uid}
             currentLedger={currentLedger}
             investments={investments}
-            onRefreshInvestments={async () => {
-              const fresh = await fetchInvestmentsByLedger(undefined, activeLedgerIdState);
-              setInvestments(fresh);
-            }}
+            investmentEntries={investmentEntries}
             accounts={accounts}
-            onDataChanged={async () => {
-              const [a, t, inv] = await Promise.all([
-                fetchAccountsByLedger(undefined, activeLedgerIdState),
-                fetchTransactionsByLedger(undefined, activeLedgerIdState),
-                fetchInvestmentsByLedger(undefined, activeLedgerIdState)
-              ]);
-              setAccounts(a); setTransactions(t); setInvestments(inv);
-            }}
             showToast={showToast}
           />
         </div>
@@ -2456,14 +2392,14 @@ export default function App() {
           />
 
           <AutopilotList
+            uid={uid}
             ledgerId={currentLedger.id}
             accounts={accounts}
             goals={goals}
             bills={bills}
             debts={debts}
-            version={apVersion}
+            rules={autopilotRules}
             onRun={() => runAutopilotAndRefresh(currentLedger.id)}
-            onChanged={() => setApVersion(v => v + 1)}
           />
         </div>
         {/* AKHIR KONTEN MODUL 4 */}
@@ -2476,6 +2412,7 @@ export default function App() {
             transactions={transactions}
             activeLedger={currentLedger}
             accounts={accounts}
+            categoryBudgets={categoryBudgets}
             formatRupiah={formatRupiah}
             formatDate={(val) => new Date(val).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
             onNavigateToTab={(tab) => setActiveModule(tab)}
@@ -2495,10 +2432,6 @@ export default function App() {
             formatRupiah={formatRupiah}
             formatDate={(val) => new Date(val).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
             onNavigateToTab={(tab) => setActiveModule(tab)}
-            onAutomationUpdated={async () => {
-              const refreshedAutos = await fetchAutomations(undefined, activeLedgerIdState);
-              setAutomations(refreshedAutos);
-            }}
           />
         </div>
         {/* AKHIR KONTEN MODUL 6 */}
@@ -2510,13 +2443,15 @@ export default function App() {
       {apRequest && (
         <AutopilotRuleModal
           request={apRequest}
+          rules={autopilotRules}
+          uid={uid}
           ledgerId={currentLedger.id}
           accounts={accounts}
           goals={goals}
           bills={bills}
           debts={debts}
           onClose={() => setApRequest(null)}
-          onSaved={(message) => { showToast(message, 'success'); setApVersion(v => v + 1); setApRequest(null); }}
+          onSaved={(message) => { showToast(message, 'success'); setApRequest(null); }}
         />
       )}
 
@@ -2749,7 +2684,7 @@ export default function App() {
       <AccountDetailModal
         isOpen={Boolean(selectedAccountForDetail)}
         onClose={() => setSelectedAccountForDetail(null)}
-        account={selectedAccountForDetail}
+        account={selectedAccountForDetail ? (accounts.find(a => a.id === selectedAccountForDetail.id) || selectedAccountForDetail) : null}
         transactions={transactions}
         accounts={accounts}
         onAddPocket={handleAddPocketToAccount}
@@ -2773,9 +2708,13 @@ export default function App() {
       {/* =================================================================== */}
       {selectedGoalForDetail && (
         <GoalDetailModal
-          goal={selectedGoalForDetail}
+          goal={goals.find(g => g.id === selectedGoalForDetail.id) || selectedGoalForDetail}
           accounts={accounts}
-          history={goalAllocationHistory}
+          history={
+            transactions.filter(t => t.goalId === selectedGoalForDetail.id).length > 0
+              ? transactions.filter(t => t.goalId === selectedGoalForDetail.id)
+              : goalAllocationHistory
+          }
           onClose={() => setSelectedGoalForDetail(null)}
           onEditTx={openEditTransactionModal}
           onDeleteTx={setTxToDelete}
@@ -3093,7 +3032,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t-[2.5px] border-[var(--border-color)] bg-[var(--bg-surface)] py-3 px-3 pb-20 md:pb-3 text-center text-xs font-mono text-[var(--text-secondary)]">
-        Artha Neo-Brutalism • Multi-Buku Kas (Active: {currentLedger.name}) & Firestore Offline-First
+        Artha Neo-Brutalism • Multi-Buku Kas (Aktif: {currentLedger.name}) & Cloud Firestore Real-Time
       </footer>
     </div>
   );

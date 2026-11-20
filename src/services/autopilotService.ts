@@ -1,11 +1,37 @@
 /**
- * AUTOPILOT KEUANGAN (lapisan di atas cashManagementService)
- * Aturan di sini TIDAK memakai engine otomatisasi lama; setiap eksekusi memanggil fungsi
- * yang sudah ada (payBill, payDebtInstallment, allocateFundsToGoal) sehingga saldo,
- * transaksi, dan sinkronisasi tetap lewat logic inti yang sama.
+ * AUTOPILOT KEUANGAN (100% Cloud Firestore Real-Time)
+ * Setiap eksekusi memanggil fungsi transaksi atomik di `cashManagementService`
+ * (`payBill`, `payDebtInstallment`, `allocateFundsToGoal`) sehingga saldo dan
+ * seluruh entitas terkait tetap konsisten di Cloud Firestore.
  */
-import { advancePaymentDate, allocateFundsToGoal, getLocalAccounts, getLocalBills, getLocalDebts, getLocalGoals, payBill, payDebtInstallment } from './cashManagementService';
-import type { BillCycle } from '../types';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  query,
+  where,
+} from 'firebase/firestore';
+import {
+  db,
+  OperationType,
+  handleFirestoreError,
+  logFirestoreListenerError,
+} from '../config/firebase';
+import {
+  advancePaymentDate,
+  allocateFundsToGoal,
+  payBill,
+  payDebtInstallment,
+  stripUndefined,
+} from './cashManagementService';
+import type { Account, Bill, BillCycle, Debt, Goal } from '../types';
+import { toLocalDateStr } from '../utils/localDate';
+import { recordAutomationEvent } from './notificationService';
 
 export type AutopilotKind = 'goal_topup' | 'pay_bill' | 'pay_debt';
 
@@ -14,11 +40,11 @@ export interface AutopilotRule {
   ledgerId: string;
   name: string;
   kind: AutopilotKind;
-  targetId: string;          // id goal / tagihan / utang
+  targetId: string;
   sourceAccountId: string;
-  amount: number;            // goal_topup & pay_debt: nominal. pay_bill: 0 = ikuti nominal tagihan
-  cycle?: BillCycle;         // hanya goal_topup (tagihan & utang mengikuti jatuh tempo masing-masing)
-  nextRunDate?: string;      // hanya goal_topup (YYYY-MM-DD)
+  amount: number;
+  cycle?: BillCycle;
+  nextRunDate?: string;
   isActive: boolean;
   lastRunDate?: string | null;
   executionCount: number;
@@ -31,138 +57,268 @@ export interface AutopilotResult {
   failed: { rule: AutopilotRule; error: string }[];
 }
 
-const KEY = 'artha_offline_autopilot';
+export function subscribeAutopilotRulesByLedger(
+  uid: string,
+  ledgerId: string,
+  onData: (rules: AutopilotRule[]) => void
+): () => void {
+  if (!uid || !ledgerId) {
+    onData([]);
+    return () => {};
+  }
+  const path = `users/${uid}/autopilot`;
+  const q = query(collection(db, 'users', uid, 'autopilot'), where('ledgerId', '==', ledgerId));
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list: AutopilotRule[] = snap.docs
+        .map((d) => ({ id: d.id, ...(d.data() as Omit<AutopilotRule, 'id'>) }))
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      onData(list);
+    },
+    (error) => logFirestoreListenerError(error, OperationType.LIST, path)
+  );
+}
 
-export function getAutopilotRules(): AutopilotRule[] {
+export async function createAutopilotRule(
+  uid: string,
+  input: Omit<
+    AutopilotRule,
+    'id' | 'isActive' | 'executionCount' | 'createdAt' | 'lastRunDate' | 'lastError'
+  >
+): Promise<AutopilotRule> {
+  if (!input.targetId) throw new Error('Pilih target terlebih dahulu.');
+  if (!input.sourceAccountId) throw new Error('Pilih akun sumber dana.');
+  if (input.kind !== 'pay_bill' && !(input.amount > 0)) {
+    throw new Error('Nominal harus lebih dari 0.');
+  }
+  if (input.kind === 'goal_topup' && !input.nextRunDate) {
+    throw new Error('Tanggal eksekusi pertama wajib diisi.');
+  }
+
+  const newId = `ap_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const path = `users/${uid}/autopilot/${newId}`;
   try {
-    const raw = localStorage.getItem(KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
+    const now = Date.now();
+    const rule: AutopilotRule = stripUndefined({
+      ...input,
+      id: newId,
+      amount: Number(input.amount) || 0,
+      isActive: true,
+      executionCount: 0,
+      lastRunDate: null,
+      lastError: null,
+      createdAt: now,
+    });
+    const { id: _ignoreId, ...body } = rule;
+    await setDoc(doc(db, 'users', uid, 'autopilot', newId), stripUndefined({ ...body, updatedAt: now }));
+    return rule;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
   }
 }
 
-function save(rules: AutopilotRule[]) {
-  try { localStorage.setItem(KEY, JSON.stringify(rules)); } catch (e) { console.warn('Autopilot: gagal menyimpan aturan', e); }
+export async function toggleAutopilotRule(
+  uid: string,
+  id: string,
+  currentActive?: boolean
+): Promise<void> {
+  const path = `users/${uid}/autopilot/${id}`;
+  try {
+    const ref = doc(db, 'users', uid, 'autopilot', id);
+    let nextActive = currentActive !== undefined ? !currentActive : true;
+    if (currentActive === undefined) {
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        nextActive = !Boolean((snap.data() as AutopilotRule).isActive);
+      }
+    }
+    await updateDoc(ref, { isActive: nextActive, lastError: null, updatedAt: Date.now() });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
 }
 
-const todayStr = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-export function createAutopilotRule(input: Omit<AutopilotRule, 'id' | 'isActive' | 'executionCount' | 'createdAt' | 'lastRunDate' | 'lastError'>): AutopilotRule {
-  if (!input.targetId) throw new Error('Pilih target terlebih dahulu.');
-  if (!input.sourceAccountId) throw new Error('Pilih akun sumber dana.');
-  if (input.kind !== 'pay_bill' && !(input.amount > 0)) throw new Error('Nominal harus lebih dari 0.');
-  if (input.kind === 'goal_topup' && !input.nextRunDate) throw new Error('Tanggal eksekusi pertama wajib diisi.');
-  const rule: AutopilotRule = {
-    ...input,
-    id: `ap_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-    isActive: true,
-    executionCount: 0,
-    lastRunDate: null,
-    lastError: null,
-    createdAt: Date.now(),
-  };
-  save([rule, ...getAutopilotRules()]);
-  return rule;
+export async function updateAutopilotRule(
+  uid: string,
+  id: string,
+  patch: Partial<Pick<AutopilotRule, 'sourceAccountId' | 'amount' | 'cycle' | 'nextRunDate'>>
+): Promise<void> {
+  const path = `users/${uid}/autopilot/${id}`;
+  try {
+    const ref = doc(db, 'users', uid, 'autopilot', id);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new Error('Aturan tidak ditemukan.');
+    const rule = snap.data() as AutopilotRule;
+    const next = { ...rule, ...patch };
+    if (!next.sourceAccountId) throw new Error('Pilih akun sumber dana.');
+    if (next.kind !== 'pay_bill' && !(next.amount > 0)) {
+      throw new Error('Nominal harus lebih dari 0.');
+    }
+    if (next.kind === 'goal_topup' && !next.nextRunDate) {
+      throw new Error('Tanggal eksekusi wajib diisi.');
+    }
+    await updateDoc(ref, stripUndefined({ ...patch, lastError: null, updatedAt: Date.now() }));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
 }
 
-export function toggleAutopilotRule(id: string) {
-  save(getAutopilotRules().map(r => (r.id === id ? { ...r, isActive: !r.isActive, lastError: null } : r)));
+export async function deleteAutopilotRule(uid: string, id: string): Promise<void> {
+  const path = `users/${uid}/autopilot/${id}`;
+  try {
+    await deleteDoc(doc(db, 'users', uid, 'autopilot', id));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
 }
 
-/** Ubah akun sumber, nominal, dan (khusus top-up) siklus/jadwal sebuah aturan. Target & jenis tidak bisa diganti. */
-export function updateAutopilotRule(id: string, patch: Partial<Pick<AutopilotRule, 'sourceAccountId' | 'amount' | 'cycle' | 'nextRunDate'>>) {
-  const rule = getAutopilotRules().find(r => r.id === id);
-  if (!rule) throw new Error('Aturan tidak ditemukan.');
-  const next = { ...rule, ...patch };
-  if (!next.sourceAccountId) throw new Error('Pilih akun sumber dana.');
-  if (next.kind !== 'pay_bill' && !(next.amount > 0)) throw new Error('Nominal harus lebih dari 0.');
-  if (next.kind === 'goal_topup' && !next.nextRunDate) throw new Error('Tanggal eksekusi wajib diisi.');
-  save(getAutopilotRules().map(r => (r.id === id ? { ...next, lastError: null } : r)));
+async function patchRuleCloud(
+  uid: string,
+  id: string,
+  patch: Partial<AutopilotRule>
+): Promise<void> {
+  await updateDoc(
+    doc(db, 'users', uid, 'autopilot', id),
+    stripUndefined({ ...patch, updatedAt: Date.now() })
+  );
 }
 
-export function deleteAutopilotRule(id: string) {
-  save(getAutopilotRules().filter(r => r.id !== id));
-}
-
-function patchRule(id: string, patch: Partial<AutopilotRule>) {
-  save(getAutopilotRules().map(r => (r.id === id ? { ...r, ...patch } : r)));
-}
-
-/** Kembalikan jumlah yang bisa dipakai akun (saldo + limit kredit jika ada). */
-function available(accId: string): number | null {
-  const acc = getLocalAccounts().find(a => a.id === accId);
-  return acc ? acc.balance + (acc.creditLimit ?? 0) : null;
-}
-
-/** Satu rule per panggilan; return pesan sukses, string kosong jika belum waktunya, atau lempar Error. */
-async function runOne(rule: AutopilotRule, today: string): Promise<string> {
-  const avail = available(rule.sourceAccountId);
-  if (avail === null) throw new Error('Akun sumber tidak ditemukan.');
+async function runOneCloud(
+  uid: string,
+  rule: AutopilotRule,
+  today: string
+): Promise<{ message: string; amount: number; accountName: string } | null> {
+  const accSnap = await getDoc(doc(db, 'users', uid, 'accounts', rule.sourceAccountId));
+  if (!accSnap.exists()) throw new Error('Akun sumber tidak ditemukan.');
+  const acc = accSnap.data() as Account;
+  const avail = (Number(acc.balance) || 0) + (Number(acc.creditLimit) || 0);
 
   if (rule.kind === 'goal_topup') {
-    if (!rule.nextRunDate || rule.nextRunDate > today) return '';
-    const goal = getLocalGoals().find(g => g.id === rule.targetId);
-    if (!goal) throw new Error('Target tabungan tidak ditemukan.');
+    if (!rule.nextRunDate || rule.nextRunDate > today) return null;
+    const goalSnap = await getDoc(doc(db, 'users', uid, 'goals', rule.targetId));
+    if (!goalSnap.exists()) throw new Error('Target tabungan tidak ditemukan.');
+    const goal = { id: goalSnap.id, ...(goalSnap.data() as Omit<Goal, 'id'>) };
     const remaining = goal.targetAmount - goal.currentAmount;
-    if (goal.isCompleted || remaining <= 0) { patchRule(rule.id, { isActive: false, lastError: 'Target sudah tercapai, aturan dinonaktifkan.' }); return ''; }
+    if (goal.isCompleted || remaining <= 0) {
+      await patchRuleCloud(uid, rule.id, {
+        isActive: false,
+        lastError: 'Target sudah tercapai, aturan dinonaktifkan.',
+      });
+      return null;
+    }
     const amount = Math.min(rule.amount, remaining);
     if (avail < amount) throw new Error('Saldo akun sumber tidak cukup.');
-    await allocateFundsToGoal(undefined, { goalId: goal.id, amount, sourceAccountId: rule.sourceAccountId, date: today, note: `[Autopilot] ${rule.name}` });
-    patchRule(rule.id, { nextRunDate: advancePaymentDate(rule.nextRunDate, rule.cycle ?? 'monthly') });
-    return `Top-up ${goal.name}`;
+    await allocateFundsToGoal(uid, {
+      goalId: goal.id,
+      amount,
+      sourceAccountId: rule.sourceAccountId,
+      date: today,
+      note: `[Autopilot] ${rule.name}`,
+    });
+    await patchRuleCloud(uid, rule.id, {
+      nextRunDate: advancePaymentDate(rule.nextRunDate, rule.cycle ?? 'monthly'),
+    });
+    return { message: `Top-up ${goal.name}`, amount, accountName: acc.name };
   }
 
   if (rule.kind === 'pay_bill') {
-    const bill = getLocalBills().find(b => b.id === rule.targetId);
-    if (!bill) throw new Error('Tagihan tidak ditemukan.');
-    if (bill.nextPaymentDate > today) return '';
-    const amount = rule.amount > 0 ? rule.amount : bill.pricingType === 'fixed' ? bill.fixedAmount ?? 0 : bill.lastNominal ?? 0;
-    if (!(amount > 0)) throw new Error('Nominal tagihan belum diketahui. Isi nominal di aturan atau bayar manual sekali.');
+    const billSnap = await getDoc(doc(db, 'users', uid, 'bills', rule.targetId));
+    if (!billSnap.exists()) throw new Error('Tagihan tidak ditemukan.');
+    const bill = { id: billSnap.id, ...(billSnap.data() as Omit<Bill, 'id'>) };
+    if (bill.nextPaymentDate > today) return null;
+    const amount =
+      rule.amount > 0
+        ? rule.amount
+        : bill.pricingType === 'fixed'
+        ? bill.fixedAmount ?? 0
+        : bill.lastNominal ?? 0;
+    if (!(amount > 0)) {
+      throw new Error(
+        'Nominal tagihan belum diketahui. Isi nominal di aturan atau bayar manual sekali.'
+      );
+    }
     if (avail < amount) throw new Error('Saldo akun sumber tidak cukup.');
-    await payBill(undefined, { billId: bill.id, amount, sourceAccountId: rule.sourceAccountId, date: today, note: `[Autopilot] ${rule.name}` });
-    return `Bayar ${bill.name}`;
+    await payBill(uid, {
+      billId: bill.id,
+      amount,
+      sourceAccountId: rule.sourceAccountId,
+      date: today,
+      note: `[Autopilot] ${rule.name}`,
+    });
+    return { message: `Bayar ${bill.name}`, amount, accountName: acc.name };
   }
 
-  const debt = getLocalDebts().find(d => d.id === rule.targetId);
-  if (!debt) throw new Error('Utang tidak ditemukan.');
-  if (debt.isPaidOff) { patchRule(rule.id, { isActive: false, lastError: 'Utang sudah lunas, aturan dinonaktifkan.' }); return ''; }
-  if (!debt.nextPaymentDate || debt.nextPaymentDate > today) return '';
+  const debtSnap = await getDoc(doc(db, 'users', uid, 'debts', rule.targetId));
+  if (!debtSnap.exists()) throw new Error('Utang tidak ditemukan.');
+  const debt = { id: debtSnap.id, ...(debtSnap.data() as Omit<Debt, 'id'>) };
+  if (debt.isPaidOff) {
+    await patchRuleCloud(uid, rule.id, {
+      isActive: false,
+      lastError: 'Utang sudah lunas, aturan dinonaktifkan.',
+    });
+    return null;
+  }
+  if (!debt.nextPaymentDate || debt.nextPaymentDate > today) return null;
   const amount = Math.min(rule.amount, debt.remainingDebt);
   if (avail < amount) throw new Error('Saldo akun sumber tidak cukup.');
-  await payDebtInstallment(undefined, { debtId: debt.id, amount, sourceAccountId: rule.sourceAccountId, date: today, note: `[Autopilot] ${rule.name}` });
-  return `Cicil ${debt.name}`;
+  await payDebtInstallment(uid, {
+    debtId: debt.id,
+    amount,
+    sourceAccountId: rule.sourceAccountId,
+    date: today,
+    note: `[Autopilot] ${rule.name}`,
+  });
+  return { message: `Cicil ${debt.name}`, amount, accountName: acc.name };
 }
 
-async function doRun(ledgerId?: string): Promise<AutopilotResult> {
-  const today = todayStr();
+async function doRunCloud(uid: string, ledgerId?: string): Promise<AutopilotResult> {
+  const today = toLocalDateStr(new Date());
   const result: AutopilotResult = { executed: [], failed: [] };
-  const rules = getAutopilotRules().filter(r => r.isActive && (!ledgerId || r.ledgerId === ledgerId));
-  // Maksimal satu eksekusi per aturan per panggilan (tanpa "kejar tayang" massal setelah lama tidak dibuka).
+
+  const baseCol = collection(db, 'users', uid, 'autopilot');
+  const q = ledgerId ? query(baseCol, where('ledgerId', '==', ledgerId)) : baseCol;
+  const snap = await getDocs(q);
+  const rules = snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as Omit<AutopilotRule, 'id'>) }))
+    .filter((r) => r.isActive);
+
   for (const rule of rules) {
     try {
-      const message = await runOne(rule, today);
-      if (message) {
-        const latest = getAutopilotRules().find(r => r.id === rule.id) ?? rule;
-        patchRule(rule.id, { lastRunDate: today, executionCount: (latest.executionCount ?? 0) + 1, lastError: null });
-        result.executed.push({ rule, message });
+      const exec = await runOneCloud(uid, rule, today);
+      if (exec) {
+        await patchRuleCloud(uid, rule.id, {
+          lastRunDate: today,
+          executionCount: (rule.executionCount ?? 0) + 1,
+          lastError: null,
+        });
+        void recordAutomationEvent(uid, rule.name, exec.amount, exec.accountName);
+        result.executed.push({ rule, message: exec.message });
       }
     } catch (e) {
       const error = e instanceof Error ? e.message : 'Gagal dijalankan.';
-      patchRule(rule.id, { lastError: error });
+      try {
+        await patchRuleCloud(uid, rule.id, { lastError: error });
+      } catch {
+        // Abaikan jika gagal update lastError
+      }
       result.failed.push({ rule, error });
     }
   }
+
   return result;
 }
 
-let inFlight: Promise<AutopilotResult> | null = null;
-/** Single-flight: panggilan bersamaan (mis. init + tombol manual) berbagi satu proses agar tidak terjadi pembayaran ganda. */
-export function runAutopilot(ledgerId?: string): Promise<AutopilotResult> {
-  if (!inFlight) inFlight = doRun(ledgerId).finally(() => { inFlight = null; });
-  return inFlight;
+const inFlightMap = new Map<string, Promise<AutopilotResult>>();
+
+export function runAutopilot(uid: string, ledgerId?: string): Promise<AutopilotResult> {
+  const key = `${uid}:${ledgerId || 'all'}`;
+  const existing = inFlightMap.get(key);
+  if (existing) return existing;
+
+  const task = doRunCloud(uid, ledgerId).finally(() => {
+    inFlightMap.delete(key);
+  });
+  inFlightMap.set(key, task);
+  return task;
 }

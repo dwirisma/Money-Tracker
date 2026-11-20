@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Transaction, Ledger, Account, ReportTimeRange, CategoryExpenseSummary, CashFlowTrendPoint, ReportMetrics } from '../types';
-import { getCategoryBudgets, type CategoryBudgetMap } from '../services/budgetService';
+import { DEFAULT_CATEGORY_BUDGETS, type CategoryBudgetMap } from '../services/budgetService';
 
 type Tone = 'ok' | 'mid' | 'low';
 const TONE_COLOR: Record<Tone, string> = { ok: 'var(--accent-sage)', mid: 'var(--accent-sand)', low: 'var(--accent-terracotta)' };
@@ -46,6 +46,7 @@ interface Module5ReportsProps {
   transactions: Transaction[];
   activeLedger: Ledger | null;
   accounts: Account[];
+  categoryBudgets?: CategoryBudgetMap;
   formatRupiah: (val: number) => string;
   formatDate: (val: string | number) => string;
   onNavigateToTab?: (tab: 'module1' | 'module2' | 'module3' | 'module4') => void;
@@ -69,6 +70,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
   transactions,
   activeLedger,
   accounts,
+  categoryBudgets = DEFAULT_CATEGORY_BUDGETS,
   formatRupiah,
   formatDate,
   onNavigateToTab
@@ -78,21 +80,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-
-  // Category Budget State & Realtime Listener
-  const [categoryBudgets, setCategoryBudgets] = useState<CategoryBudgetMap>(() => 
-    getCategoryBudgets(activeLedger?.id || 'default')
-  );
   const [expenseSourcesTab, setExpenseSourcesTab] = useState<'overview' | 'detail'>('overview');
-
-  useEffect(() => {
-    setCategoryBudgets(getCategoryBudgets(activeLedger?.id || 'default'));
-    const handler = () => {
-      setCategoryBudgets(getCategoryBudgets(activeLedger?.id || 'default'));
-    };
-    window.addEventListener('artha-budgets-updated', handler);
-    return () => window.removeEventListener('artha-budgets-updated', handler);
-  }, [activeLedger?.id]);
 
   // Perhitungan Rentang Tanggal berdasarkan Filter Waktu
   const dateBounds = useMemo(() => {

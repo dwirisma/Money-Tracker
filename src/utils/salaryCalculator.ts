@@ -145,45 +145,6 @@ export const BUILTIN_HOLIDAYS: Record<string, string> = {
   '2027-12-25': 'Hari Raya Natal'
 };
 
-const STORAGE_KEY_CUSTOM_HOLIDAYS = 'artha_agc_custom_holidays';
-const STORAGE_KEY_SYNCED_HOLIDAYS = 'artha_agc_synced_holidays';
-
-export function getStoredCustomHolidays(): Record<string, string> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_HOLIDAYS);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error('Gagal membaca custom holidays:', e);
-  }
-  return {};
-}
-
-export function saveStoredCustomHolidays(holidays: Record<string, string>): void {
-  try {
-    localStorage.setItem(STORAGE_KEY_CUSTOM_HOLIDAYS, JSON.stringify(holidays));
-  } catch (e) {
-    console.error('Gagal menyimpan custom holidays:', e);
-  }
-}
-
-export function getStoredSyncedHolidays(): Record<string, string> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_SYNCED_HOLIDAYS);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error('Gagal membaca synced holidays:', e);
-  }
-  return {};
-}
-
-export function saveStoredSyncedHolidays(holidays: Record<string, string>): void {
-  try {
-    localStorage.setItem(STORAGE_KEY_SYNCED_HOLIDAYS, JSON.stringify(holidays));
-  } catch (e) {
-    console.error('Gagal menyimpan synced holidays:', e);
-  }
-}
-
 /**
  * Menggabungkan seluruh sumber hari libur dengan prioritas:
  * Custom User > Synced API > Built-in Resmi
@@ -192,8 +153,8 @@ export function getMergedHolidays(
   customOverride?: Record<string, string>,
   syncedOverride?: Record<string, string>
 ): Record<string, string> {
-  const custom = customOverride ?? getStoredCustomHolidays();
-  const synced = syncedOverride ?? getStoredSyncedHolidays();
+  const custom = customOverride ?? {};
+  const synced = syncedOverride ?? {};
   return {
     ...BUILTIN_HOLIDAYS,
     ...synced,
@@ -748,27 +709,4 @@ export function calculateSalaryBreakdown(
     paydayOriginalDate: paydayInfo.originalDate,
     isPaydayAdjusted: paydayInfo.isAdjusted
   };
-}
-
-// =========================================================================
-// 10. LOCAL STORAGE PERSISTENCE UNTUK SHIFT LOGS
-// =========================================================================
-const STORAGE_KEY_SHIFT_LOGS = 'artha_shift_calendar_logs_';
-
-export function getStoredShiftLogs(ledgerId: string, monthKey: string): ShiftDayLog[] | null {
-  try {
-    const raw = localStorage.getItem(`${STORAGE_KEY_SHIFT_LOGS}${ledgerId}_${monthKey}`);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error('Gagal membaca shift logs lokal:', e);
-  }
-  return null;
-}
-
-export function saveStoredShiftLogs(ledgerId: string, monthKey: string, logs: ShiftDayLog[]): void {
-  try {
-    localStorage.setItem(`${STORAGE_KEY_SHIFT_LOGS}${ledgerId}_${monthKey}`, JSON.stringify(logs));
-  } catch (e) {
-    console.error('Gagal menyimpan shift logs lokal:', e);
-  }
 }

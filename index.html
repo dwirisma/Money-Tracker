@@ -4,21 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Artha - Manajemen Keuangan Pribadi</title>
-    <meta name="description" content="Aplikasi manajemen keuangan pribadi offline-first PWA dengan estetika neo-brutalisme playful, multi-buku kas, sinking funds, dan analitik." />
+    <meta name="description" content="Aplikasi manajemen keuangan pribadi Cloud Real-Time dengan estetika neo-brutalisme playful, multi-buku kas, sinking funds, dan analitik." />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/icon.svg" />
     
     <!-- PWA & Mobile Meta -->
     <meta name="theme-color" content="#fff4dc" />
-    <script>
-      // Terapkan tema tersimpan sebelum render pertama agar tidak berkedip
-      try {
-        var t = localStorage.getItem('artha_theme_v3') === 'dark' ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', t);
-        document.documentElement.classList.toggle('dark', t === 'dark');
-        document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'dark' ? '#16161c' : '#fff4dc');
-      } catch (e) {}
-    </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Artha" />
@@ -26,7 +17,7 @@
 
     <!-- Open Graph / Social Media -->
     <meta property="og:title" content="Artha - Manajemen Keuangan Pribadi" />
-    <meta property="og:description" content="Aplikasi manajemen keuangan pribadi offline-first PWA dengan estetika neo-brutalisme playful, multi-buku kas, sinking funds, dan analitik." />
+    <meta property="og:description" content="Aplikasi manajemen keuangan pribadi Cloud Real-Time dengan estetika neo-brutalisme playful, multi-buku kas, sinking funds, dan analitik." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
 
@@ -36,19 +27,6 @@
 
     <!-- Lucide Icons (CDN fallback & standalone support) -->
     <script src="https://unpkg.com/lucide@latest"></script>
-
-    <!-- Firebase SDK Config Holder (Modular & Browser Compatibility) -->
-    <script>
-      // Global Firebase config placeholder untuk lingkungan static / browser
-      window.__FIREBASE_CONFIG__ = {
-        apiKey: "AIzaSyArthaLocalDemoKeyPlaceholder123456",
-        authDomain: "artha-finance.firebaseapp.com",
-        projectId: "artha-finance",
-        storageBucket: "artha-finance.appspot.com",
-        messagingSenderId: "1234567890",
-        appId: "1:1234567890:web:abcdef12345678"
-      };
-    </script>
   </head>
   <body class="bg-[var(--bg-primary)] text-[var(--text-primary)] antialiased selection:bg-[var(--accent-sage)] selection:text-[#111]">
     <div id="root"></div>

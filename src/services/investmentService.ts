@@ -1,25 +1,40 @@
-import { toLocalDateStr } from '../utils/localDate';
 /**
- * Layanan Portofolio Investasi Artha
- * Offline-first dengan LocalStorage + sinkronisasi Cloud Firestore
+ * Layanan Portofolio Investasi Artha (100% Cloud Firestore Real-Time)
+ * Semua data investasi dan riwayat arus dana tersimpan & tersinkronisasi real-time via Firestore.
  */
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDocs, 
-  deleteDoc, 
-  query, 
-  where 
+import {
+  collection,
+  doc,
+  setDoc,
+  getDocs,
+  onSnapshot,
+  query,
+  where,
+  runTransaction,
+  writeBatch,
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
-import { InvestmentAsset, InvestmentAssetType, InvestmentEntry, InvestmentEntryKind } from '../types';
-import { createTransaction, deleteTransaction } from './cashManagementService';
+import {
+  db,
+  OperationType,
+  handleFirestoreError,
+  logFirestoreListenerError,
+} from '../config/firebase';
+import {
+  Account,
+  InvestmentAsset,
+  InvestmentAssetType,
+  InvestmentEntry,
+  InvestmentEntryKind,
+  Transaction,
+} from '../types';
+import { toLocalDateStr } from '../utils/localDate';
+import { stripUndefined } from './cashManagementService';
 import { ensureCategory } from '../hooks/useCategories';
 
-const STORAGE_KEY_INVESTMENTS = 'artha_offline_investments';
-
-export const ASSET_TYPE_LABELS: Record<InvestmentAssetType, { label: string; color: string; bg: string }> = {
+export const ASSET_TYPE_LABELS: Record<
+  InvestmentAssetType,
+  { label: string; color: string; bg: string }
+> = {
   stock: { label: 'Saham (IDX)', color: '#6c97ff', bg: 'var(--accent-blue-light)' },
   mutual_fund: { label: 'Reksa Dana', color: '#2dd4a7', bg: 'var(--accent-sage-light)' },
   crypto: { label: 'Kripto', color: '#ff7a4d', bg: 'var(--accent-terracotta-light)' },
@@ -30,194 +45,118 @@ export const ASSET_TYPE_LABELS: Record<InvestmentAssetType, { label: string; col
   other: { label: 'Aset Lainnya', color: '#8e96a6', bg: '#e5e7eb' },
 };
 
-export function getLocalInvestments(): InvestmentAsset[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_INVESTMENTS);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error('Gagal membaca data investasi lokal:', e);
+export const INV_CATEGORY = {
+  topup: 'Investasi',
+  yield: 'Hasil Investasi',
+  cashout: 'Pencairan Investasi',
+} as const;
+
+export function subscribeInvestmentsByLedger(
+  uid: string,
+  ledgerId: string,
+  onData: (assets: InvestmentAsset[]) => void
+): () => void {
+  if (!uid || !ledgerId) {
+    onData([]);
+    return () => {};
   }
-
-  // Initial demo portfolio untuk memberi pengalaman langsung
-  const initialInvestments: InvestmentAsset[] = [
-    {
-      id: 'inv_bbri_default',
-      ledgerId: 'ledger_personal_default',
-      name: 'Bank Rakyat Indonesia',
-      symbolOrTicker: 'BBRI',
-      type: 'stock',
-      platform: 'Stockbit',
-      initialCapital: 10000000,
-      currentValue: 11450000,
-      units: 2000,
-      buyPricePerUnit: 5000,
-      currentPricePerUnit: 5725,
-      colorAccent: '#6c97ff',
-      notes: 'Investasi dividen jangka panjang',
-      lastUpdated: toLocalDateStr(new Date()),
-      createdAt: Date.now() - 86400000 * 60
+  const path = `users/${uid}/investments`;
+  const q = query(collection(db, 'users', uid, 'investments'), where('ledgerId', '==', ledgerId));
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list: InvestmentAsset[] = snap.docs
+        .map((d) => ({ id: d.id, ...(d.data() as Omit<InvestmentAsset, 'id'>) }))
+        .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+      onData(list);
     },
-    {
-      id: 'inv_bibit_sucor_default',
-      ledgerId: 'ledger_personal_default',
-      name: 'Sucorinvest Sharia Equity Fund',
-      symbolOrTicker: 'SUCOR-EQ',
-      type: 'mutual_fund',
-      platform: 'Bibit',
-      initialCapital: 5000000,
-      currentValue: 5350000,
-      units: 2140,
-      colorAccent: '#2dd4a7',
-      notes: 'DCA rutin tanggal 25',
-      lastUpdated: toLocalDateStr(new Date()),
-      createdAt: Date.now() - 86400000 * 45
-    },
-    {
-      id: 'inv_gold_antam_default',
-      ledgerId: 'ledger_personal_default',
-      name: 'Emas Logam Mulia Antam (10 gr)',
-      symbolOrTicker: 'XAU-IDR',
-      type: 'gold',
-      platform: 'Pluang / Brankas',
-      initialCapital: 12500000,
-      currentValue: 14200000,
-      units: 10,
-      buyPricePerUnit: 1250000,
-      currentPricePerUnit: 1420000,
-      colorAccent: '#ffc933',
-      notes: 'Safe haven cadangan keluarga',
-      lastUpdated: toLocalDateStr(new Date()),
-      createdAt: Date.now() - 86400000 * 90
-    },
-    {
-      id: 'inv_btc_default',
-      ledgerId: 'ledger_personal_default',
-      name: 'Bitcoin',
-      symbolOrTicker: 'BTC',
-      type: 'crypto',
-      platform: 'Tokocrypto',
-      initialCapital: 4000000,
-      currentValue: 4680000,
-      units: 0.0032,
-      colorAccent: '#ff7a4d',
-      notes: 'High risk high return',
-      lastUpdated: toLocalDateStr(new Date()),
-      createdAt: Date.now() - 86400000 * 20
-    }
-  ];
-
-  localStorage.setItem(STORAGE_KEY_INVESTMENTS, JSON.stringify(initialInvestments));
-  return initialInvestments;
+    (error) => logFirestoreListenerError(error, OperationType.LIST, path)
+  );
 }
 
-export function saveLocalInvestments(items: InvestmentAsset[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY_INVESTMENTS, JSON.stringify(items));
-  } catch (e) {
-    console.error('Gagal menyimpan investasi ke lokal:', e);
+export function subscribeInvestmentEntriesByLedger(
+  uid: string,
+  ledgerId: string,
+  onData: (entries: InvestmentEntry[]) => void
+): () => void {
+  if (!uid || !ledgerId) {
+    onData([]);
+    return () => {};
   }
-}
-
-export async function fetchInvestmentsByLedger(userId: string = 'demo_user_artha', ledgerId: string): Promise<InvestmentAsset[]> {
-  try {
-    if (db) {
-      const q = query(
-        collection(db, 'users', userId, 'investments'),
-        where('ledgerId', '==', ledgerId)
-      );
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        const firestoreList: InvestmentAsset[] = [];
-        snap.forEach(docSnap => {
-          firestoreList.push({ id: docSnap.id, ...(docSnap.data() as any) });
+  const path = `users/${uid}/investmentEntries`;
+  const q = query(
+    collection(db, 'users', uid, 'investmentEntries'),
+    where('ledgerId', '==', ledgerId)
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list: InvestmentEntry[] = snap.docs
+        .map((d) => ({ id: d.id, ...(d.data() as Omit<InvestmentEntry, 'id'>) }))
+        .sort((a, b) => {
+          const cmp = (b.date || '').localeCompare(a.date || '');
+          if (cmp !== 0) return cmp;
+          return (b.createdAt || 0) - (a.createdAt || 0);
         });
-        // Sync local
-        const allLocal = getLocalInvestments().filter(i => i.ledgerId !== ledgerId);
-        saveLocalInvestments([...allLocal, ...firestoreList]);
-        return firestoreList;
-      }
-    }
-  } catch (e) {
-    console.warn('Gagal memuat investasi dari Firestore, memakai local storage:', e);
-  }
-
-  const all = getLocalInvestments();
-  return all.filter(i => i.ledgerId === ledgerId);
+      onData(list);
+    },
+    (error) => logFirestoreListenerError(error, OperationType.LIST, path)
+  );
 }
 
 export async function createInvestmentAsset(
-  userId: string = 'demo_user_artha',
+  uid: string,
   data: Omit<InvestmentAsset, 'id' | 'createdAt'>
 ): Promise<InvestmentAsset> {
-  const newId = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-  const now = Date.now();
-  const asset: InvestmentAsset = {
-    ...data,
-    id: newId,
-    createdAt: now,
-    lastUpdated: data.lastUpdated || toLocalDateStr(new Date())
-  };
-
-  // Local write
-  const all = getLocalInvestments();
-  all.unshift(asset);
-  saveLocalInvestments(all);
-
-  // Firestore sync
+  const newId = `inv_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const path = `users/${uid}/investments/${newId}`;
   try {
-    if (db) {
-      await setDoc(doc(db, 'users', userId, 'investments', newId), JSON.parse(JSON.stringify(asset)));
-    }
-  } catch (e) {
-    console.warn('Gagal sinkron investasi ke Firestore:', e);
+    const now = Date.now();
+    const payload = stripUndefined({
+      ...data,
+      initialCapital: Number(data.initialCapital) || 0,
+      currentValue: Number(data.currentValue) || 0,
+      lastUpdated: data.lastUpdated || toLocalDateStr(new Date()),
+      createdAt: now,
+      updatedAt: now,
+    });
+    await setDoc(doc(db, 'users', uid, 'investments', newId), payload);
+    return { id: newId, ...payload };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
   }
-
-  return asset;
 }
 
 export async function updateInvestmentAsset(
-  userId: string = 'demo_user_artha',
+  uid: string,
   assetId: string,
   updates: Partial<Omit<InvestmentAsset, 'id' | 'ledgerId' | 'createdAt'>>
-): Promise<InvestmentAsset> {
-  const all = getLocalInvestments();
-  const index = all.findIndex(i => i.id === assetId);
-  if (index === -1) throw new Error('Aset investasi tidak ditemukan!');
-
-  const updated: InvestmentAsset = {
-    ...all[index],
-    ...updates,
-    lastUpdated: updates.lastUpdated || toLocalDateStr(new Date())
-  };
-
-  all[index] = updated;
-  saveLocalInvestments(all);
-
+): Promise<void> {
+  const path = `users/${uid}/investments/${assetId}`;
   try {
-    if (db) {
-      await setDoc(doc(db, 'users', userId, 'investments', assetId), JSON.parse(JSON.stringify(updated)), { merge: true });
-    }
-  } catch (e) {
-    console.warn('Gagal sinkron pembaruan investasi ke Firestore:', e);
+    const payload = stripUndefined({
+      ...updates,
+      lastUpdated: updates.lastUpdated || toLocalDateStr(new Date()),
+      updatedAt: Date.now(),
+    });
+    await setDoc(doc(db, 'users', uid, 'investments', assetId), payload, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
   }
-
-  return updated;
 }
 
-export async function deleteInvestmentAsset(
-  userId: string = 'demo_user_artha',
-  assetId: string
-): Promise<void> {
-  const all = getLocalInvestments().filter(i => i.id !== assetId);
-  saveLocalInvestments(all);
-  try { localStorage.setItem('artha_offline_investment_entries', JSON.stringify(getInvestmentEntries().filter(e => e.assetId !== assetId))); } catch { /* abaikan */ }
-
+export async function deleteInvestmentAsset(uid: string, assetId: string): Promise<void> {
+  const path = `users/${uid}/investments/${assetId}`;
   try {
-    if (db) {
-      await deleteDoc(doc(db, 'users', userId, 'investments', assetId));
-    }
-  } catch (e) {
-    console.warn('Gagal hapus investasi di Firestore:', e);
+    const entriesSnap = await getDocs(
+      query(collection(db, 'users', uid, 'investmentEntries'), where('assetId', '==', assetId))
+    );
+    const batch = writeBatch(db);
+    batch.delete(doc(db, 'users', uid, 'investments', assetId));
+    entriesSnap.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
 
@@ -242,8 +181,8 @@ export function calculateInvestmentSummary(assets: InvestmentAsset[]): Investmen
   let totalCurrentValue = 0;
   const byType: Record<string, { capital: number; currentValue: number }> = {};
 
-  assets = assets.filter(a => a.status !== 'closed');
-  assets.forEach(a => {
+  const activeAssets = assets.filter((a) => a.status !== 'closed');
+  activeAssets.forEach((a) => {
     totalCapital += Number(a.initialCapital) || 0;
     totalCurrentValue += Number(a.currentValue) || 0;
     if (!byType[a.type]) {
@@ -256,53 +195,30 @@ export function calculateInvestmentSummary(assets: InvestmentAsset[]): Investmen
   const netGainLoss = totalCurrentValue - totalCapital;
   const netGainLossPercent = totalCapital > 0 ? (netGainLoss / totalCapital) * 100 : 0;
 
-  const breakdown = Object.entries(byType).map(([typeKey, vals]) => {
-    const t = typeKey as InvestmentAssetType;
-    const meta = ASSET_TYPE_LABELS[t] || ASSET_TYPE_LABELS.other;
-    const pct = totalCurrentValue > 0 ? (vals.currentValue / totalCurrentValue) * 100 : 0;
-    return {
-      type: t,
-      label: meta.label,
-      capital: vals.capital,
-      currentValue: vals.currentValue,
-      percentage: pct,
-      color: meta.color
-    };
-  }).sort((a, b) => b.currentValue - a.currentValue);
+  const breakdown = Object.entries(byType)
+    .map(([typeKey, vals]) => {
+      const t = typeKey as InvestmentAssetType;
+      const meta = ASSET_TYPE_LABELS[t] || ASSET_TYPE_LABELS.other;
+      const pct = totalCurrentValue > 0 ? (vals.currentValue / totalCurrentValue) * 100 : 0;
+      return {
+        type: t,
+        label: meta.label,
+        capital: vals.capital,
+        currentValue: vals.currentValue,
+        percentage: pct,
+        color: meta.color,
+      };
+    })
+    .sort((a, b) => b.currentValue - a.currentValue);
 
   return {
     totalCapital,
     totalCurrentValue,
     netGainLoss,
     netGainLossPercent,
-    assetCount: assets.length,
-    breakdown
+    assetCount: activeAssets.length,
+    breakdown,
   };
-}
-
-
-/* ======================================================================
- * RIWAYAT DANA ASET: Tambah dana, Hasil (panen/dividen), Tarik, Tutup aset
- * Setiap catatan membuat transaksi kas (saldo akun ikut berubah) dan mengubah modal/nilai aset.
- * ====================================================================== */
-const STORAGE_KEY_ENTRIES = 'artha_offline_investment_entries';
-
-/** Kategori transaksi kas yang dipakai fitur ini. */
-export const INV_CATEGORY = { topup: 'Investasi', yield: 'Hasil Investasi', cashout: 'Pencairan Investasi' } as const;
-
-export function getInvestmentEntries(assetId?: string): InvestmentEntry[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_ENTRIES);
-    const parsed = raw ? JSON.parse(raw) : [];
-    const list: InvestmentEntry[] = Array.isArray(parsed) ? parsed : [];
-    return assetId ? list.filter(e => e.assetId === assetId) : list;
-  } catch {
-    return [];
-  }
-}
-
-function saveInvestmentEntries(list: InvestmentEntry[]) {
-  try { localStorage.setItem(STORAGE_KEY_ENTRIES, JSON.stringify(list)); } catch (e) { console.warn('Gagal menyimpan riwayat investasi:', e); }
 }
 
 export interface InvestmentEntryInput {
@@ -312,163 +228,288 @@ export interface InvestmentEntryInput {
   amount: number;
   accountId: string;
   note?: string;
-  /** Khusus 'withdraw': modal yang dikurangi. Kosong = proporsional. */
   capitalReduced?: number;
 }
 
-/** Modal yang berkurang bila sebagian nilai aset ditarik (proporsional terhadap nilai pasar). */
-export function suggestCapitalReduced(asset: Pick<InvestmentAsset, 'initialCapital' | 'currentValue'>, amount: number): number {
+export function suggestCapitalReduced(
+  asset: Pick<InvestmentAsset, 'initialCapital' | 'currentValue'>,
+  amount: number
+): number {
   if (!(asset.currentValue > 0)) return asset.initialCapital;
   return Math.round(asset.initialCapital * Math.min(1, Math.max(0, amount) / asset.currentValue));
 }
 
-async function applyEntry(userId: string, input: InvestmentEntryInput): Promise<InvestmentEntry> {
-  const asset = getLocalInvestments().find(a => a.id === input.assetId);
-  if (!asset) throw new Error('Aset investasi tidak ditemukan!');
-  if (asset.status === 'closed') throw new Error('Aset sudah ditutup. Hapus catatan "Tutup aset" untuk membukanya kembali.');
-  const amount = Math.round(Number(input.amount) || 0);
-  if (!(amount > 0)) throw new Error('Nominal harus lebih dari 0.');
-  if (!input.accountId) throw new Error('Pilih akun terlebih dahulu.');
-  if (!input.date) throw new Error('Tanggal wajib diisi.');
-
-  let capitalDelta = 0;
-  let valueDelta = 0;
-  let capitalReduced: number | undefined;
-  let realized: number | undefined;
-  let closedAsset = false;
-  let txType: 'income' | 'expense' = 'income';
-  let category: string = INV_CATEGORY.yield;
-  let defaultNote = '';
-  const patch: Partial<Omit<InvestmentAsset, 'id' | 'ledgerId' | 'createdAt'>> = { lastUpdated: asset.lastUpdated };
-
-  if (input.kind === 'topup') {
-    txType = 'expense';
-    category = INV_CATEGORY.topup;
-    defaultNote = `Tambah dana: ${asset.name}`;
-    capitalDelta = amount;
-    patch.initialCapital = asset.initialCapital + amount;
-  } else if (input.kind === 'yield') {
-    category = INV_CATEGORY.yield;
-    defaultNote = `Hasil: ${asset.name}`;
-  } else if (input.kind === 'withdraw') {
-    category = INV_CATEGORY.cashout;
-    defaultNote = `Penarikan: ${asset.name}`;
-    if (amount > asset.currentValue) throw new Error('Penarikan melebihi nilai pasar aset. Gunakan "Tutup aset" bila ingin mencairkan seluruhnya.');
-    capitalReduced = Math.min(asset.initialCapital, Math.max(0, Math.round(input.capitalReduced ?? suggestCapitalReduced(asset, amount))));
-    realized = amount - capitalReduced;
-    capitalDelta = -capitalReduced;
-    valueDelta = -amount;
-    patch.initialCapital = asset.initialCapital - capitalReduced;
-    patch.currentValue = asset.currentValue - amount;
-    if (patch.currentValue <= 0) { closedAsset = true; patch.status = 'closed'; patch.closedAt = input.date; }
-  } else {
-    category = INV_CATEGORY.cashout;
-    defaultNote = `Tutup aset: ${asset.name}`;
-    realized = amount - asset.initialCapital;
-    closedAsset = true;
-    patch.status = 'closed';
-    patch.closedAt = input.date;
-  }
-
-  const tx = await createTransaction(userId, {
-    ledgerId: asset.ledgerId,
-    accountId: input.accountId,
-    type: txType,
-    amount,
-    category,
-    note: input.note?.trim() || defaultNote,
-    date: input.date
-  });
-  ensureCategory(txType, category);
-
-  // Penyimpanan lokal terjadi seketika; sinkron Firestore berjalan di latar belakang agar tidak membuat layar menunggu.
-  updateInvestmentAsset(userId, asset.id, patch).catch(err => console.warn('Sinkron aset ke Firestore tertunda:', err));
-
-  const entry: InvestmentEntry = {
-    id: `invent_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-    assetId: asset.id,
-    ledgerId: asset.ledgerId,
-    kind: input.kind,
-    date: input.date,
-    amount,
-    accountId: input.accountId,
-    transactionId: tx.id,
-    capitalDelta,
-    valueDelta,
-    capitalReduced,
-    realized,
-    closedAsset: closedAsset || undefined,
-    note: input.note?.trim() || undefined,
-    createdAt: Date.now()
-  };
-  saveInvestmentEntries([entry, ...getInvestmentEntries()]);
-  return entry;
-}
-
-async function reverseEntry(userId: string, entry: InvestmentEntry): Promise<void> {
-  const asset = getLocalInvestments().find(a => a.id === entry.assetId);
-  if (asset) {
-    const patch: Partial<Omit<InvestmentAsset, 'id' | 'ledgerId' | 'createdAt'>> = { lastUpdated: asset.lastUpdated };
-    if (entry.capitalDelta) patch.initialCapital = Math.max(0, asset.initialCapital - entry.capitalDelta);
-    if (entry.valueDelta) patch.currentValue = Math.max(0, asset.currentValue - entry.valueDelta);
-    if (entry.closedAsset) { patch.status = 'active'; patch.closedAt = ''; }
-    updateInvestmentAsset(userId, asset.id, patch).catch(err => console.warn('Sinkron aset ke Firestore tertunda:', err));
-  }
-  if (entry.transactionId) await deleteTransaction(userId, entry.transactionId);
-  saveInvestmentEntries(getInvestmentEntries().filter(e => e.id !== entry.id));
-}
-
-export function addInvestmentEntry(input: InvestmentEntryInput, userId: string = 'demo_user_artha') {
-  return applyEntry(userId, input);
-}
-
-export async function deleteInvestmentEntry(entryId: string, userId: string = 'demo_user_artha'): Promise<void> {
-  const entry = getInvestmentEntries().find(e => e.id === entryId);
-  if (!entry) throw new Error('Catatan tidak ditemukan.');
-  await reverseEntry(userId, entry);
-}
-
-/** Ubah catatan: batalkan efek lama lalu terapkan nilai baru (dengan pemulihan bila gagal). */
-export async function updateInvestmentEntry(
-  entryId: string,
-  next: Pick<InvestmentEntryInput, 'date' | 'amount' | 'accountId' | 'note' | 'capitalReduced'>,
-  userId: string = 'demo_user_artha'
+async function applyEntryAtomic(
+  uid: string,
+  input: InvestmentEntryInput
 ): Promise<InvestmentEntry> {
-  const old = getInvestmentEntries().find(e => e.id === entryId);
-  if (!old) throw new Error('Catatan tidak ditemukan.');
-  const oldInput: InvestmentEntryInput = {
-    assetId: old.assetId, kind: old.kind, date: old.date, amount: old.amount, accountId: old.accountId, note: old.note, capitalReduced: old.capitalReduced
-  };
-  await reverseEntry(userId, old);
+  const path = `users/${uid}/investmentEntries`;
   try {
-    return await applyEntry(userId, { ...oldInput, ...next });
+    const amount = Math.round(Number(input.amount) || 0);
+    if (!(amount > 0)) throw new Error('Nominal harus lebih dari 0.');
+    if (!input.accountId) throw new Error('Pilih akun terlebih dahulu.');
+    if (!input.date) throw new Error('Tanggal wajib diisi.');
+
+    const now = Date.now();
+    const txId = `tx_${now}_${Math.random().toString(36).slice(2, 7)}`;
+    const entryId = `invent_${now}_${Math.random().toString(36).slice(2, 6)}`;
+
+    let txTypeForCategory: 'income' | 'expense' = 'income';
+    let categoryForEnsure: string = INV_CATEGORY.yield;
+
+    const entry = await runTransaction(db, async (tx) => {
+      const assetRef = doc(db, 'users', uid, 'investments', input.assetId);
+      const accRef = doc(db, 'users', uid, 'accounts', input.accountId);
+
+      const [assetSnap, accSnap] = await Promise.all([tx.get(assetRef), tx.get(accRef)]);
+      if (!assetSnap.exists()) throw new Error('Aset investasi tidak ditemukan!');
+      if (!accSnap.exists()) throw new Error('Akun kas tidak ditemukan!');
+
+      const asset = { id: assetSnap.id, ...(assetSnap.data() as Omit<InvestmentAsset, 'id'>) };
+      if (asset.status === 'closed') {
+        throw new Error('Aset sudah ditutup. Hapus catatan "Tutup aset" untuk membukanya kembali.');
+      }
+
+      const acc = accSnap.data() as Account;
+
+      let capitalDelta = 0;
+      let valueDelta = 0;
+      let capitalReduced: number | undefined;
+      let realized: number | undefined;
+      let closedAsset = false;
+      let txType: 'income' | 'expense' = 'income';
+      let category: string = INV_CATEGORY.yield;
+      let defaultNote = '';
+      const assetPatch: Record<string, unknown> = { updatedAt: now };
+
+      if (input.kind === 'topup') {
+        txType = 'expense';
+        category = INV_CATEGORY.topup;
+        defaultNote = `Tambah dana: ${asset.name}`;
+        capitalDelta = amount;
+        assetPatch.initialCapital = (Number(asset.initialCapital) || 0) + amount;
+      } else if (input.kind === 'yield') {
+        category = INV_CATEGORY.yield;
+        defaultNote = `Hasil: ${asset.name}`;
+      } else if (input.kind === 'withdraw') {
+        category = INV_CATEGORY.cashout;
+        defaultNote = `Penarikan: ${asset.name}`;
+        if (amount > asset.currentValue) {
+          throw new Error(
+            'Penarikan melebihi nilai pasar aset. Gunakan "Tutup aset" bila ingin mencairkan seluruhnya.'
+          );
+        }
+        capitalReduced = Math.min(
+          asset.initialCapital,
+          Math.max(0, Math.round(input.capitalReduced ?? suggestCapitalReduced(asset, amount)))
+        );
+        realized = amount - capitalReduced;
+        capitalDelta = -capitalReduced;
+        valueDelta = -amount;
+        assetPatch.initialCapital = asset.initialCapital - capitalReduced;
+        assetPatch.currentValue = asset.currentValue - amount;
+        if ((assetPatch.currentValue as number) <= 0) {
+          closedAsset = true;
+          assetPatch.status = 'closed';
+          assetPatch.closedAt = input.date;
+        }
+      } else {
+        category = INV_CATEGORY.cashout;
+        defaultNote = `Tutup aset: ${asset.name}`;
+        realized = amount - asset.initialCapital;
+        closedAsset = true;
+        assetPatch.status = 'closed';
+        assetPatch.closedAt = input.date;
+      }
+
+      txTypeForCategory = txType;
+      categoryForEnsure = category;
+
+      const curBal = Number(acc.balance) || 0;
+      const nextBal = txType === 'income' ? curBal + amount : curBal - amount;
+
+      const newTx: Omit<Transaction, 'id'> & { updatedAt: number } = stripUndefined({
+        ledgerId: asset.ledgerId,
+        accountId: input.accountId,
+        type: txType,
+        amount,
+        category,
+        note: input.note?.trim() || defaultNote,
+        date: input.date,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const newEntry: InvestmentEntry = stripUndefined({
+        id: entryId,
+        assetId: asset.id,
+        ledgerId: asset.ledgerId,
+        kind: input.kind,
+        date: input.date,
+        amount,
+        accountId: input.accountId,
+        transactionId: txId,
+        capitalDelta,
+        valueDelta,
+        capitalReduced,
+        realized,
+        closedAsset: closedAsset || undefined,
+        note: input.note?.trim() || undefined,
+        createdAt: now,
+      });
+
+      tx.update(accRef, { balance: nextBal, updatedAt: now });
+      tx.update(assetRef, stripUndefined(assetPatch));
+      tx.set(doc(db, 'users', uid, 'transactions', txId), newTx);
+
+      const { id: _ignoreId, ...entryBody } = newEntry;
+      tx.set(doc(db, 'users', uid, 'investmentEntries', entryId), stripUndefined(entryBody));
+
+      return newEntry;
+    });
+
+    void ensureCategory(uid, txTypeForCategory, categoryForEnsure);
+    return entry;
+  } catch (error) {
+    if (error instanceof Error && !error.message.includes('Firestore')) {
+      throw error;
+    }
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+async function reverseEntryAtomic(uid: string, entryId: string): Promise<InvestmentEntry> {
+  const path = `users/${uid}/investmentEntries/${entryId}`;
+  try {
+    const now = Date.now();
+    return await runTransaction(db, async (tx) => {
+      const entryRef = doc(db, 'users', uid, 'investmentEntries', entryId);
+      const entrySnap = await tx.get(entryRef);
+      if (!entrySnap.exists()) throw new Error('Catatan tidak ditemukan.');
+
+      const entry = { id: entrySnap.id, ...(entrySnap.data() as Omit<InvestmentEntry, 'id'>) };
+
+      const assetRef = doc(db, 'users', uid, 'investments', entry.assetId);
+      const txRef = entry.transactionId
+        ? doc(db, 'users', uid, 'transactions', entry.transactionId)
+        : null;
+
+      const [assetSnap, linkedTxSnap] = await Promise.all([
+        tx.get(assetRef),
+        txRef ? tx.get(txRef) : Promise.resolve(null),
+      ]);
+
+      const accRef =
+        linkedTxSnap && linkedTxSnap.exists()
+          ? doc(db, 'users', uid, 'accounts', (linkedTxSnap.data() as Transaction).accountId)
+          : null;
+      const accSnap = accRef ? await tx.get(accRef) : null;
+
+      if (assetSnap.exists()) {
+        const asset = assetSnap.data() as InvestmentAsset;
+        const patch: Record<string, unknown> = { updatedAt: now };
+        if (entry.capitalDelta) {
+          patch.initialCapital = Math.max(0, (Number(asset.initialCapital) || 0) - entry.capitalDelta);
+        }
+        if (entry.valueDelta) {
+          patch.currentValue = Math.max(0, (Number(asset.currentValue) || 0) - entry.valueDelta);
+        }
+        if (entry.closedAsset) {
+          patch.status = 'active';
+          patch.closedAt = '';
+        }
+        tx.update(assetRef, patch);
+      }
+
+      if (linkedTxSnap && linkedTxSnap.exists() && txRef) {
+        const linkedTx = linkedTxSnap.data() as Transaction;
+        const txAmt = Number(linkedTx.amount) || 0;
+        if (accRef && accSnap && accSnap.exists()) {
+          const curBal = Number((accSnap.data() as Account).balance) || 0;
+          const revertedBal = linkedTx.type === 'income' ? curBal - txAmt : curBal + txAmt;
+          tx.update(accRef, { balance: revertedBal, updatedAt: now });
+        }
+        tx.delete(txRef);
+      }
+
+      tx.delete(entryRef);
+      return entry;
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+export function addInvestmentEntry(
+  uid: string,
+  input: InvestmentEntryInput
+): Promise<InvestmentEntry> {
+  return applyEntryAtomic(uid, input);
+}
+
+export async function deleteInvestmentEntry(uid: string, entryId: string): Promise<void> {
+  await reverseEntryAtomic(uid, entryId);
+}
+
+export async function updateInvestmentEntry(
+  uid: string,
+  entryId: string,
+  next: Pick<InvestmentEntryInput, 'date' | 'amount' | 'accountId' | 'note' | 'capitalReduced'>
+): Promise<InvestmentEntry> {
+  const old = await reverseEntryAtomic(uid, entryId);
+  const oldInput: InvestmentEntryInput = {
+    assetId: old.assetId,
+    kind: old.kind,
+    date: old.date,
+    amount: old.amount,
+    accountId: old.accountId,
+    note: old.note,
+    capitalReduced: old.capitalReduced,
+  };
+  try {
+    return await applyEntryAtomic(uid, { ...oldInput, ...next });
   } catch (err) {
-    await applyEntry(userId, oldInput);
+    await applyEntryAtomic(uid, oldInput);
     throw err;
   }
 }
 
 export interface AssetReturn {
-  invested: number;      // modal sisa + modal yang sudah ditarik
-  valueNow: number;      // nilai pasar saat ini (0 bila aset sudah ditutup)
-  unrealized: number;    // untung/rugi belum terealisasi
-  yieldTotal: number;    // total hasil (panen/dividen)
-  cashedOut: number;     // total uang dari penarikan + penutupan
-  realizedTotal: number; // untung/rugi terealisasi dari penarikan + penutupan
-  topupTotal: number;    // total dana tambahan
-  roiTotal: number;      // ROI total dalam persen, memperhitungkan semua arus dana
+  invested: number;
+  valueNow: number;
+  unrealized: number;
+  yieldTotal: number;
+  cashedOut: number;
+  realizedTotal: number;
+  topupTotal: number;
+  roiTotal: number;
 }
 
-export function calculateAssetReturn(asset: InvestmentAsset, entries: InvestmentEntry[]): AssetReturn {
+export function calculateAssetReturn(
+  asset: InvestmentAsset,
+  entries: InvestmentEntry[]
+): AssetReturn {
   const closed = asset.status === 'closed';
   const sum = (fn: (e: InvestmentEntry) => number) => entries.reduce((s, e) => s + fn(e), 0);
-  const capWithdrawn = sum(e => (e.kind === 'withdraw' ? e.capitalReduced || 0 : 0));
-  const yieldTotal = sum(e => (e.kind === 'yield' ? e.amount : 0));
-  const cashedOut = sum(e => (e.kind === 'withdraw' || e.kind === 'close' ? e.amount : 0));
-  const realizedTotal = sum(e => (e.kind === 'withdraw' || e.kind === 'close' ? e.realized || 0 : 0));
-  const topupTotal = sum(e => (e.kind === 'topup' ? e.amount : 0));
+  const capWithdrawn = sum((e) => (e.kind === 'withdraw' ? e.capitalReduced || 0 : 0));
+  const yieldTotal = sum((e) => (e.kind === 'yield' ? e.amount : 0));
+  const cashedOut = sum((e) => (e.kind === 'withdraw' || e.kind === 'close' ? e.amount : 0));
+  const realizedTotal = sum((e) =>
+    e.kind === 'withdraw' || e.kind === 'close' ? e.realized || 0 : 0
+  );
+  const topupTotal = sum((e) => (e.kind === 'topup' ? e.amount : 0));
   const valueNow = closed ? 0 : asset.currentValue;
   const invested = asset.initialCapital + capWithdrawn;
-  const roiTotal = invested > 0 ? ((valueNow + yieldTotal + cashedOut - invested) / invested) * 100 : 0;
-  return { invested, valueNow, unrealized: closed ? 0 : asset.currentValue - asset.initialCapital, yieldTotal, cashedOut, realizedTotal, topupTotal, roiTotal };
+  const roiTotal =
+    invested > 0 ? ((valueNow + yieldTotal + cashedOut - invested) / invested) * 100 : 0;
+  return {
+    invested,
+    valueNow,
+    unrealized: closed ? 0 : asset.currentValue - asset.initialCapital,
+    yieldTotal,
+    cashedOut,
+    realizedTotal,
+    topupTotal,
+    roiTotal,
+  };
 }
