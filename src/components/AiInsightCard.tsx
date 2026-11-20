@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Sparkles, RefreshCw } from 'lucide-react';
+import { Sparkles, RefreshCw, AlertCircle, X } from 'lucide-react';
 import type { Account, Bill, Debt, Goal, Ledger, Transaction } from '../types';
 import { formatRupiah } from '../utils/financeUtils';
 
@@ -38,8 +38,15 @@ export function AiInsightCard({
   debts,
   accounts: _accounts
 }: Props) {
-  const [insight, setInsight] = useState<InsightData | null>(null);
+  const [aiInsight, setAiInsight] = useState<InsightData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Reset AI insight & error when switching ledgers so local analytics update immediately without burning quota
+  useEffect(() => {
+    setAiInsight(null);
+    setErrorMsg(null);
+  }, [currentLedger.id]);
 
   // Fungsi kalkulasi statistik analitik lokal dinamis & tidak kaku
   function computeLocalInsight(): InsightData {
@@ -138,7 +145,9 @@ export function AiInsightCard({
   }
 
   async function generateAiInsight() {
+    if (loading) return;
     setLoading(true);
+    setErrorMsg(null);
     const local = computeLocalInsight();
 
     try {
@@ -149,7 +158,7 @@ export function AiInsightCard({
       const totalOut = thisMonthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
 
       const activeGoalNames = goals
-        .filter(g => !g.isCompleted)
+        .filter(g => !g.isCompleted && g.targetAmount > 0)
         .map(g => `${g.name} (${Math.round((g.currentAmount / g.targetAmount) * 100)}%)`)
         .slice(0, 3)
         .join(', ');
@@ -167,34 +176,31 @@ export function AiInsightCard({
         }),
       });
 
+      const payload = await response.json().catch(() => null);
+
       if (!response.ok) {
-        setInsight(local);
+        setErrorMsg(payload?.error || `Gagal memuat analisis Gemini AI (HTTP ${response.status}).`);
         return;
       }
 
-      const parsed = await response.json();
-      if (Array.isArray(parsed?.bullets) && parsed.bullets.length > 0) {
-        setInsight({
-          bullets: parsed.bullets,
-          extraTip: parsed.extraTip || local.extraTip,
+      if (Array.isArray(payload?.bullets) && payload.bullets.length > 0) {
+        setAiInsight({
+          bullets: payload.bullets,
+          extraTip: payload.extraTip || local.extraTip,
           source: 'ai'
         });
       } else {
-        setInsight(local);
+        setErrorMsg('Gemini AI tidak mengembalikan poin analisis yang valid.');
       }
     } catch (err) {
-      console.warn('Gemini AI insight offline fallback:', err);
-      setInsight(local);
+      const message = err instanceof Error ? err.message : 'Gagal terhubung ke server Gemini AI.';
+      setErrorMsg(message);
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    generateAiInsight();
-  }, [transactions.length, goals.length, bills.length, debts.length, currentLedger.id]);
-
-  const currentData = insight || computeLocalInsight();
+  const currentData = aiInsight || computeLocalInsight();
 
   return (
     <section className="ax-ai" aria-live="polite">
@@ -204,10 +210,38 @@ export function AiInsightCard({
           AI Insight
           <span className="ax-badge-s">{currentData.source === 'ai' ? 'Gemini' : 'Analisis lokal'}</span>
         </h3>
-        <button type="button" className="ax-iconbtn" onClick={generateAiInsight} disabled={loading} title="Perbarui insight" aria-label="Perbarui insight">
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border-2 border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] text-xs font-extrabold cursor-pointer shadow-[2px_2px_0_var(--border-color)] hover:translate-y-[-1px] active:translate-y-[1px] disabled:opacity-60 transition-transform"
+          onClick={generateAiInsight}
+          disabled={loading}
+          title={currentData.source === 'ai' ? 'Perbarui analisis Gemini AI' : 'Minta analisis cerdas dari Gemini AI'}
+          aria-label={currentData.source === 'ai' ? 'Perbarui analisis Gemini AI' : 'Minta analisis Gemini AI'}
+        >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <span>{loading ? 'Menganalisis...' : currentData.source === 'ai' ? 'Perbarui AI' : 'Analisis Gemini'}</span>
         </button>
       </div>
+
+      {errorMsg && (
+        <div
+          role="alert"
+          className="mb-3 flex items-start justify-between gap-2 rounded-xl border-2 border-[var(--border-color)] bg-[var(--accent-terracotta-dark)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)]"
+        >
+          <div className="flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[var(--accent-terracotta)]" />
+            <span>{errorMsg}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setErrorMsg(null)}
+            aria-label="Tutup pesan error"
+            className="shrink-0 p-0.5 rounded hover:bg-black/10 cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       <div className="ax-ai-grid" data-loading={loading}>
         {currentData.bullets.map((b, idx) => {

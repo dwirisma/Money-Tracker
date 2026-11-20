@@ -7,7 +7,12 @@ import { GoogleGenAI, Type } from '@google/genai';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const GEMINI_MODEL = 'gemini-4-hydrogen';
+const GEMINI_PRIMARY_MODEL = 'gemini-4-hydrogen';
+const GEMINI_FALLBACK_MODEL = 'gemini-3.1-flash-lite';
+
+const INSIGHT_CACHE_TTL_MS = 10 * 60 * 1000;
+const INSIGHT_CACHE_MAX_SIZE = 50;
+const insightCache = new Map<string, { data: { bullets: string[]; extraTip: string }; expiresAt: number }>();
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
@@ -35,6 +40,38 @@ function getGeminiClient() {
   });
 }
 
+function isQuotaExceededError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err || '');
+  const lower = msg.toLowerCase();
+  return lower.includes('resource_exhausted') || lower.includes('429') || lower.includes('quota');
+}
+
+async function generateContentWithFallback(
+  ai: GoogleGenAI,
+  params: Omit<Parameters<GoogleGenAI['models']['generateContent']>[0], 'model'>,
+  models: string[]
+) {
+  let lastError: unknown;
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    try {
+      return await ai.models.generateContent({
+        model,
+        ...params,
+      });
+    } catch (err) {
+      lastError = err;
+      const hasNext = i < models.length - 1;
+      if (hasNext && isQuotaExceededError(err)) {
+        console.warn(`[Gemini] Quota exhausted on ${model}, falling back to ${models[i + 1]}`);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError;
+}
+
 function normalizeGeminiError(err: unknown): { status: number; message: string } {
   const msg = err instanceof Error ? err.message : String(err || 'Unknown error');
   const lower = msg.toLowerCase();
@@ -48,13 +85,13 @@ function normalizeGeminiError(err: unknown): { status: number; message: string }
   if (lower.includes('resource_exhausted') || lower.includes('429') || lower.includes('quota')) {
     return {
       status: 429,
-      message: 'Batas kuota Gemini API tercapai untuk sementara. Coba lagi beberapa saat lagi.',
+      message: 'Kuota harian gratis Gemini API sedang habis. Coba lagi nanti atau gunakan API key dengan billing aktif di Settings > Secrets.',
     };
   }
   if (lower.includes('not_found') || lower.includes('404')) {
     return {
       status: 404,
-      message: `Model AI (${GEMINI_MODEL}) tidak ditemukan atau tidak tersedia.`,
+      message: `Model AI (${GEMINI_PRIMARY_MODEL}) tidak ditemukan atau tidak tersedia.`,
     };
   }
   if (lower.includes('payload') || lower.includes('too large') || lower.includes('size')) {
@@ -140,65 +177,68 @@ Instruksi Analisis Dokumen/Foto Struk:
 8. Jika rincian item belanja terlihat, daftarkan pada array "items" (nama item, qty, harga subtotal item tersebut dalam integer).`;
 
     try {
-      const response = await ai.models.generateContent({
-        model: GEMINI_MODEL,
-        contents: {
-          parts: [
-            {
-              inlineData: {
-                mimeType: normalizedMime,
-                data: base64Data,
+      const response = await generateContentWithFallback(
+        ai,
+        {
+          contents: {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: normalizedMime,
+                  data: base64Data,
+                },
               },
-            },
-            { text: prompt },
-          ],
-        },
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              amount: {
-                type: Type.INTEGER,
-                description: 'Total pembayaran akhir dalam Rupiah bulat tanpa tanda baca.',
-              },
-              date: {
-                type: Type.STRING,
-                description: 'Tanggal transaksi format YYYY-MM-DD, atau string kosong jika tidak terbaca.',
-              },
-              category: {
-                type: Type.STRING,
-                description: 'Satu kategori pengeluaran yang paling cocok dari daftar yang tersedia.',
-              },
-              merchantName: {
-                type: Type.STRING,
-                description: 'Nama toko, merchant, atau penerima pembayaran.',
-              },
-              note: {
-                type: Type.STRING,
-                description: 'Ringkasan singkat transaksi maksimal 60 karakter.',
-              },
-              paymentMethod: {
-                type: Type.STRING,
-                description: 'Metode pembayaran jika terlihat (misal QRIS, Tunai, Debit, Transfer), atau kosong.',
-              },
-              items: {
-                type: Type.ARRAY,
-                description: 'Daftar item belanja jika tertera di struk atau invoice.',
+              { text: prompt },
+            ],
+          },
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                amount: {
+                  type: Type.INTEGER,
+                  description: 'Total pembayaran akhir dalam Rupiah bulat tanpa tanda baca.',
+                },
+                date: {
+                  type: Type.STRING,
+                  description: 'Tanggal transaksi format YYYY-MM-DD, atau string kosong jika tidak terbaca.',
+                },
+                category: {
+                  type: Type.STRING,
+                  description: 'Satu kategori pengeluaran yang paling cocok dari daftar yang tersedia.',
+                },
+                merchantName: {
+                  type: Type.STRING,
+                  description: 'Nama toko, merchant, atau penerima pembayaran.',
+                },
+                note: {
+                  type: Type.STRING,
+                  description: 'Ringkasan singkat transaksi maksimal 60 karakter.',
+                },
+                paymentMethod: {
+                  type: Type.STRING,
+                  description: 'Metode pembayaran jika terlihat (misal QRIS, Tunai, Debit, Transfer), atau kosong.',
+                },
                 items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    name: { type: Type.STRING },
-                    qty: { type: Type.NUMBER },
-                    price: { type: Type.INTEGER },
+                  type: Type.ARRAY,
+                  description: 'Daftar item belanja jika tertera di struk atau invoice.',
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      name: { type: Type.STRING },
+                      qty: { type: Type.NUMBER },
+                      price: { type: Type.INTEGER },
+                    },
                   },
                 },
               },
+              required: ['amount', 'date', 'category', 'merchantName', 'note'],
             },
-            required: ['amount', 'date', 'category', 'merchantName', 'note'],
           },
         },
-      });
+        [GEMINI_PRIMARY_MODEL, GEMINI_FALLBACK_MODEL]
+      );
 
       const rawText = (response.text || '').trim();
       if (!rawText) {
@@ -209,8 +249,12 @@ Instruksi Analisis Dokumen/Foto Struk:
       const parsed = JSON.parse(rawText);
       res.json(parsed);
     } catch (err) {
-      console.error('[/api/gemini/scan-receipt] Error:', err);
       const norm = normalizeGeminiError(err);
+      if (norm.status === 429) {
+        console.warn('[/api/gemini/scan-receipt] Quota exhausted (429):', norm.message);
+      } else {
+        console.error('[/api/gemini/scan-receipt] Error:', err);
+      }
       res.status(norm.status).json({ error: norm.message });
     }
   });
@@ -226,6 +270,21 @@ Instruksi Analisis Dokumen/Foto Struk:
     }
 
     const { ledgerName, totalInFormatted, totalOutFormatted, activeGoalNames, billsCount, debtsCount } = req.body ?? {};
+
+    const cacheKey = JSON.stringify({
+      ledgerName: ledgerName || 'Utama',
+      totalInFormatted: totalInFormatted || 'Rp 0',
+      totalOutFormatted: totalOutFormatted || 'Rp 0',
+      activeGoalNames: activeGoalNames || 'Belum ada',
+      billsCount: Number(billsCount) || 0,
+      debtsCount: Number(debtsCount) || 0,
+    });
+
+    const cached = insightCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      res.json(cached.data);
+      return;
+    }
 
     const prompt = `Anda adalah penasihat keuangan pribadi cerdas di aplikasi "Artha".
 Buku Kas: ${ledgerName || 'Utama'}
@@ -243,26 +302,29 @@ Berikan analisa keuangan yang luwes, santai, tajam, kontekstual, dan tidak kaku.
 Dan sertakan "extraTip" berupa satu kalimat tips cerdas hemat/investasi maksimal 15 kata.`;
 
     try {
-      const response = await ai.models.generateContent({
-        model: GEMINI_MODEL,
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              bullets: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
+      const response = await generateContentWithFallback(
+        ai,
+        {
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                bullets: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                },
+                extraTip: {
+                  type: Type.STRING,
+                },
               },
-              extraTip: {
-                type: Type.STRING,
-              },
+              required: ['bullets', 'extraTip'],
             },
-            required: ['bullets', 'extraTip'],
           },
         },
-      });
+        [GEMINI_FALLBACK_MODEL, GEMINI_PRIMARY_MODEL]
+      );
 
       const rawText = (response.text || '').trim();
       if (!rawText) {
@@ -271,10 +333,24 @@ Dan sertakan "extraTip" berupa satu kalimat tips cerdas hemat/investasi maksimal
       }
 
       const parsed = JSON.parse(rawText);
+      if (Array.isArray(parsed?.bullets) && parsed.bullets.length > 0) {
+        if (insightCache.size >= INSIGHT_CACHE_MAX_SIZE) {
+          const oldestKey = insightCache.keys().next().value;
+          if (oldestKey !== undefined) insightCache.delete(oldestKey);
+        }
+        insightCache.set(cacheKey, {
+          data: parsed,
+          expiresAt: Date.now() + INSIGHT_CACHE_TTL_MS,
+        });
+      }
       res.json(parsed);
     } catch (err) {
-      console.error('[/api/gemini/insight] Error:', err);
       const norm = normalizeGeminiError(err);
+      if (norm.status === 429) {
+        console.warn('[/api/gemini/insight] Quota exhausted (429):', norm.message);
+      } else {
+        console.error('[/api/gemini/insight] Error:', err);
+      }
       res.status(norm.status).json({ error: norm.message });
     }
   });
