@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react';
 import { Zap } from 'lucide-react';
 import { AlertTriangle, Banknote, Calendar, CheckCircle2, Clock, CreditCard, Pencil, Plus, Receipt, RotateCw, Trash2 } from 'lucide-react';
 import type { Bill, Debt } from '../types';
-import { formatRupiah } from '../utils/calculator';
+import { formatRupiah } from '../utils/financeUtils';
 import { getBillDueStatus } from '../services/cashManagementService';
 
 type BillFilter = 'all' | 'monthly' | 'yearly' | 'overdue';

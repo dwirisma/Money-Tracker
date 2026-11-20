@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { BarChart3, Download, Printer } from 'lucide-react';
 import type { Transaction } from '../types';
-import { formatRupiah } from '../utils/calculator';
-import { buildSixMonths, sixMonthsCsv } from '../utils/sixMonths';
-import { Money } from './ui/Neo';
+import { formatRupiah } from '../utils/financeUtils';
+import { buildSixMonths, sixMonthsCsv } from '../utils/dateUtils';
+import { Money } from './ui/BaseUI';
 
 const compact = (v: number) => (Math.abs(v) >= 1e6 ? `${+(v / 1e6).toFixed(1)} jt` : Math.abs(v) >= 1e3 ? `${Math.round(v / 1e3)} rb` : String(v));
 

@@ -1,9 +1,9 @@
-import { freeBalanceText, getFreeBalance } from '../utils/accountBalance';
+import { freeBalanceText, getFreeBalance } from '../utils/financeUtils';
 import type { CSSProperties, FormEvent } from 'react';
 import { AlertTriangle, Calculator, Check, Coins, Info, Pencil, Sparkles, Target } from 'lucide-react';
 import type { Account, Goal, GoalType } from '../types';
-import { evaluateMathExpression, formatRupiah } from '../utils/calculator';
-import { ModalFrame } from './ui/ModalFrame';
+import { evaluateMathExpression, formatRupiah } from '../utils/financeUtils';
+import { ModalFrame } from './ui/BaseUI';
 import { ColorPicker, calcNoteOf } from './ObligationForms';
 
 const ACC_TYPE: Record<string, string> = { cash: 'Dompet', bank: 'Bank', ewallet: 'E-Wallet', credit_card: 'Kartu Kredit' };

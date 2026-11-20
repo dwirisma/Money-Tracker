@@ -1,10 +1,9 @@
-import { freeBalanceText, getFreeBalance } from '../utils/accountBalance';
 import type { MouseEvent, ReactNode } from 'react';
 import { Banknote, Calendar, Coins, CreditCard, History, Pencil, Receipt, Trash2, Zap, ArrowRightLeft, TrendingDown, TrendingUp } from 'lucide-react';
 import type { Account, AutomationRule, Bill, Debt, Goal, Transaction } from '../types';
-import { formatRupiah } from '../utils/calculator';
+import { formatRupiah, freeBalanceText } from '../utils/financeUtils';
 import { getBillDueStatus, getCycleLabel } from '../services/cashManagementService';
-import { ModalFrame } from './ui/ModalFrame';
+import { ModalFrame } from './ui/BaseUI';
 
 type Tone = 's' | 't' | 'b' | 'y' | 'l' | 'n';
 interface Fact { label: string; value: ReactNode; wide?: boolean }

@@ -1,4 +1,3 @@
-import { freeBalanceText, getFreeBalance } from '../utils/accountBalance';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Calendar as CalendarIcon,
@@ -7,21 +6,15 @@ import {
   Plus,
   Zap,
   ShieldCheck,
-  FileText,
   Info,
   CalendarCheck,
   Sparkles,
   RotateCcw,
-  RefreshCw,
   ChevronLeft,
   ChevronRight,
-  X,
   Settings,
-  Archive,
   Trash2,
   Gift,
-  ToggleLeft,
-  ToggleRight,
   Edit3,
   Wallet
 } from 'lucide-react';
@@ -36,7 +29,7 @@ import {
   ShiftGroup, 
   SalaryAddOn 
 } from '../types';
-import { evaluateMathExpression } from '../utils/calculator';
+import { evaluateMathExpression } from '../utils/financeUtils';
 import { SalaryHistorySection, EditDayModal, SalarySettingsModal, AddOnModal, type HistoryItem } from './SalaryModals';
 import { 
   generateShiftCalendar,
@@ -104,8 +97,6 @@ function getInitialCutoffPeriod() {
   }
   return { year: y, monthIndex: m };
 }
-
-const SLIP_ACC_TYPE: Record<string, string> = { cash: 'Dompet', bank: 'Bank', ewallet: 'E-Wallet', credit_card: 'Kartu Kredit' };
 
 export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
   activeLedger,
@@ -227,7 +218,6 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
 
   // Notifikasi Feedback Toast
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
-  const [isSubmittingAuto, setIsSubmittingAuto] = useState<boolean>(false);
 
   // Filter tampilan kalender (semua hari vs hanya hari lembur / kerja / libur)
   const [calendarFilter, setCalendarFilter] = useState<'all' | 'work' | 'off' | 'holiday' | 'overtime' | 'meal'>('all');

@@ -27,7 +27,7 @@ import {
   InvestmentEntryKind,
   Transaction,
 } from '../types';
-import { toLocalDateStr } from '../utils/localDate';
+import { toLocalDateStr } from '../utils/dateUtils';
 import { stripUndefined } from './cashManagementService';
 import { ensureCategory } from '../hooks/useCategories';
 

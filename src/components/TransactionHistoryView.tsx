@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Search,
   Filter,
@@ -13,8 +13,8 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 import type { Account, Ledger, Transaction } from '../types';
-import { formatRupiah } from '../utils/calculator';
-import type { ModuleId } from './layout/navConfig';
+import { formatRupiah } from '../utils/financeUtils';
+import type { ModuleId } from './layout/Navigation';
 
 interface Props {
   currentLedger: Ledger;

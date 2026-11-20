@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Sparkles, RefreshCw } from 'lucide-react';
 import type { Account, Bill, Debt, Goal, Ledger, Transaction } from '../types';
-import { formatRupiah } from '../utils/calculator';
+import { formatRupiah } from '../utils/financeUtils';
 
 interface Props {
   currentLedger: Ledger;

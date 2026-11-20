@@ -1,8 +1,8 @@
 import type { CSSProperties, FormEvent, MouseEvent } from 'react';
 import type { Account } from '../types';
-import { freeBalanceText } from '../utils/accountBalance';
+import { freeBalanceText } from '../utils/financeUtils';
 import { Archive, Banknote, CalendarDays, Check, Clock, FileText, Gift, Plus, RefreshCw, RotateCcw, Settings, Trash2, Utensils, Zap } from 'lucide-react';
-import { ModalFrame } from './ui/ModalFrame';
+import { ModalFrame } from './ui/BaseUI';
 import { calcNoteOf } from './ObligationForms';
 
 /* ============================ ARSIP RIWAYAT GAJI ============================ */

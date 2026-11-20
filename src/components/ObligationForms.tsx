@@ -1,9 +1,8 @@
-import { freeBalanceText, getFreeBalance } from '../utils/accountBalance';
 import type { CSSProperties, FormEvent } from 'react';
 import { Banknote, Calculator, Check, Pencil, Receipt } from 'lucide-react';
 import type { Account, BillCycle, CustomIntervalUnit } from '../types';
-import { evaluateMathExpression, formatRupiah } from '../utils/calculator';
-import { ModalFrame } from './ui/ModalFrame';
+import { evaluateMathExpression, formatRupiah, freeBalanceText } from '../utils/financeUtils';
+import { ModalFrame } from './ui/BaseUI';
 
 const CYCLES: { id: BillCycle; label: string }[] = [
   { id: 'daily', label: 'Harian' },

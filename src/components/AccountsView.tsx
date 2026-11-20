@@ -1,8 +1,8 @@
-import { getFreeBalance, getPocketTotal } from '../utils/accountBalance';
+import { getFreeBalance, getPocketTotal } from '../utils/financeUtils';
 import type { CSSProperties } from 'react';
 import { Landmark, Smartphone, CreditCard, Wallet, Pencil, Plus, Trash2, type LucideIcon } from 'lucide-react';
 import type { Account } from '../types';
-import { formatRupiah } from '../utils/calculator';
+import { formatRupiah } from '../utils/financeUtils';
 
 interface Totals {
   netBalance: number;

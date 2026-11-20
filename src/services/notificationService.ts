@@ -3,10 +3,10 @@
  * Menyediakan pembuatan, evaluasi pemicu dinamis, dan persistensi notifikasi in-app di Firestore.
  */
 import type { Transaction, Bill, Debt, Goal, Account } from '../types';
-import { DEFAULT_CATEGORY_BUDGETS, type CategoryBudgetMap } from './budgetService';
+import { DEFAULT_CATEGORY_BUDGETS, type CategoryBudgetMap } from './settingsService';
 import { calculatePayday } from '../utils/salaryCalculator';
-import { formatRupiah } from '../utils/calculator';
-import { appendAutomationEventCloud, updateUserPreferences } from './preferencesService';
+import { formatRupiah } from '../utils/financeUtils';
+import { appendAutomationEventCloud, updateUserPreferences } from './settingsService';
 
 export type NotificationType =
   | 'automation'

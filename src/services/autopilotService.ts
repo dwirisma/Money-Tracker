@@ -30,7 +30,7 @@ import {
   stripUndefined,
 } from './cashManagementService';
 import type { Account, Bill, BillCycle, Debt, Goal } from '../types';
-import { toLocalDateStr } from '../utils/localDate';
+import { toLocalDateStr } from '../utils/dateUtils';
 import { recordAutomationEvent } from './notificationService';
 
 export type AutopilotKind = 'goal_topup' | 'pay_bill' | 'pay_debt';

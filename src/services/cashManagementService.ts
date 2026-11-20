@@ -39,7 +39,7 @@ import {
   PTKPStatus,
   ShiftGroup,
 } from '../types';
-import { toLocalDateStr } from '../utils/localDate';
+import { toLocalDateStr } from '../utils/dateUtils';
 import { recordAutomationEvent } from './notificationService';
 
 export const DEFAULT_LEDGER_ID = 'ledger_personal_default';

@@ -1,5 +1,5 @@
-import { toLocalDateStr } from '../utils/localDate';
-import React, { useState, useMemo, useEffect } from 'react';
+import { toLocalDateStr } from '../utils/dateUtils';
+import React, { useState, useMemo } from 'react';
 import { 
   BarChart, 
   Bar, 
@@ -7,7 +7,6 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  Legend, 
   ResponsiveContainer,
   PieChart, 
   Pie, 
@@ -37,7 +36,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Transaction, Ledger, Account, ReportTimeRange, CategoryExpenseSummary, CashFlowTrendPoint, ReportMetrics } from '../types';
-import { DEFAULT_CATEGORY_BUDGETS, type CategoryBudgetMap } from '../services/budgetService';
+import { DEFAULT_CATEGORY_BUDGETS, type CategoryBudgetMap } from '../services/settingsService';
 
 type Tone = 'ok' | 'mid' | 'low';
 const TONE_COLOR: Record<Tone, string> = { ok: 'var(--accent-sage)', mid: 'var(--accent-sand)', low: 'var(--accent-terracotta)' };
@@ -79,7 +78,6 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
   const [timeRange, setTimeRange] = useState<ReportTimeRange>('this_month');
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [expenseSourcesTab, setExpenseSourcesTab] = useState<'overview' | 'detail'>('overview');
 
   // Perhitungan Rentang Tanggal berdasarkan Filter Waktu

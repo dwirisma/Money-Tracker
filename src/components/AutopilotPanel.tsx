@@ -1,4 +1,4 @@
-import { freeBalanceText } from '../utils/accountBalance';
+import { freeBalanceText } from '../utils/financeUtils';
 import { useState, type CSSProperties, type FormEvent } from 'react';
 import { AlertTriangle, Calculator, Check, Clock, Info, Pencil, Play, Rocket, Trash2, Zap } from 'lucide-react';
 import type { Account, Bill, BillCycle, Debt, Goal } from '../types';
@@ -11,8 +11,8 @@ import {
   type AutopilotResult,
   type AutopilotRule,
 } from '../services/autopilotService';
-import { Money } from './ui/Neo';
-import { ModalFrame } from './ui/ModalFrame';
+import { Money } from './ui/BaseUI';
+import { ModalFrame } from './ui/BaseUI';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { getBillDueStatus } from '../services/cashManagementService';
 import { calcNoteOf } from './ObligationForms';

@@ -12,7 +12,7 @@
 import { collection, doc, getDoc, getDocs, writeBatch, type DocumentData } from 'firebase/firestore';
 import { ARTHA_USER_DOC_ID, db, OperationType, handleFirestoreError } from '../config/firebase';
 import { LOCKED_CATEGORY } from '../hooks/useCategories';
-import { toLocalDateStr } from '../utils/localDate';
+import { toLocalDateStr } from '../utils/dateUtils';
 
 const BATCH_CHUNK_SIZE = 450;
 

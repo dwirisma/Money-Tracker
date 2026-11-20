@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { setPrivacyMode } from '../utils/calculator';
+import { setPrivacyMode } from '../utils/financeUtils';
 import { useAuth } from './AuthContext';
-import { subscribeUserPreferences, updateUserPreferences } from '../services/preferencesService';
+import { subscribeUserPreferences, updateUserPreferences } from '../services/settingsService';
 
 export type Theme = 'dark' | 'light';
 

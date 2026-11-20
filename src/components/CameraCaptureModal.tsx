@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, RefreshCw, RotateCcw, Check, Upload, AlertTriangle } from 'lucide-react';
-import { ModalFrame } from './ui/ModalFrame';
+import { ModalFrame } from './ui/BaseUI';
 
 interface CameraCaptureModalProps {
   onCaptureFile: (file: File) => void;

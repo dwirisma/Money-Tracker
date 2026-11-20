@@ -1,3 +1,5 @@
+import type { Account } from '../types';
+
 /**
  * Utility Mini Kalkulator: Evaluasi ekspresi matematika sederhana (+, -, *, /) secara aman tanpa eval()
  */
@@ -7,7 +9,7 @@ export function evaluateMathExpression(input: string): { success: boolean; resul
   }
 
   // Bersihkan format titik ribuan (misal: "50.000" jadi "50000"), spasi, dan ganti koma desimal jadi titik
-  let sanitized = input
+  const sanitized = input
     .replace(/\s+/g, '')
     .replace(/rp/gi, '')
     .replace(/\.(?=\d{3}(\D|$))/g, '') // hapus separator ribuan
@@ -38,7 +40,7 @@ export function evaluateMathExpression(input: string): { success: boolean; resul
     return {
       success: true,
       result: finalVal,
-      displayValue: finalVal.toString()
+      displayValue: finalVal.toString(),
     };
   } catch {
     const fallback = parseFloat(sanitized.replace(/[^\d.]/g, '')) || 0;
@@ -50,8 +52,12 @@ export function evaluateMathExpression(input: string): { success: boolean; resul
  * Format angka ke format mata uang Rupiah
  */
 let privacyMode = false;
-export function setPrivacyMode(on: boolean) { privacyMode = on; }
-export function isPrivacyMode() { return privacyMode; }
+export function setPrivacyMode(on: boolean) {
+  privacyMode = on;
+}
+export function isPrivacyMode() {
+  return privacyMode;
+}
 export const PRIVACY_MASK = 'Rp •••••••';
 
 export function formatRupiah(amount: number): string {
@@ -59,6 +65,31 @@ export function formatRupiah(amount: number): string {
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
-    maximumFractionDigits: 0
+    maximumFractionDigits: 0,
   }).format(amount);
+}
+
+/** Total dana yang sudah dialokasikan ke kantong pada sebuah akun. */
+export function getPocketTotal(acc: Pick<Account, 'pockets'>): number {
+  return (acc.pockets || []).reduce((sum, p) => sum + (p.balance || 0), 0);
+}
+
+export function hasPockets(acc: Pick<Account, 'pockets'>): boolean {
+  return (acc.pockets?.length || 0) > 0;
+}
+
+/**
+ * Saldo bebas = saldo total rekening dikurangi dana di kantong.
+ * Dipakai untuk tampilan PER AKUN. Total kekayaan / total aset tetap memakai saldo total rekening.
+ * Kartu kredit tidak punya kantong, jadi nilainya apa adanya.
+ */
+export function getFreeBalance(acc: Pick<Account, 'balance' | 'type' | 'pockets'>): number {
+  if (acc.type === 'credit_card' || !hasPockets(acc)) return acc.balance;
+  if (acc.balance < 0) return acc.balance;
+  return Math.max(0, acc.balance - getPocketTotal(acc));
+}
+
+/** Teks siap tampil: "Rp 1.000.000", atau "Rp 1.000.000 bebas" bila akun punya kantong. */
+export function freeBalanceText(acc: Pick<Account, 'balance' | 'type' | 'pockets'>): string {
+  return `${formatRupiah(getFreeBalance(acc))}${acc.type !== 'credit_card' && hasPockets(acc) ? ' bebas' : ''}`;
 }

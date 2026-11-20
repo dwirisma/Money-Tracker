@@ -1,7 +1,7 @@
 import type { CSSProperties, FormEvent } from 'react';
 import { Calculator, Check, FolderPlus, Info, Landmark, Pencil, Smartphone, Wallet, CreditCard, Banknote } from 'lucide-react';
 import type { AccountType } from '../types';
-import { ModalFrame } from './ui/ModalFrame';
+import { ModalFrame } from './ui/BaseUI';
 import { ColorPicker, calcNoteOf } from './ObligationForms';
 
 const ACCENT_COLORS = [

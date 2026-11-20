@@ -1,9 +1,9 @@
-import { freeBalanceText, getFreeBalance } from '../utils/accountBalance';
+import { freeBalanceText, getFreeBalance } from '../utils/financeUtils';
 import type { FormEvent } from 'react';
 import { Banknote, Calculator, Check, CreditCard, Info, RotateCw, AlertTriangle } from 'lucide-react';
 import type { Account, Bill, Debt } from '../types';
-import { evaluateMathExpression, formatRupiah } from '../utils/calculator';
-import { ModalFrame } from './ui/ModalFrame';
+import { evaluateMathExpression, formatRupiah } from '../utils/financeUtils';
+import { ModalFrame } from './ui/BaseUI';
 
 const ACC_TYPE: Record<string, string> = { cash: 'Dompet', bank: 'Bank', ewallet: 'E-Wallet', credit_card: 'Kartu Kredit' };
 const CYCLE_LABEL: Record<string, string> = { daily: 'harian', weekly: 'mingguan', monthly: 'bulanan', yearly: 'tahunan', custom: 'kustom' };

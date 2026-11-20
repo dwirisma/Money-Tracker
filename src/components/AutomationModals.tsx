@@ -1,9 +1,8 @@
-import { freeBalanceText, getFreeBalance } from '../utils/accountBalance';
+import { freeBalanceText } from '../utils/financeUtils';
 import type { CSSProperties, FormEvent, ReactNode } from 'react';
 import { ArrowRightLeft, Calculator, Check, Info, Landmark, Pencil, PiggyBank, Receipt, TrendingDown, TrendingUp, Zap } from 'lucide-react';
 import type { Account, AutomationCycle, AutomationType, CustomIntervalUnit } from '../types';
-import { formatRupiah } from '../utils/calculator';
-import { ModalFrame } from './ui/ModalFrame';
+import { ModalFrame } from './ui/BaseUI';
 import { CyclePicker } from './ObligationForms';
 
 const ACC_TYPE: Record<string, string> = { cash: 'Dompet', bank: 'Bank', ewallet: 'E-Wallet', credit_card: 'Kartu Kredit' };

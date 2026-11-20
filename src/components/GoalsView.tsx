@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react';
 import { Zap } from 'lucide-react';
 import { Award, Calendar, Coins, Compass, Pencil, Plus, Target, Trash2, Wallet, CheckCircle2 } from 'lucide-react';
 import type { Account, Goal } from '../types';
-import { formatRupiah } from '../utils/calculator';
+import { formatRupiah } from '../utils/financeUtils';
 
 type GoalFilter = 'all' | 'sinking_fund' | 'wishlist' | 'completed';
 

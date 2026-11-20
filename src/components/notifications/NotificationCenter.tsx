@@ -20,7 +20,7 @@ import {
   saveReadNotificationIdsCloud,
   saveDismissedNotificationIdsCloud,
 } from '../../services/notificationService';
-import type { CategoryBudgetMap } from '../../services/budgetService';
+import type { CategoryBudgetMap } from '../../services/settingsService';
 import type { Transaction, Bill, Debt, Goal, Account } from '../../types';
 
 interface NotificationCenterProps {

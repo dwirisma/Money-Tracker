@@ -1,9 +1,8 @@
-import { freeBalanceText, getFreeBalance } from '../utils/accountBalance';
 import type { FormEvent } from 'react';
 import { ArrowRightLeft, Calculator, Check, Info, Pencil, Trash2, TrendingDown, TrendingUp } from 'lucide-react';
 import type { Account, Transaction } from '../types';
-import { formatRupiah } from '../utils/calculator';
-import { ModalFrame } from './ui/ModalFrame';
+import { formatRupiah, freeBalanceText } from '../utils/financeUtils';
+import { ModalFrame } from './ui/BaseUI';
 
 interface EditProps {
   tx: Transaction;

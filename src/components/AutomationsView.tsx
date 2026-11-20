@@ -1,7 +1,7 @@
 import type { CSSProperties, MouseEvent } from 'react';
 import { AlertTriangle, Clock, Pencil, Play, Plus, RotateCw, Trash2, Zap, TrendingUp, TrendingDown } from 'lucide-react';
 import type { Account, AutomationRule } from '../types';
-import { formatRupiah } from '../utils/calculator';
+import { formatRupiah } from '../utils/financeUtils';
 import { getBillDueStatus, getCycleLabel } from '../services/cashManagementService';
 
 type AutoFilter = 'all' | 'active' | 'income' | 'expense' | 'transfer';

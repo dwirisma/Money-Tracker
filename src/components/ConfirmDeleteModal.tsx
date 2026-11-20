@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { AlertTriangle, Info, Trash2 } from 'lucide-react';
-import { ModalFrame } from './ui/ModalFrame';
+import { ModalFrame } from './ui/BaseUI';
 
 export interface DeleteNote {
   text: ReactNode;

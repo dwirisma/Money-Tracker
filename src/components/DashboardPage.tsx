@@ -1,4 +1,4 @@
-import { getFreeBalance } from '../utils/accountBalance';
+import { getFreeBalance } from '../utils/financeUtils';
 import { useMemo, useState } from 'react';
 import { 
   Activity, 
@@ -19,9 +19,9 @@ import {
 import type { Account, Bill, Debt, Goal, Transaction, InvestmentAsset, Ledger } from '../types';
 import { calculateNetWorthAccounts, getBillDueStatus } from '../services/cashManagementService';
 import { calculateInvestmentSummary } from '../services/investmentService';
-import { formatRupiah } from '../utils/calculator';
-import { Money } from './ui/Neo';
-import type { ModuleId } from './layout/navConfig';
+import { formatRupiah } from '../utils/financeUtils';
+import { Money } from './ui/BaseUI';
+import type { ModuleId } from './layout/Navigation';
 import { AiInsightCard } from './AiInsightCard';
 import { 
   ResponsiveContainer, 

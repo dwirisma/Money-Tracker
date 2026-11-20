@@ -1,5 +1,4 @@
-import { toLocalDateStr } from '../utils/localDate';
-import { freeBalanceText, getFreeBalance } from '../utils/accountBalance';
+import { toLocalDateStr } from '../utils/dateUtils';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   TrendingUp,
@@ -25,12 +24,12 @@ import {
   AlertCircle
 } from 'lucide-react';
 import type { Account, Ledger, Transaction } from '../types';
-import { evaluateMathExpression, formatRupiah } from '../utils/calculator';
+import { evaluateMathExpression, formatRupiah, freeBalanceText } from '../utils/financeUtils';
 import { useCategories, LOCKED_CATEGORY } from '../hooks/useCategories';
-import { saveCategoryBudgets, type CategoryBudgetMap } from '../services/budgetService';
+import { saveCategoryBudgets, type CategoryBudgetMap } from '../services/settingsService';
 import { scanReceipt, formatFileSize, type ReceiptData } from '../services/receiptScanService';
-import type { ModuleId } from './layout/navConfig';
-import { ModalFrame } from './ui/ModalFrame';
+import type { ModuleId } from './layout/Navigation';
+import { ModalFrame } from './ui/BaseUI';
 import { CameraCaptureModal } from './CameraCaptureModal';
 
 interface Props {

@@ -15,8 +15,8 @@ import {
   Check
 } from 'lucide-react';
 import type { Account, AccountPocket, Transaction } from '../types';
-import { formatRupiah } from '../utils/calculator';
-import { ModalFrame } from './ui/ModalFrame';
+import { formatRupiah } from '../utils/financeUtils';
+import { ModalFrame } from './ui/BaseUI';
 
 interface Props {
   isOpen: boolean;

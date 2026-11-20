@@ -1,58 +1,22 @@
-import { toLocalDateStr } from './utils/localDate';
+import { toLocalDateStr } from './utils/dateUtils';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { 
+import React, { useState, useEffect, useRef } from 'react';
+import {
   BookOpen,
-  Briefcase,
   ChevronDown,
-  Wallet, 
-  Landmark, 
-  Smartphone, 
-  CreditCard, 
-  Plus, 
-  ArrowRightLeft, 
-  TrendingUp, 
-  TrendingDown, 
-  Trash2, 
+  Plus,
+  Trash2,
   Pencil,
-  Calculator, 
-  Tag, 
-  FileText, 
-  X, 
-  Check, 
-  ArrowLeft,
+  X,
+  Check,
   AlertTriangle,
   Info,
   CheckCircle2,
   FolderPlus,
-  Target,
-  Sparkles,
-  Compass,
-  Calendar,
-  Coins,
-  PiggyBank,
-  Award,
-  CheckSquare,
-  History,
-  Eye,
-  Receipt,
-  RotateCw,
-  Clock,
-  CalendarCheck,
-  AlertCircle,
-  Banknote,
-  DollarSign,
-  Zap,
-  Play,
-  Power,
-  ToggleLeft,
-  ToggleRight,
-  Sliders,
-  BarChart3,
-  Settings
+  Settings,
 } from 'lucide-react';
 import { Module5Reports } from './components/Module5Reports';
 import { Module6SalaryShift } from './components/Module6SalaryShift';
@@ -102,8 +66,6 @@ import {
   updateBill,
   deleteBill,
   payBill,
-  advancePaymentDate,
-  stepBackPaymentDate,
   getCycleLabel,
   getBillDueStatus,
   subscribeDebtsByLedger,
@@ -122,12 +84,11 @@ import {
   updatePocketInAccount,
   deletePocketFromAccount
 } from './services/cashManagementService';
-import { evaluateMathExpression, formatRupiah } from './utils/calculator';
+import { evaluateMathExpression, formatRupiah } from './utils/financeUtils';
 import { useUI } from './context/UIContext';
 import { useAuth } from './context/AuthContext';
 import { LoginPage } from './components/LoginPage';
-import { AppNav } from './components/layout/AppNav';
-import { HeaderTools } from './components/layout/HeaderTools';
+import { AppNav, HeaderTools, type ModuleId } from './components/layout/Navigation';
 import { AddBillModal, AddDebtModal, EditBillModal, EditDebtModal } from './components/ObligationForms';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { AutomationFormModal } from './components/AutomationModals';
@@ -145,17 +106,21 @@ import { SettingsPage } from './components/SettingsPage';
 import { AutopilotList, AutopilotFields, AutopilotRuleModal, submitAutopilot, emptyApDraft, type ApDraft, type ApRequest } from './components/AutopilotPanel';
 import { subscribeAutopilotRulesByLedger, runAutopilot, type AutopilotKind, type AutopilotResult, type AutopilotRule } from './services/autopilotService';
 import { SixMonthReport } from './components/SixMonthReport';
-import { useCategories } from './hooks/useCategories';
-import type { ModuleId } from './components/layout/navConfig';
 import { AddTransactionView } from './components/AddTransactionView';
 import { TransactionHistoryView } from './components/TransactionHistoryView';
 import { InvestmentPortfolioView } from './components/InvestmentPortfolioView';
 import { AccountDetailModal } from './components/AccountDetailModal';
 import { NotificationCenter } from './components/notifications/NotificationCenter';
 import { subscribeInvestmentsByLedger, subscribeInvestmentEntriesByLedger } from './services/investmentService';
-import { subscribeUserPreferences, updateUserPreferences, DEFAULT_USER_PREFERENCES, type UserPreferences } from './services/preferencesService';
-import { subscribeCategoryBudgets, DEFAULT_CATEGORY_BUDGETS, type CategoryBudgetMap } from './services/budgetService';
-import { migrateLegacyDemoDataIfNeeded } from './services/migrationService';
+import {
+  subscribeUserPreferences,
+  updateUserPreferences,
+  DEFAULT_USER_PREFERENCES,
+  subscribeCategoryBudgets,
+  DEFAULT_CATEGORY_BUDGETS,
+  type UserPreferences,
+  type CategoryBudgetMap,
+} from './services/settingsService';
 import { ARTHA_USER_DOC_ID } from './config/firebase';
 
 export default function App() {
@@ -179,56 +144,10 @@ export default function App() {
     return <LoginPage />;
   }
 
-  return <MigrationGate uid={ARTHA_USER_DOC_ID} />;
+  return <AuthenticatedApp uid={ARTHA_USER_DOC_ID} />;
 }
 
-function MigrationGate({ uid }: { uid: string }) {
-  const [migrationReady, setMigrationReady] = useState(false);
-  const [migrationBanner, setMigrationBanner] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    setMigrationReady(false);
-
-    migrateLegacyDemoDataIfNeeded(uid)
-      .then((res) => {
-        if (!active) return;
-        if (!res.skipped && res.migratedCount > 0) {
-          setMigrationBanner(
-            `Migrasi otomatis selesai: ${res.migratedCount} dokumen berhasil dipindahkan ke ${uid}!`
-          );
-        }
-      })
-      .catch((err) => {
-        console.warn('Pengecekan migrasi otomatis dilewati:', err);
-      })
-      .finally(() => {
-        if (active) setMigrationReady(true);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [uid]);
-
-  if (!migrationReady) {
-    return (
-      <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex items-center justify-center p-4">
-        <div className="brutal-card p-6 flex flex-col items-center gap-3 text-center max-w-xs w-full">
-          <div className="w-12 h-12 bg-[var(--accent-sand)] text-[#14141a] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[3px_3px_0px_#000] flex items-center justify-center font-heading font-bold text-2xl animate-pulse">
-            A
-          </div>
-          <p className="font-heading font-bold text-sm">Menyiapkan data Artha Cloud...</p>
-          <p className="font-mono text-[11px] text-[var(--text-muted)]">Memverifikasi sinkronisasi database utama</p>
-        </div>
-      </div>
-    );
-  }
-
-  return <AuthenticatedApp uid={uid} initialToast={migrationBanner} />;
-}
-
-function AuthenticatedApp({ uid, initialToast }: { uid: string; initialToast?: string | null }) {
+function AuthenticatedApp({ uid }: { uid: string }) {
   // =========================================================================
   // STATE NAVIGASI SPA & CLOUD REAL-TIME DATA
   // =========================================================================
@@ -240,7 +159,6 @@ function AuthenticatedApp({ uid, initialToast }: { uid: string; initialToast?: s
   const [autopilotRules, setAutopilotRules] = useState<AutopilotRule[]>([]);
   const [userPrefs, setUserPrefs] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES);
   const [categoryBudgets, setCategoryBudgets] = useState<CategoryBudgetMap>(DEFAULT_CATEGORY_BUDGETS);
-  const categories = useCategories();
 
   // Autopilot di dalam modal "Aturan Baru"
   const [apKind, setApKind] = useState<AutopilotKind | null>(null);
@@ -342,7 +260,7 @@ function AuthenticatedApp({ uid, initialToast }: { uid: string; initialToast?: s
   // Modal Detail & Riwayat Target Khusus
   const [selectedGoalForDetail, setSelectedGoalForDetail] = useState<Goal | null>(null);
   const [goalAllocationHistory, setGoalAllocationHistory] = useState<Transaction[]>([]);
-  const [isLoadingGoalHistory, setIsLoadingGoalHistory] = useState(false);
+  const [, setIsLoadingGoalHistory] = useState(false);
 
   // =========================================================================
   // STATE MODUL 3: UTANG & TAGIHAN RUTIN (DEBTS & SUBSCRIPTIONS)
@@ -513,12 +431,6 @@ function AuthenticatedApp({ uid, initialToast }: { uid: string; initialToast?: s
     setTimeout(() => setToastMessage(null), 3500);
   }
 
-  // UI STATE MANAGEMENT: Toggle Eksklusif Form Transaksi vs Transfer
-  const [activeFormMode, setActiveFormMode] = useState<'transaction' | 'transfer'>('transaction');
-
-  // Filter Riwayat Transaksi
-  const [txFilter, setTxFilter] = useState<'all' | 'income' | 'expense' | 'transfer'>('all');
-
   // State Modal Tambah Akun
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
   const [newAccName, setNewAccName] = useState('');
@@ -549,25 +461,10 @@ function AuthenticatedApp({ uid, initialToast }: { uid: string; initialToast?: s
   const [selectedAccountForDetail, setSelectedAccountForDetail] = useState<Account | null>(null);
   const [txToDelete, setTxToDelete] = useState<Transaction | null>(null);
 
-  // Form Input Transaksi Baru
-  const [txType, setTxType] = useState<'income' | 'expense'>('expense');
-  const [txAmount, setTxAmount] = useState('');
+  // Pilihan akun default saat membuka form transaksi/transfer dari detail akun
   const [txAccountId, setTxAccountId] = useState('');
-  const [txCategory, setTxCategory] = useState('Makanan & Minuman');
-  useEffect(() => {
-    const valid = txType === 'expense' ? categories.lists.expense : txType === 'income' ? categories.lists.income : null;
-    if (valid && !valid.includes(txCategory)) setTxCategory(valid[0]);
-  }, [txType, txCategory, categories.lists]);
-  const [txNote, setTxNote] = useState('');
-  const [txDate, setTxDate] = useState(() => toLocalDateStr(new Date()));
-  const [calcNotice, setCalcNotice] = useState<string | null>(null);
-
-  // Form Transfer Baru
-  const [transferSource, setTransferSource] = useState('');
+  const [, setTransferSource] = useState('');
   const [transferDest, setTransferDest] = useState('');
-  const [transferAmount, setTransferAmount] = useState('');
-  const [transferNote, setTransferNote] = useState('');
-  const [transferNotice, setTransferNotice] = useState<string | null>(null);
 
   // Tutup dropdown jika klik di luar
   useEffect(() => {
@@ -586,13 +483,6 @@ function AuthenticatedApp({ uid, initialToast }: { uid: string; initialToast?: s
   const defaultLedgerRequestedRef = useRef(false);
   const cronExecutedLedgersRef = useRef<Set<string>>(new Set());
   const [ledgersLoaded, setLedgersLoaded] = useState(false);
-
-  // Tampilkan notifikasi toast satu kali jika migrasi baru saja memindahkan data
-  useEffect(() => {
-    if (initialToast) {
-      showToast(initialToast, 'success');
-    }
-  }, [initialToast]);
 
   // 1. Listener Preferensi Pengguna (activeLedgerId, notifikasi, automationEvents)
   useEffect(() => {
@@ -831,26 +721,6 @@ function AuthenticatedApp({ uid, initialToast }: { uid: string; initialToast?: s
   // KALKULATOR MINI LOGIC
   // =========================================================================
 
-  function handleTxAmountBlur() {
-    if (!txAmount) return;
-    const { success, result, displayValue } = evaluateMathExpression(txAmount);
-    if (success && displayValue !== txAmount) {
-      setCalcNotice(`Kalkulator: ${txAmount} = ${formatRupiah(result)}`);
-      setTxAmount(displayValue);
-      setTimeout(() => setCalcNotice(null), 4000);
-    }
-  }
-
-  function handleTransferAmountBlur() {
-    if (!transferAmount) return;
-    const { success, result, displayValue } = evaluateMathExpression(transferAmount);
-    if (success && displayValue !== transferAmount) {
-      setTransferNotice(`Kalkulator: ${transferAmount} = ${formatRupiah(result)}`);
-      setTransferAmount(displayValue);
-      setTimeout(() => setTransferNotice(null), 4000);
-    }
-  }
-
   function handleEditTxAmountBlur() {
     if (!editTxAmount) return;
     const { success, result, displayValue } = evaluateMathExpression(editTxAmount);
@@ -859,11 +729,6 @@ function AuthenticatedApp({ uid, initialToast }: { uid: string; initialToast?: s
       setEditTxAmount(displayValue);
       setTimeout(() => setEditCalcNotice(null), 4000);
     }
-  }
-
-  function addQuickAmount(val: number) {
-    const current = parseInt(txAmount.replace(/[^\d]/g, '') || '0', 10);
-    setTxAmount((current + val).toString());
   }
 
   // =========================================================================
@@ -962,34 +827,6 @@ function AuthenticatedApp({ uid, initialToast }: { uid: string; initialToast?: s
   // =========================================================================
   // CRUD TRANSAKSI TERIKAT KE BUKU KAS AKTIF
   // =========================================================================
-
-  async function handleSaveTransaction(e: React.FormEvent) {
-    e.preventDefault();
-    const { result } = evaluateMathExpression(txAmount);
-    if (result <= 0) {
-      showToast('Masukkan nominal transaksi yang valid (lebih dari 0)!', 'error');
-      return;
-    }
-    if (!txAccountId) {
-      showToast('Pilih akun sumber dana terlebih dahulu!', 'error');
-      return;
-    }
-
-    await createTransaction(uid, {
-      ledgerId: currentLedger.id,
-      accountId: txAccountId,
-      type: txType,
-      amount: result,
-      category: txCategory,
-      note: txNote,
-      date: txDate
-    });
-
-    setTxAmount('');
-    setTxNote('');
-    setCalcNotice(null);
-    showToast(`Transaksi ${txType === 'income' ? 'Pemasukan' : 'Pengeluaran'} dicatat di ${currentLedger.name}!`, 'success');
-  }
 
   function openEditTransactionModal(tx: Transaction) {
     setEditingTx(tx);
@@ -1095,56 +932,6 @@ function AuthenticatedApp({ uid, initialToast }: { uid: string; initialToast?: s
       showToast(err?.message || 'Gagal menghapus transaksi dari database', 'error');
     }
   }
-
-  // =========================================================================
-  // TRANSFER ANTAR AKUN (DALAM SATU BUKU KAS)
-  // =========================================================================
-
-  async function handleExecuteTransfer(e: React.FormEvent) {
-    e.preventDefault();
-    if (transferSource === transferDest) {
-      showToast('Akun asal dan akun tujuan tidak boleh sama!', 'error');
-      return;
-    }
-    const { result } = evaluateMathExpression(transferAmount);
-    if (result <= 0) {
-      showToast('Nominal transfer harus lebih dari 0!', 'error');
-      return;
-    }
-
-    try {
-      await executeAccountTransfer(uid, {
-        ledgerId: currentLedger.id,
-        fromAccountId: transferSource,
-        toAccountId: transferDest,
-        amount: result,
-        note: transferNote,
-        date: txDate
-      });
-
-      setTransferAmount('');
-      setTransferNote('');
-      setActiveFormMode('transaction');
-      setTransferNotice(null);
-      showToast('Transfer saldo antar akun berhasil dieksekusi secara atomik!', 'success');
-    } catch (err: any) {
-      showToast(err.message || 'Gagal melakukan transfer.', 'error');
-    }
-  }
-
-  function getAccountIcon(type: AccountType) {
-    switch (type) {
-      case 'bank': return <Landmark className="w-5 h-5" />;
-      case 'ewallet': return <Smartphone className="w-5 h-5" />;
-      case 'credit_card': return <CreditCard className="w-5 h-5" />;
-      default: return <Wallet className="w-5 h-5" />;
-    }
-  }
-
-  const filteredTransactions = transactions.filter(t => {
-    if (txFilter === 'all') return true;
-    return t.type === txFilter;
-  });
 
   // =========================================================================
   // MODUL 2: HANDLER GOALS & SINKING FUNDS
@@ -1734,10 +1521,6 @@ function AuthenticatedApp({ uid, initialToast }: { uid: string; initialToast?: s
   const estimatedMonthlyBills = monthlyFixedBills + yearlyFixedBillsMonthly;
   const variableBillsCount = bills.filter(b => b.pricingType === 'variable').length;
   const totalBillsPaid = bills.reduce((sum, b) => sum + (b.totalPaid || 0), 0);
-  const urgentBillsCount = bills.filter(b => {
-    const s = getBillDueStatus(b.nextPaymentDate);
-    return s.isOverdue || s.isToday;
-  }).length;
 
   // =========================================================================
   // HANDLERS & LOGIKA MODUL 4: OTOMATISASI TRANSAKSI
