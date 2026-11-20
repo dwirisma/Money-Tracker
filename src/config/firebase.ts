@@ -5,11 +5,11 @@ import firebaseConfig from '../../firebase-applet-config.json';
 
 export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-export const db = firebaseConfig.firestoreDatabaseId
-  ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
-  : getFirestore(app);
+export const db = getFirestore(app);
 
 export const auth = getAuth(app);
+
+export const ARTHA_USER_DOC_ID = 'user_artha';
 
 export enum OperationType {
   CREATE = 'create',

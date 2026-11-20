@@ -5,7 +5,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from 'firebase/auth';
-import { auth } from '../config/firebase';
+import { auth, ARTHA_USER_DOC_ID } from '../config/firebase';
 
 export const VIRTUAL_EMAIL_DOMAIN = '@artha.local';
 
@@ -70,6 +70,7 @@ function purgeLegacyArthaStorage(): void {
 interface AuthContextValue {
   user: User | null;
   uid: string | null;
+  authUid: string | null;
   displayUserId: string;
   authReady: boolean;
   login: (userId: string, password: string) => Promise<void>;
@@ -114,7 +115,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      uid: user?.uid ?? null,
+      uid: user ? ARTHA_USER_DOC_ID : null,
+      authUid: user?.uid ?? null,
       displayUserId: formatDisplayUserId(user?.email),
       authReady,
       login,

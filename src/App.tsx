@@ -156,6 +156,7 @@ import { subscribeInvestmentsByLedger, subscribeInvestmentEntriesByLedger } from
 import { subscribeUserPreferences, updateUserPreferences, DEFAULT_USER_PREFERENCES, type UserPreferences } from './services/preferencesService';
 import { subscribeCategoryBudgets, DEFAULT_CATEGORY_BUDGETS, type CategoryBudgetMap } from './services/budgetService';
 import { migrateLegacyDemoDataIfNeeded } from './services/migrationService';
+import { ARTHA_USER_DOC_ID } from './config/firebase';
 
 export default function App() {
   const { user, uid, authReady } = useAuth();
@@ -178,10 +179,56 @@ export default function App() {
     return <LoginPage />;
   }
 
-  return <AuthenticatedApp uid={uid} />;
+  return <MigrationGate uid={ARTHA_USER_DOC_ID} />;
 }
 
-function AuthenticatedApp({ uid }: { uid: string }) {
+function MigrationGate({ uid }: { uid: string }) {
+  const [migrationReady, setMigrationReady] = useState(false);
+  const [migrationBanner, setMigrationBanner] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setMigrationReady(false);
+
+    migrateLegacyDemoDataIfNeeded(uid)
+      .then((res) => {
+        if (!active) return;
+        if (!res.skipped && res.migratedCount > 0) {
+          setMigrationBanner(
+            `Migrasi otomatis selesai: ${res.migratedCount} dokumen berhasil dipindahkan ke ${uid}!`
+          );
+        }
+      })
+      .catch((err) => {
+        console.warn('Pengecekan migrasi otomatis dilewati:', err);
+      })
+      .finally(() => {
+        if (active) setMigrationReady(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [uid]);
+
+  if (!migrationReady) {
+    return (
+      <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex items-center justify-center p-4">
+        <div className="brutal-card p-6 flex flex-col items-center gap-3 text-center max-w-xs w-full">
+          <div className="w-12 h-12 bg-[var(--accent-sand)] text-[#14141a] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[3px_3px_0px_#000] flex items-center justify-center font-heading font-bold text-2xl animate-pulse">
+            A
+          </div>
+          <p className="font-heading font-bold text-sm">Menyiapkan data Artha Cloud...</p>
+          <p className="font-mono text-[11px] text-[var(--text-muted)]">Memverifikasi sinkronisasi database utama</p>
+        </div>
+      </div>
+    );
+  }
+
+  return <AuthenticatedApp uid={uid} initialToast={migrationBanner} />;
+}
+
+function AuthenticatedApp({ uid, initialToast }: { uid: string; initialToast?: string | null }) {
   // =========================================================================
   // STATE NAVIGASI SPA & CLOUD REAL-TIME DATA
   // =========================================================================
@@ -534,41 +581,18 @@ function AuthenticatedApp({ uid }: { uid: string }) {
   }, []);
 
   // =========================================================================
-  // REAL-TIME FIRESTORE LISTENERS: MIGRASI, PREFERENCES, LEDGERS & DATA PER BUKU KAS
+  // REAL-TIME FIRESTORE LISTENERS: PREFERENCES, LEDGERS & DATA PER BUKU KAS
   // =========================================================================
   const defaultLedgerRequestedRef = useRef(false);
   const cronExecutedLedgersRef = useRef<Set<string>>(new Set());
-  const [migrationReady, setMigrationReady] = useState(false);
   const [ledgersLoaded, setLedgersLoaded] = useState(false);
 
-  // 0. Migrasi otomatis satu kali dari users/demo_user_artha -> users/{uid}
+  // Tampilkan notifikasi toast satu kali jika migrasi baru saja memindahkan data
   useEffect(() => {
-    let active = true;
-    setMigrationReady(false);
-    setLedgersLoaded(false);
-    defaultLedgerRequestedRef.current = false;
-
-    migrateLegacyDemoDataIfNeeded(uid)
-      .then((res) => {
-        if (!active) return;
-        if (!res.skipped && res.migratedCount > 0) {
-          showToast(
-            `Data lama (${res.migratedCount} dokumen) berhasil dimigrasikan ke akun Cloud Anda!`,
-            'success'
-          );
-        }
-      })
-      .catch((err) => {
-        console.warn('Migrasi otomatis dilewati:', err);
-      })
-      .finally(() => {
-        if (active) setMigrationReady(true);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [uid]);
+    if (initialToast) {
+      showToast(initialToast, 'success');
+    }
+  }, [initialToast]);
 
   // 1. Listener Preferensi Pengguna (activeLedgerId, notifikasi, automationEvents)
   useEffect(() => {
@@ -581,6 +605,8 @@ function AuthenticatedApp({ uid }: { uid: string }) {
   // 2. Listener Daftar Buku Kas
   useEffect(() => {
     setIsLoading(true);
+    setLedgersLoaded(false);
+    defaultLedgerRequestedRef.current = false;
     const unsub = subscribeLedgers(uid, (list) => {
       setLedgers(list);
       setLedgersLoaded(true);
@@ -588,9 +614,9 @@ function AuthenticatedApp({ uid }: { uid: string }) {
     return unsub;
   }, [uid]);
 
-  // 2B. Auto-provision buku kas default HANYA setelah migrasi selesai & buku kas benar-benar kosong
+  // 2B. Auto-provision buku kas default HANYA jika buku kas benar-benar kosong
   useEffect(() => {
-    if (!migrationReady || !ledgersLoaded) return;
+    if (!ledgersLoaded) return;
     if (ledgers.length === 0 && !defaultLedgerRequestedRef.current) {
       defaultLedgerRequestedRef.current = true;
       void ensureDefaultLedger(uid).catch((err) => {
@@ -598,7 +624,7 @@ function AuthenticatedApp({ uid }: { uid: string }) {
         setIsLoading(false);
       });
     }
-  }, [uid, migrationReady, ledgersLoaded, ledgers.length]);
+  }, [uid, ledgersLoaded, ledgers.length]);
 
   // 3. Sinkronkan activeLedgerIdState terhadap daftar buku kas & preferensi cloud
   useEffect(() => {
