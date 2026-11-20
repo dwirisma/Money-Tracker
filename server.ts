@@ -7,12 +7,48 @@ import { GoogleGenAI, Type } from '@google/genai';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const GEMINI_PRIMARY_MODEL = 'gemini-4-hydrogen';
-const GEMINI_FALLBACK_MODEL = 'gemini-3.1-flash-lite';
+const GEMINI_LITE_MODEL = 'gemini-3.1-flash-lite';
+const GEMINI_DEEP_MODEL = 'gemini-4-hydrogen';
 
-const INSIGHT_CACHE_TTL_MS = 10 * 60 * 1000;
+const ALLOWED_GEMINI_MODELS = new Set<string>([GEMINI_LITE_MODEL, GEMINI_DEEP_MODEL]);
+const ALLOWED_CACHE_MINUTES = new Set<number>([10, 30, 60, 360]);
+
+const DEFAULT_CACHE_MINUTES = 10;
 const INSIGHT_CACHE_MAX_SIZE = 50;
-const insightCache = new Map<string, { data: { bullets: string[]; extraTip: string }; expiresAt: number }>();
+const insightCache = new Map<string, { data: { bullets: string[]; extraTip: string }; createdAt: number }>();
+
+function resolveModelOrder(requestedModel: unknown, autoFallback: unknown): string[] {
+  const primary =
+    typeof requestedModel === 'string' && ALLOWED_GEMINI_MODELS.has(requestedModel)
+      ? requestedModel
+      : GEMINI_LITE_MODEL;
+  const fallbackEnabled = autoFallback !== false;
+  if (!fallbackEnabled) return [primary];
+  const secondary = primary === GEMINI_LITE_MODEL ? GEMINI_DEEP_MODEL : GEMINI_LITE_MODEL;
+  return [primary, secondary];
+}
+
+function resolveCacheMinutes(raw: unknown): number {
+  const n = Number(raw);
+  return ALLOWED_CACHE_MINUTES.has(n) ? n : DEFAULT_CACHE_MINUTES;
+}
+
+function resolveFocusStyle(raw: unknown): 'ringkas' | 'hemat' | 'tabungan' {
+  if (raw === 'hemat' || raw === 'tabungan' || raw === 'ringkas') return raw;
+  return 'ringkas';
+}
+
+function getFocusStyleInstruction(style: 'ringkas' | 'hemat' | 'tabungan'): string {
+  switch (style) {
+    case 'hemat':
+      return 'Gaya Fokus: KETAT & AUDIT KEBOCORAN. Bersikap tajam dan kritis mengaudit potensi pemborosan, kebocoran anggaran kecil yang menumpuk, beban tagihan/utang, dan langkah pemangkasan biaya paling berdampak.';
+    case 'tabungan':
+      return 'Gaya Fokus: FOKUS TARGET & ARUS KAS. Prioritaskan strategi memaksimalkan surplus kas, meningkatkan rasio tabungan, mempercepat progres target Sinking Fund, dan menjaga momentum menabung.';
+    case 'ringkas':
+    default:
+      return 'Gaya Fokus: RINGKAS & PRAKTIS. Gunakan bahasa luwes, padat (maksimal 1-2 kalimat per poin), langsung pada wawasan utama dan aksi praktis minggu ini.';
+  }
+}
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
@@ -46,30 +82,52 @@ function isQuotaExceededError(err: unknown): boolean {
   return lower.includes('resource_exhausted') || lower.includes('429') || lower.includes('quota');
 }
 
+interface GeminiFallbackResult {
+  response: Awaited<ReturnType<GoogleGenAI['models']['generateContent']>>;
+  modelUsed: string;
+  exhaustedModels: string[];
+}
+
+function attachExhaustedModels(err: unknown, exhaustedModels: string[]): Error {
+  const base = err instanceof Error ? err : new Error(String(err || 'Unknown Gemini error'));
+  (base as Error & { exhaustedModels?: string[] }).exhaustedModels = exhaustedModels;
+  return base;
+}
+
+function getExhaustedModelsFromError(err: unknown): string[] {
+  const list = (err as { exhaustedModels?: unknown })?.exhaustedModels;
+  return Array.isArray(list) ? list.filter((x): x is string => typeof x === 'string') : [];
+}
+
 async function generateContentWithFallback(
   ai: GoogleGenAI,
   params: Omit<Parameters<GoogleGenAI['models']['generateContent']>[0], 'model'>,
   models: string[]
-) {
+): Promise<GeminiFallbackResult> {
   let lastError: unknown;
+  const exhaustedModels: string[] = [];
   for (let i = 0; i < models.length; i++) {
     const model = models[i];
     try {
-      return await ai.models.generateContent({
+      const response = await ai.models.generateContent({
         model,
         ...params,
       });
+      return { response, modelUsed: model, exhaustedModels };
     } catch (err) {
       lastError = err;
-      const hasNext = i < models.length - 1;
-      if (hasNext && isQuotaExceededError(err)) {
-        console.warn(`[Gemini] Quota exhausted on ${model}, falling back to ${models[i + 1]}`);
-        continue;
+      if (isQuotaExceededError(err)) {
+        exhaustedModels.push(model);
+        const hasNext = i < models.length - 1;
+        if (hasNext) {
+          console.warn(`[Gemini] Quota exhausted on ${model}, falling back to ${models[i + 1]}`);
+          continue;
+        }
       }
-      throw err;
+      throw attachExhaustedModels(err, exhaustedModels);
     }
   }
-  throw lastError;
+  throw attachExhaustedModels(lastError, exhaustedModels);
 }
 
 function normalizeGeminiError(err: unknown): { status: number; message: string } {
@@ -91,7 +149,7 @@ function normalizeGeminiError(err: unknown): { status: number; message: string }
   if (lower.includes('not_found') || lower.includes('404')) {
     return {
       status: 404,
-      message: `Model AI (${GEMINI_PRIMARY_MODEL}) tidak ditemukan atau tidak tersedia.`,
+      message: 'Model Gemini AI yang dipilih tidak ditemukan atau tidak tersedia.',
     };
   }
   if (lower.includes('payload') || lower.includes('too large') || lower.includes('size')) {
@@ -135,7 +193,8 @@ async function startServer() {
       return;
     }
 
-    const { base64Data, mimeType, categories, todayDate } = req.body ?? {};
+    const { base64Data, mimeType, categories, todayDate, model, autoFallback } = req.body ?? {};
+    const scanModels = resolveModelOrder(model, autoFallback);
     if (typeof base64Data !== 'string' || !base64Data.trim()) {
       res.status(400).json({ error: 'Data file struk atau dokumen tidak boleh kosong.' });
       return;
@@ -177,7 +236,7 @@ Instruksi Analisis Dokumen/Foto Struk:
 8. Jika rincian item belanja terlihat, daftarkan pada array "items" (nama item, qty, harga subtotal item tersebut dalam integer).`;
 
     try {
-      const response = await generateContentWithFallback(
+      const { response, modelUsed, exhaustedModels } = await generateContentWithFallback(
         ai,
         {
           contents: {
@@ -237,7 +296,7 @@ Instruksi Analisis Dokumen/Foto Struk:
             },
           },
         },
-        [GEMINI_PRIMARY_MODEL, GEMINI_FALLBACK_MODEL]
+        scanModels
       );
 
       const rawText = (response.text || '').trim();
@@ -247,15 +306,23 @@ Instruksi Analisis Dokumen/Foto Struk:
       }
 
       const parsed = JSON.parse(rawText);
-      res.json(parsed);
+      res.json({
+        ...parsed,
+        _meta: {
+          cached: false,
+          modelUsed,
+          exhaustedModels,
+        },
+      });
     } catch (err) {
       const norm = normalizeGeminiError(err);
+      const exhaustedModels = getExhaustedModelsFromError(err);
       if (norm.status === 429) {
         console.warn('[/api/gemini/scan-receipt] Quota exhausted (429):', norm.message);
       } else {
         console.error('[/api/gemini/scan-receipt] Error:', err);
       }
-      res.status(norm.status).json({ error: norm.message });
+      res.status(norm.status).json({ error: norm.message, exhaustedModels });
     }
   });
 
@@ -269,7 +336,24 @@ Instruksi Analisis Dokumen/Foto Struk:
       return;
     }
 
-    const { ledgerName, totalInFormatted, totalOutFormatted, activeGoalNames, billsCount, debtsCount } = req.body ?? {};
+    const {
+      ledgerName,
+      totalInFormatted,
+      totalOutFormatted,
+      activeGoalNames,
+      billsCount,
+      debtsCount,
+      model,
+      autoFallback,
+      cacheDurationMinutes,
+      focusStyle,
+    } = req.body ?? {};
+
+    const insightModels = resolveModelOrder(model, autoFallback);
+    const primaryModel = insightModels[0];
+    const validCacheMinutes = resolveCacheMinutes(cacheDurationMinutes);
+    const cacheTtlMs = validCacheMinutes * 60 * 1000;
+    const validFocusStyle = resolveFocusStyle(focusStyle);
 
     const cacheKey = JSON.stringify({
       ledgerName: ledgerName || 'Utama',
@@ -278,11 +362,20 @@ Instruksi Analisis Dokumen/Foto Struk:
       activeGoalNames: activeGoalNames || 'Belum ada',
       billsCount: Number(billsCount) || 0,
       debtsCount: Number(debtsCount) || 0,
+      primaryModel,
+      focusStyle: validFocusStyle,
     });
 
     const cached = insightCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      res.json(cached.data);
+    if (cached && Date.now() - cached.createdAt < cacheTtlMs) {
+      res.json({
+        ...cached.data,
+        _meta: {
+          cached: true,
+          modelUsed: primaryModel,
+          exhaustedModels: [],
+        },
+      });
       return;
     }
 
@@ -293,8 +386,10 @@ Pengeluaran bulan ini: ${totalOutFormatted || 'Rp 0'}
 Daftar target tabungan aktif: ${activeGoalNames || 'Belum ada'}
 Jumlah tagihan rutin: ${Number(billsCount) || 0}, Jumlah cicilan utang: ${Number(debtsCount) || 0}
 
+${getFocusStyleInstruction(validFocusStyle)}
+
 TUGAS PENTING:
-Berikan analisa keuangan yang luwes, santai, tajam, kontekstual, dan tidak kaku. Berikan 3 hingga 4 poin utama yang relevan dengan data di atas:
+Berikan analisa keuangan yang kontekstual dan tidak kaku sesuai gaya fokus di atas. Berikan 3 hingga 4 poin utama yang relevan dengan data di atas:
 1. Analisis pola pengeluaran atau kesehatan arus kas (awalin dengan emoji 💡)
 2. Progres tabungan atau motivasi pencapaian target (awalin dengan emoji 📈)
 3. Mitigasi kewajiban / tagihan / utang (awalin dengan emoji ⚡)
@@ -302,7 +397,7 @@ Berikan analisa keuangan yang luwes, santai, tajam, kontekstual, dan tidak kaku.
 Dan sertakan "extraTip" berupa satu kalimat tips cerdas hemat/investasi maksimal 15 kata.`;
 
     try {
-      const response = await generateContentWithFallback(
+      const { response, modelUsed, exhaustedModels } = await generateContentWithFallback(
         ai,
         {
           contents: prompt,
@@ -323,7 +418,7 @@ Dan sertakan "extraTip" berupa satu kalimat tips cerdas hemat/investasi maksimal
             },
           },
         },
-        [GEMINI_FALLBACK_MODEL, GEMINI_PRIMARY_MODEL]
+        insightModels
       );
 
       const rawText = (response.text || '').trim();
@@ -340,18 +435,26 @@ Dan sertakan "extraTip" berupa satu kalimat tips cerdas hemat/investasi maksimal
         }
         insightCache.set(cacheKey, {
           data: parsed,
-          expiresAt: Date.now() + INSIGHT_CACHE_TTL_MS,
+          createdAt: Date.now(),
         });
       }
-      res.json(parsed);
+      res.json({
+        ...parsed,
+        _meta: {
+          cached: false,
+          modelUsed,
+          exhaustedModels,
+        },
+      });
     } catch (err) {
       const norm = normalizeGeminiError(err);
+      const exhaustedModels = getExhaustedModelsFromError(err);
       if (norm.status === 429) {
         console.warn('[/api/gemini/insight] Quota exhausted (429):', norm.message);
       } else {
         console.error('[/api/gemini/insight] Error:', err);
       }
-      res.status(norm.status).json({ error: norm.message });
+      res.status(norm.status).json({ error: norm.message, exhaustedModels });
     }
   });
 

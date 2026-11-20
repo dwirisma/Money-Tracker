@@ -1,7 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { setPrivacyMode } from '../utils/financeUtils';
 import { useAuth } from './AuthContext';
-import { subscribeUserPreferences, updateUserPreferences } from '../services/settingsService';
+import {
+  DEFAULT_AI_SETTINGS,
+  normalizeAiSettings,
+  saveAiSettings,
+  subscribeUserPreferences,
+  updateUserPreferences,
+  type AiSettings,
+} from '../services/settingsService';
 
 export type Theme = 'dark' | 'light';
 
@@ -10,11 +17,13 @@ interface UIState {
   privacy: boolean;
   sidebarCollapsed: boolean;
   mobileDrawerOpen: boolean;
+  aiSettings: AiSettings;
   toggleTheme: () => void;
   togglePrivacy: () => void;
   toggleSidebar: () => void;
   toggleMobileDrawer: () => void;
   setMobileDrawerOpen: (open: boolean) => void;
+  updateAiSettings: (partial: Partial<AiSettings>) => Promise<void>;
 }
 
 const UIContext = createContext<UIState | null>(null);
@@ -25,14 +34,16 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const [privacy, setPrivacy] = useState<boolean>(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
+  const [aiSettings, setAiSettings] = useState<AiSettings>({ ...DEFAULT_AI_SETTINGS });
 
-  // Sinkronisasi preferensi UI real-time dari Cloud Firestore
+  // Sinkronisasi preferensi UI & AI real-time dari Cloud Firestore
   useEffect(() => {
     if (!uid) {
       setTheme('light');
       setPrivacy(false);
       setSidebarCollapsed(false);
       setMobileDrawerOpen(false);
+      setAiSettings({ ...DEFAULT_AI_SETTINGS });
       return;
     }
 
@@ -40,6 +51,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
       setTheme(prefs.theme);
       setPrivacy(prefs.privacy);
       setSidebarCollapsed(prefs.sidebarCollapsed);
+      setAiSettings(prefs.aiSettings);
     });
     return () => unsubscribe();
   }, [uid]);
@@ -87,27 +99,42 @@ export function UIProvider({ children }: { children: ReactNode }) {
 
   const toggleMobileDrawer = useCallback(() => setMobileDrawerOpen((o) => !o), []);
 
+  const updateAiSettings = useCallback(
+    async (partial: Partial<AiSettings>) => {
+      const next = normalizeAiSettings({ ...aiSettings, ...partial });
+      setAiSettings(next);
+      if (uid) {
+        await saveAiSettings(uid, next);
+      }
+    },
+    [aiSettings, uid]
+  );
+
   const value = useMemo(
     () => ({
       theme,
       privacy,
       sidebarCollapsed,
       mobileDrawerOpen,
+      aiSettings,
       toggleTheme,
       togglePrivacy,
       toggleSidebar,
       toggleMobileDrawer,
       setMobileDrawerOpen,
+      updateAiSettings,
     }),
     [
       theme,
       privacy,
       sidebarCollapsed,
       mobileDrawerOpen,
+      aiSettings,
       toggleTheme,
       togglePrivacy,
       toggleSidebar,
       toggleMobileDrawer,
+      updateAiSettings,
     ]
   );
 

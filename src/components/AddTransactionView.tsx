@@ -28,6 +28,7 @@ import { evaluateMathExpression, formatRupiah, freeBalanceText } from '../utils/
 import { useCategories, LOCKED_CATEGORY } from '../hooks/useCategories';
 import { saveCategoryBudgets, type CategoryBudgetMap } from '../services/settingsService';
 import { scanReceipt, formatFileSize, type ReceiptData } from '../services/receiptScanService';
+import { useUI } from '../context/UIContext';
 import type { ModuleId } from './layout/Navigation';
 import { ModalFrame } from './ui/BaseUI';
 import { CameraCaptureModal } from './CameraCaptureModal';
@@ -68,6 +69,7 @@ export function AddTransactionView({
   onNavigate,
   showToast
 }: Props) {
+  const { aiSettings } = useUI();
   // Mode Tab: 'income' | 'expense' | 'transfer'
   const [activeTab, setActiveTab] = useState<'expense' | 'income' | 'transfer'>('expense');
   
@@ -233,7 +235,12 @@ export function AddTransactionView({
     setScanStatus('scanning');
 
     try {
-      const r = await scanReceipt(file, categories.lists.expense);
+      const r = await scanReceipt(file, categories.lists.expense, {
+        uid,
+        primaryModel: aiSettings.primaryModel,
+        autoFallback: aiSettings.autoFallback,
+        compressReceiptImage: aiSettings.compressReceiptImage,
+      });
       setActiveTab('expense');
       setAmount(String(r.amount));
       if (r.date) setDate(r.date);

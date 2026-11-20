@@ -1,7 +1,10 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Sparkles, RefreshCw, AlertCircle, X } from 'lucide-react';
 import type { Account, Bill, Debt, Goal, Ledger, Transaction } from '../types';
 import { formatRupiah } from '../utils/financeUtils';
+import { useUI } from '../context/UIContext';
+import { useAuth } from '../context/AuthContext';
+import { recordAiApiUsage } from '../services/settingsService';
 
 interface Props {
   currentLedger: Ledger;
@@ -30,6 +33,9 @@ interface InsightData {
   source: 'ai' | 'local';
 }
 
+// Client-side cooldown cache agar mode 'auto' tidak berulang kali memanggil API saat berpindah tab/halaman
+const clientInsightCache = new Map<string, { data: InsightData; fetchedAt: number }>();
+
 export function AiInsightCard({
   currentLedger,
   transactions,
@@ -38,15 +44,16 @@ export function AiInsightCard({
   debts,
   accounts: _accounts
 }: Props) {
+  const { aiSettings, theme } = useUI();
+  const { uid } = useAuth();
   const [aiInsight, setAiInsight] = useState<InsightData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const inFlightRef = useRef(false);
 
-  // Reset AI insight & error when switching ledgers so local analytics update immediately without burning quota
-  useEffect(() => {
-    setAiInsight(null);
-    setErrorMsg(null);
-  }, [currentLedger.id]);
+  // Simpan referensi data terbaru untuk pemanggilan auto yang ter-debounce agar tidak memicu loop per perubahan snapshot
+  const latestDataRef = useRef({ currentLedger, transactions, goals, bills, debts, aiSettings, uid });
+  latestDataRef.current = { currentLedger, transactions, goals, bills, debts, aiSettings, uid };
 
   // Fungsi kalkulasi statistik analitik lokal dinamis & tidak kaku
   function computeLocalInsight(): InsightData {
@@ -144,51 +151,97 @@ export function AiInsightCard({
     };
   }
 
-  async function generateAiInsight() {
-    if (loading) return;
+  const generateAiInsight = useCallback(async (opts?: { respectClientCache?: boolean }) => {
+    const snap = latestDataRef.current;
+    if (snap.aiSettings.insightMode === 'off') return;
+    if (inFlightRef.current) return;
+
+    const now = new Date();
+    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const thisMonthTxs = snap.transactions.filter(t => (t.date || '').startsWith(ym));
+    const totalIn = thisMonthTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+    const totalOut = thisMonthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+
+    const activeGoalNames = snap.goals
+      .filter(g => !g.isCompleted && g.targetAmount > 0)
+      .map(g => `${g.name} (${Math.round((g.currentAmount / g.targetAmount) * 100)}%)`)
+      .slice(0, 3)
+      .join(', ');
+
+    const clientCacheKey = JSON.stringify({
+      ledgerId: snap.currentLedger.id,
+      model: snap.aiSettings.primaryModel,
+      focusStyle: snap.aiSettings.focusStyle,
+    });
+    const ttlMs = snap.aiSettings.cacheDurationMinutes * 60 * 1000;
+
+    if (opts?.respectClientCache) {
+      const cached = clientInsightCache.get(clientCacheKey);
+      if (cached && Date.now() - cached.fetchedAt < ttlMs) {
+        setAiInsight(cached.data);
+        setErrorMsg(null);
+        return;
+      }
+    }
+
+    inFlightRef.current = true;
     setLoading(true);
     setErrorMsg(null);
-    const local = computeLocalInsight();
 
     try {
-      const now = new Date();
-      const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      const thisMonthTxs = transactions.filter(t => (t.date || '').startsWith(ym));
-      const totalIn = thisMonthTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-      const totalOut = thisMonthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-
-      const activeGoalNames = goals
-        .filter(g => !g.isCompleted && g.targetAmount > 0)
-        .map(g => `${g.name} (${Math.round((g.currentAmount / g.targetAmount) * 100)}%)`)
-        .slice(0, 3)
-        .join(', ');
-
       const response = await fetch('/api/gemini/insight', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ledgerName: currentLedger.name,
+          ledgerName: snap.currentLedger.name,
           totalInFormatted: formatRupiah(totalIn),
           totalOutFormatted: formatRupiah(totalOut),
           activeGoalNames,
-          billsCount: bills.length,
-          debtsCount: debts.length,
+          billsCount: snap.bills.length,
+          debtsCount: snap.debts.length,
+          model: snap.aiSettings.primaryModel,
+          autoFallback: snap.aiSettings.autoFallback,
+          cacheDurationMinutes: snap.aiSettings.cacheDurationMinutes,
+          focusStyle: snap.aiSettings.focusStyle,
         }),
       });
 
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
+        if (response.status === 429 && snap.uid) {
+          const exhaustedModels =
+            Array.isArray(payload?.exhaustedModels) && payload.exhaustedModels.length > 0
+              ? payload.exhaustedModels
+              : [snap.aiSettings.primaryModel];
+          void recordAiApiUsage(snap.uid, {
+            cached: true,
+            exhaustedModels,
+          });
+        }
         setErrorMsg(payload?.error || `Gagal memuat analisis Gemini AI (HTTP ${response.status}).`);
         return;
       }
 
       if (Array.isArray(payload?.bullets) && payload.bullets.length > 0) {
-        setAiInsight({
+        if (snap.uid) {
+          const meta = payload?._meta;
+          void recordAiApiUsage(snap.uid, {
+            modelUsed:
+              typeof meta?.modelUsed === 'string'
+                ? meta.modelUsed
+                : snap.aiSettings.primaryModel,
+            cached: Boolean(meta?.cached),
+            exhaustedModels: Array.isArray(meta?.exhaustedModels) ? meta.exhaustedModels : [],
+          });
+        }
+        const nextData: InsightData = {
           bullets: payload.bullets,
-          extraTip: payload.extraTip || local.extraTip,
-          source: 'ai'
-        });
+          extraTip: payload.extraTip || undefined,
+          source: 'ai',
+        };
+        clientInsightCache.set(clientCacheKey, { data: nextData, fetchedAt: Date.now() });
+        setAiInsight(nextData);
       } else {
         setErrorMsg('Gemini AI tidak mengembalikan poin analisis yang valid.');
       }
@@ -196,11 +249,54 @@ export function AiInsightCard({
       const message = err instanceof Error ? err.message : 'Gagal terhubung ke server Gemini AI.';
       setErrorMsg(message);
     } finally {
+      inFlightRef.current = false;
       setLoading(false);
     }
-  }
+  }, []);
 
-  const currentData = aiInsight || computeLocalInsight();
+  // Reset AI insight saat ganti buku kas, model, gaya fokus, atau ketika mode diset ke 'off'
+  useEffect(() => {
+    setAiInsight(null);
+    setErrorMsg(null);
+  }, [currentLedger.id, aiSettings.primaryModel, aiSettings.focusStyle, aiSettings.insightMode]);
+
+  // Mode 'auto': jalankan otomatis saat Dashboard dimuat dengan debounce & menghormati durasi cache
+  useEffect(() => {
+    if (aiSettings.insightMode !== 'auto') return;
+
+    const clientCacheKey = JSON.stringify({
+      ledgerId: currentLedger.id,
+      model: aiSettings.primaryModel,
+      focusStyle: aiSettings.focusStyle,
+    });
+    const ttlMs = aiSettings.cacheDurationMinutes * 60 * 1000;
+    const cached = clientInsightCache.get(clientCacheKey);
+    if (cached && Date.now() - cached.fetchedAt < ttlMs) {
+      setAiInsight(cached.data);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void generateAiInsight({ respectClientCache: true });
+    }, 700);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    aiSettings.insightMode,
+    aiSettings.primaryModel,
+    aiSettings.focusStyle,
+    aiSettings.cacheDurationMinutes,
+    currentLedger.id,
+    generateAiInsight,
+  ]);
+
+  const localData = computeLocalInsight();
+  const currentData =
+    aiSettings.insightMode === 'off'
+      ? localData
+      : aiInsight
+        ? { ...aiInsight, extraTip: aiInsight.extraTip || localData.extraTip }
+        : localData;
 
   return (
     <section className="ax-ai" aria-live="polite">
@@ -210,20 +306,23 @@ export function AiInsightCard({
           AI Insight
           <span className="ax-badge-s">{currentData.source === 'ai' ? 'Gemini' : 'Analisis lokal'}</span>
         </h3>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border-2 border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] text-xs font-extrabold cursor-pointer shadow-[2px_2px_0_var(--border-color)] hover:translate-y-[-1px] active:translate-y-[1px] disabled:opacity-60 transition-transform"
-          onClick={generateAiInsight}
-          disabled={loading}
-          title={currentData.source === 'ai' ? 'Perbarui analisis Gemini AI' : 'Minta analisis cerdas dari Gemini AI'}
-          aria-label={currentData.source === 'ai' ? 'Perbarui analisis Gemini AI' : 'Minta analisis Gemini AI'}
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          <span>{loading ? 'Menganalisis...' : currentData.source === 'ai' ? 'Perbarui AI' : 'Analisis Gemini'}</span>
-        </button>
+        {aiSettings.insightMode !== 'off' && (
+          <button
+            type="button"
+            className={`w-9 h-9 rounded-xl inline-flex items-center justify-center shrink-0 border-2 border-[var(--border-color)] text-[var(--text-primary)] shadow-[var(--shadow-sm)] hover:translate-y-[-1px] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-60 cursor-pointer transition-transform ${
+              theme === 'dark' ? 'bg-[var(--bg-elevated)]' : 'bg-[#FFFDF7]'
+            }`}
+            onClick={() => void generateAiInsight({ respectClientCache: false })}
+            disabled={loading}
+            title="Analisis Gemini"
+            aria-label="Analisis Gemini"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        )}
       </div>
 
-      {errorMsg && (
+      {errorMsg && aiSettings.insightMode !== 'off' && (
         <div
           role="alert"
           className="mb-3 flex items-start justify-between gap-2 rounded-xl border-2 border-[var(--border-color)] bg-[var(--accent-terracotta-dark)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)]"

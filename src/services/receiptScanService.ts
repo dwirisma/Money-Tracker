@@ -3,6 +3,7 @@
  * Mendukung foto kamera, galeri gambar (JPG/PNG/WebP/HEIC), dan dokumen struk/invoice (PDF/TXT/CSV)
  * melalui endpoint server-side /api/gemini/scan-receipt.
  */
+import { recordAiApiUsage } from './settingsService';
 
 export interface ReceiptItem {
   name: string;
@@ -128,7 +129,10 @@ function compressImageToJpegBase64(file: File, maxSide = 1600): Promise<string> 
 /**
  * Menyiapkan file gambar atau dokumen (PDF/TXT/CSV) untuk dikirim ke Gemini API server.
  */
-export async function prepareReceiptPayload(file: File): Promise<PreparedReceiptPayload> {
+export async function prepareReceiptPayload(
+  file: File,
+  options?: { compressImage?: boolean }
+): Promise<PreparedReceiptPayload> {
   if (!file || file.size === 0) {
     throw new Error('File kosong atau tidak terbaca.');
   }
@@ -155,6 +159,19 @@ export async function prepareReceiptPayload(file: File): Promise<PreparedReceipt
       base64Data,
       mimeType: mime,
       kind: 'document',
+      fileName,
+      sizeLabel,
+    };
+  }
+
+  const shouldCompress = options?.compressImage !== false;
+
+  if (!shouldCompress) {
+    const rawBase64 = await readFileAsBase64(file);
+    return {
+      base64Data: rawBase64,
+      mimeType: mime || 'image/jpeg',
+      kind: 'image',
       fileName,
       sizeLabel,
     };
@@ -276,11 +293,24 @@ export function parseReceiptData(raw: any, categories: string[]): ReceiptData {
   };
 }
 
+export interface ReceiptScanAiOptions {
+  uid?: string | null;
+  primaryModel?: 'gemini-3.1-flash-lite' | 'gemini-4-hydrogen';
+  autoFallback?: boolean;
+  compressReceiptImage?: boolean;
+}
+
 /**
  * Memindai foto atau dokumen struk melalui backend /api/gemini/scan-receipt
  */
-export async function scanReceipt(file: File, categories: string[]): Promise<ReceiptData> {
-  const payload = await prepareReceiptPayload(file);
+export async function scanReceipt(
+  file: File,
+  categories: string[],
+  aiOptions?: ReceiptScanAiOptions
+): Promise<ReceiptData> {
+  const payload = await prepareReceiptPayload(file, {
+    compressImage: aiOptions?.compressReceiptImage ?? true,
+  });
 
   const response = await fetch('/api/gemini/scan-receipt', {
     method: 'POST',
@@ -291,16 +321,40 @@ export async function scanReceipt(file: File, categories: string[]): Promise<Rec
       filename: payload.fileName,
       categories,
       todayDate: isoToday(),
+      model: aiOptions?.primaryModel,
+      autoFallback: aiOptions?.autoFallback,
     }),
   });
 
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 429 && aiOptions?.uid) {
+      const exhaustedModels =
+        Array.isArray(body?.exhaustedModels) && body.exhaustedModels.length > 0
+          ? body.exhaustedModels
+          : [aiOptions.primaryModel || 'gemini-3.1-flash-lite'];
+      void recordAiApiUsage(aiOptions.uid, {
+        cached: true,
+        exhaustedModels,
+      });
+    }
     throw new Error(
       typeof body?.error === 'string' && body.error
         ? body.error
         : `Gagal memindai struk (status ${response.status}).`
     );
+  }
+
+  if (aiOptions?.uid) {
+    const meta = body?._meta;
+    void recordAiApiUsage(aiOptions.uid, {
+      modelUsed:
+        typeof meta?.modelUsed === 'string'
+          ? meta.modelUsed
+          : aiOptions.primaryModel || 'gemini-3.1-flash-lite',
+      cached: Boolean(meta?.cached),
+      exhaustedModels: Array.isArray(meta?.exhaustedModels) ? meta.exhaustedModels : [],
+    });
   }
 
   return parseReceiptData(body, categories);

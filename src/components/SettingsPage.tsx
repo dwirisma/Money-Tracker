@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Cloud,
   Eye,
@@ -18,10 +18,29 @@ import {
   FlaskConical,
   Sparkles,
   Trash2,
+  Cpu,
+  Clock,
+  ImageDown,
+  Zap,
+  Gauge,
+  RotateCcw,
 } from 'lucide-react';
 import { useUI } from '../context/UIContext';
 import { useAuth } from '../context/AuthContext';
 import { ARTHA_USER_DOC_ID, IS_SANDBOX_MODE } from '../config/firebase';
+import {
+  AI_TRACKED_MODELS,
+  createDefaultAiUsage,
+  resetAiUsageToday,
+  subscribeAiUsage,
+  updateAiUsageLimits,
+  type AiCacheDurationMinutes,
+  type AiFocusStyle,
+  type AiInsightMode,
+  type AiPrimaryModel,
+  type AiSettings,
+  type AiUsageRecord,
+} from '../services/settingsService';
 import {
   COLLECTION_LABELS,
   downloadCloudBackupJson,
@@ -38,10 +57,155 @@ import {
   type SandboxSeedResult,
 } from '../services/sandboxDataService';
 
+const INSIGHT_MODE_OPTIONS: Array<{
+  value: AiInsightMode;
+  title: string;
+  desc: string;
+  badge?: string;
+}> = [
+  {
+    value: 'manual',
+    title: 'Manual (Klik Ikon — Hemat Kuota)',
+    desc: 'Hanya memanggil Gemini saat tombol ikon refresh di Dashboard diklik.',
+    badge: 'Default',
+  },
+  {
+    value: 'auto',
+    title: 'Otomatis saat Buka Dashboard',
+    desc: 'Berjalan otomatis saat Dashboard dimuat dan tetap mematuhi durasi cache.',
+  },
+  {
+    value: 'off',
+    title: 'Nonaktif (Statistik Lokal Saja)',
+    desc: 'Tidak pernah memanggil Gemini API di Dashboard & menyembunyikan tombol refresh AI.',
+  },
+];
+
+const FOCUS_STYLE_OPTIONS: Array<{
+  value: AiFocusStyle;
+  title: string;
+  desc: string;
+}> = [
+  {
+    value: 'ringkas',
+    title: 'Ringkas & Praktis',
+    desc: 'Poin singkat, santai, langsung pada aksi nyata harian.',
+  },
+  {
+    value: 'hemat',
+    title: 'Ketat & Audit Kebocoran',
+    desc: 'Tajam mendeteksi pemborosan dan peluang pemangkasan biaya.',
+  },
+  {
+    value: 'tabungan',
+    title: 'Fokus Target & Arus Kas',
+    desc: 'Prioritas rasio tabungan, Sinking Fund, dan surplus bulanan.',
+  },
+];
+
 export function SettingsPage() {
-  const { theme, privacy, toggleTheme, togglePrivacy } = useUI();
+  const { theme, privacy, aiSettings, toggleTheme, togglePrivacy, updateAiSettings } = useUI();
   const { displayUserId, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // State indikator penyimpanan Pengaturan AI (Gemini) ke Cloud Firestore
+  const [aiSaveStatus, setAiSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [aiSaveError, setAiSaveError] = useState<string | null>(null);
+  const aiSaveTimerRef = useRef<number | null>(null);
+
+  // State Pelacak Estimasi Kuota Harian Gemini API (`users/{ARTHA_USER_DOC_ID}/settings/aiUsage`)
+  const [aiUsage, setAiUsage] = useState<AiUsageRecord>(() => createDefaultAiUsage());
+  const [limitInputs, setLimitInputs] = useState<Record<AiPrimaryModel, string>>({
+    'gemini-3.1-flash-lite': String(createDefaultAiUsage().limits['gemini-3.1-flash-lite']),
+    'gemini-4-hydrogen': String(createDefaultAiUsage().limits['gemini-4-hydrogen']),
+  });
+  const [isResettingUsage, setIsResettingUsage] = useState(false);
+
+  useEffect(() => {
+    const unsub = subscribeAiUsage(ARTHA_USER_DOC_ID, (record) => {
+      setAiUsage(record);
+      setLimitInputs({
+        'gemini-3.1-flash-lite': String(record.limits['gemini-3.1-flash-lite']),
+        'gemini-4-hydrogen': String(record.limits['gemini-4-hydrogen']),
+      });
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (aiSaveTimerRef.current) {
+        window.clearTimeout(aiSaveTimerRef.current);
+      }
+    };
+  }, []);
+
+  const flashAiSaved = () => {
+    setAiSaveStatus('saved');
+    if (aiSaveTimerRef.current) {
+      window.clearTimeout(aiSaveTimerRef.current);
+    }
+    aiSaveTimerRef.current = window.setTimeout(() => {
+      setAiSaveStatus('idle');
+    }, 2200);
+  };
+
+  const handleAiSettingChange = async (partial: Partial<AiSettings>) => {
+    setAiSaveStatus('saving');
+    setAiSaveError(null);
+    if (aiSaveTimerRef.current) {
+      window.clearTimeout(aiSaveTimerRef.current);
+    }
+    try {
+      await updateAiSettings(partial);
+      flashAiSaved();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal menyimpan pengaturan AI ke Cloud Firestore.';
+      setAiSaveStatus('error');
+      setAiSaveError(msg);
+    }
+  };
+
+  const handleCommitUsageLimit = async (model: AiPrimaryModel) => {
+    const raw = limitInputs[model].trim();
+    const parsed = Math.round(Number(raw));
+    if (!Number.isFinite(parsed) || parsed < 1) {
+      setLimitInputs((prev) => ({ ...prev, [model]: String(aiUsage.limits[model]) }));
+      return;
+    }
+    const clamped = Math.min(1_000_000, parsed);
+    if (clamped === aiUsage.limits[model]) {
+      setLimitInputs((prev) => ({ ...prev, [model]: String(clamped) }));
+      return;
+    }
+    setAiSaveStatus('saving');
+    setAiSaveError(null);
+    try {
+      await updateAiUsageLimits(ARTHA_USER_DOC_ID, { [model]: clamped });
+      flashAiSaved();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal memperbarui batas kuota harian AI.';
+      setAiSaveStatus('error');
+      setAiSaveError(msg);
+    }
+  };
+
+  const handleResetAiUsageToday = async () => {
+    if (isResettingUsage) return;
+    setIsResettingUsage(true);
+    setAiSaveStatus('saving');
+    setAiSaveError(null);
+    try {
+      await resetAiUsageToday(ARTHA_USER_DOC_ID);
+      flashAiSaved();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal mereset hitungan kuota hari ini.';
+      setAiSaveStatus('error');
+      setAiSaveError(msg);
+    } finally {
+      setIsResettingUsage(false);
+    }
+  };
 
   // State Download & Restore Backup (.json) <-> Cloud Firestore (users/user_artha)
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -338,6 +502,392 @@ export function SettingsPage() {
           </p>
         </section>
       </div>
+
+      {/* PENGATURAN AI & KUOTA (GEMINI) */}
+      <section className="ax-panel">
+        <div className="ax-ph">
+          <h3>
+            <span className="ax-ic" style={{ background: 'var(--accent-lavender)' }}>
+              <Cpu className="w-3.5 h-3.5" />
+            </span>
+            Pengaturan AI &amp; Kuota
+          </h3>
+          <div className="flex items-center gap-2">
+            {aiSaveStatus === 'saving' && (
+              <span className="inline-flex items-center gap-1 font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a]">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Menyimpan...
+              </span>
+            )}
+            {aiSaveStatus === 'saved' && (
+              <span className="inline-flex items-center gap-1 font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--accent-sage)] text-[#14141a]">
+                <CheckCircle2 className="w-3 h-3" />
+                Tersimpan di Cloud
+              </span>
+            )}
+            {aiSaveStatus === 'idle' && (
+              <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
+                Gemini AI
+              </span>
+            )}
+          </div>
+        </div>
+
+        {aiSaveError && (
+          <div className="mt-3 p-3 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-terracotta)] text-white flex items-start justify-between gap-2 text-xs">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{aiSaveError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setAiSaveError(null);
+                setAiSaveStatus('idle');
+              }}
+              aria-label="Tutup pesan error pengaturan AI"
+              className="p-0.5 rounded hover:bg-black/15 shrink-0"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        <div className="space-y-4 mt-3">
+          {/* 1. Mode Pemicu AI Insight */}
+          <div className="space-y-2">
+            <div>
+              <b className="block text-sm font-heading font-extrabold text-[var(--text-primary)]">
+                Mode Pemicu AI Insight
+              </b>
+              <small className="block text-xs text-[var(--text-secondary)]">
+                Atur kapan kartu AI Insight di Dashboard memanggil Gemini API agar penggunaan kuota tetap terkendali.
+              </small>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5" role="radiogroup" aria-label="Mode Pemicu AI Insight">
+              {INSIGHT_MODE_OPTIONS.map((opt) => {
+                const active = aiSettings.insightMode === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => void handleAiSettingChange({ insightMode: opt.value })}
+                    className={`text-left p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                      active
+                        ? 'border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] shadow-[3px_3px_0_var(--border-color)]'
+                        : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:border-[var(--border-color)]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-heading font-extrabold text-xs leading-snug">{opt.title}</span>
+                      {opt.badge && (
+                        <span
+                          className={`shrink-0 font-mono text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                            active
+                              ? 'border-[#14141a] bg-white/80 text-[#14141a]'
+                              : 'border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-secondary)]'
+                          }`}
+                        >
+                          {opt.badge}
+                        </span>
+                      )}
+                    </div>
+                    <p
+                      className={`mt-1 text-[11.5px] leading-relaxed ${
+                        active ? 'text-[#14141a]/85' : 'text-[var(--text-secondary)]'
+                      }`}
+                    >
+                      {opt.desc}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 2 & 4. Model Gemini Utama + Durasi Cache Analisis */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t-2 border-dashed border-[var(--border-subtle)]">
+            <label className="block space-y-1.5">
+              <span className="flex items-center gap-1.5 text-xs font-heading font-extrabold text-[var(--text-primary)]">
+                <Sparkles className="w-3.5 h-3.5 text-[var(--accent-lavender)]" />
+                Model Gemini Utama
+              </span>
+              <select
+                value={aiSettings.primaryModel}
+                onChange={(e) =>
+                  void handleAiSettingChange({ primaryModel: e.target.value as AiPrimaryModel })
+                }
+                className="brutal-input w-full text-xs font-bold"
+                aria-label="Pilih Model Gemini Utama"
+              >
+                <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Hemat Kuota &amp; Cepat - Default)</option>
+                <option value="gemini-4-hydrogen">gemini-4-hydrogen (Analisis Mendalam)</option>
+              </select>
+              <span className="block text-[11px] text-[var(--text-secondary)]">
+                Dipakai sebagai model prioritas untuk AI Insight Dashboard dan Scan Struk.
+              </span>
+            </label>
+
+            <label className="block space-y-1.5">
+              <span className="flex items-center gap-1.5 text-xs font-heading font-extrabold text-[var(--text-primary)]">
+                <Clock className="w-3.5 h-3.5 text-[var(--accent-blue)]" />
+                Durasi Cache Analisis (Cooldown)
+              </span>
+              <select
+                value={aiSettings.cacheDurationMinutes}
+                onChange={(e) =>
+                  void handleAiSettingChange({
+                    cacheDurationMinutes: Number(e.target.value) as AiCacheDurationMinutes,
+                  })
+                }
+                className="brutal-input w-full text-xs font-bold"
+                aria-label="Pilih Durasi Cache Analisis"
+              >
+                <option value={10}>10 Menit (Default)</option>
+                <option value={30}>30 Menit</option>
+                <option value={60}>1 Jam</option>
+                <option value={360}>6 Jam</option>
+              </select>
+              <span className="block text-[11px] text-[var(--text-secondary)]">
+                Menyimpan hasil analisis sementara agar data yang sama tidak memakan kuota berulang kali.
+              </span>
+            </label>
+          </div>
+
+          {/* 5. Gaya Fokus Analisis AI */}
+          <div className="space-y-2 pt-2 border-t-2 border-dashed border-[var(--border-subtle)]">
+            <div>
+              <b className="block text-sm font-heading font-extrabold text-[var(--text-primary)]">
+                Gaya Fokus Analisis AI
+              </b>
+              <small className="block text-xs text-[var(--text-secondary)]">
+                Tentukan sudut pandang rekomendasi yang dihasilkan oleh Gemini AI pada kartu AI Insight.
+              </small>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5" role="radiogroup" aria-label="Gaya Fokus Analisis AI">
+              {FOCUS_STYLE_OPTIONS.map((opt) => {
+                const active = aiSettings.focusStyle === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => void handleAiSettingChange({ focusStyle: opt.value })}
+                    className={`text-left p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                      active
+                        ? 'border-[var(--border-color)] bg-[var(--accent-sage)] text-[#14141a] shadow-[3px_3px_0_var(--border-color)]'
+                        : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:border-[var(--border-color)]'
+                    }`}
+                  >
+                    <span className="block font-heading font-extrabold text-xs">{opt.title}</span>
+                    <p
+                      className={`mt-1 text-[11.5px] leading-relaxed ${
+                        active ? 'text-[#14141a]/85' : 'text-[var(--text-secondary)]'
+                      }`}
+                    >
+                      {opt.desc}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 3 & 6. Toggles: Auto-Fallback Model & Kompresi Foto Scan Struk */}
+          <div className="space-y-2 pt-2 border-t-2 border-dashed border-[var(--border-subtle)]">
+            <div className="ax-setrow" style={{ marginTop: 0 }}>
+              <div>
+                <b className="inline-flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-[var(--accent-sand)]" />
+                  Auto-Fallback Model
+                </b>
+                <small>
+                  Otomatis beralih ke model cadangan ({aiSettings.primaryModel === 'gemini-3.1-flash-lite' ? 'gemini-4-hydrogen' : 'gemini-3.1-flash-lite'}) saat model utama terkena error kuota <code>429</code>.
+                </small>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={aiSettings.autoFallback}
+                className="ax-sw"
+                onClick={() => void handleAiSettingChange({ autoFallback: !aiSettings.autoFallback })}
+              >
+                <i />
+                {aiSettings.autoFallback ? 'Aktif' : 'Mati'}
+              </button>
+            </div>
+
+            <div className="ax-setrow" style={{ marginTop: 0 }}>
+              <div>
+                <b className="inline-flex items-center gap-1.5">
+                  <ImageDown className="w-3.5 h-3.5 text-[var(--accent-blue)]" />
+                  Kompresi Foto Scan Struk
+                </b>
+                <small>
+                  Mengompresi resolusi &amp; ukuran gambar struk di perangkat sebelum dikirim ke AI agar proses lebih cepat dan hemat token.
+                </small>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={aiSettings.compressReceiptImage}
+                className="ax-sw"
+                onClick={() =>
+                  void handleAiSettingChange({ compressReceiptImage: !aiSettings.compressReceiptImage })
+                }
+              >
+                <i />
+                {aiSettings.compressReceiptImage ? 'Aktif' : 'Mati'}
+              </button>
+            </div>
+          </div>
+
+          {/* ESTIMASI KUOTA HARIAN (HARI INI) - REAL-TIME FIRESTORE `settings/aiUsage` */}
+          <div className="space-y-3 pt-3 border-t-2 border-dashed border-[var(--border-subtle)]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <b className="inline-flex items-center gap-1.5 text-sm font-heading font-extrabold text-[var(--text-primary)]">
+                  <Gauge className="w-4 h-4 text-[var(--accent-sage)]" />
+                  Estimasi Kuota Harian (Hari Ini)
+                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
+                    {aiUsage.date}
+                  </span>
+                </b>
+                <small className="block text-xs text-[var(--text-secondary)] mt-0.5">
+                  Menghitung panggilan Gemini API nyata (respons dari cache tidak dihitung) dan reset otomatis setiap ganti hari.
+                </small>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleResetAiUsageToday()}
+                disabled={isResettingUsage}
+                className="brutal-btn text-xs !py-1.5 !px-2.5 shrink-0"
+              >
+                {isResettingUsage ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <RotateCcw className="w-3.5 h-3.5" />
+                )}
+                Reset Hitungan Hari Ini
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {AI_TRACKED_MODELS.map((model) => {
+                const used = aiUsage.usage[model] ?? 0;
+                const limit = Math.max(1, aiUsage.limits[model] ?? 1);
+                const remaining = Math.max(0, limit - used);
+                const isReached = Boolean(aiUsage.limitReached[model]);
+                const pct = Math.min(100, Math.round((used / limit) * 100));
+                const barColor =
+                  isReached || pct >= 90
+                    ? 'var(--accent-terracotta)'
+                    : pct >= 70
+                      ? 'var(--accent-sand)'
+                      : 'var(--accent-sage)';
+                const subtitle =
+                  model === 'gemini-3.1-flash-lite'
+                    ? 'Hemat Kuota & Cepat'
+                    : 'Analisis Mendalam';
+
+                return (
+                  <div
+                    key={model}
+                    className="p-3 rounded-xl border-2 border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[2px_2px_0_var(--border-color)] space-y-2.5"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-mono text-xs font-extrabold text-[var(--text-primary)] break-all">
+                            {model}
+                          </span>
+                          {aiSettings.primaryModel === model && (
+                            <span className="font-mono text-[9.5px] font-bold px-1.5 py-0.5 rounded border border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a]">
+                              Utama
+                            </span>
+                          )}
+                        </div>
+                        <span className="block text-[11px] text-[var(--text-secondary)]">
+                          {subtitle}
+                        </span>
+                      </div>
+
+                      {isReached && (
+                        <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold px-2 py-0.5 rounded border-2 border-[var(--border-color)] bg-[var(--accent-terracotta)] text-white shrink-0">
+                          <AlertTriangle className="w-3 h-3" />
+                          Limit 429 Tercapai Hari Ini
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="font-mono font-bold text-[var(--text-primary)]">
+                          Terpakai: {used} / {limit} request (Sisa ±{remaining})
+                        </span>
+                        <span className="font-mono text-[11px] font-bold text-[var(--text-secondary)]">
+                          {pct}%
+                        </span>
+                      </div>
+                      <div
+                        className="w-full h-3 rounded-full border-2 border-[var(--border-color)] bg-[var(--bg-surface)] overflow-hidden"
+                        role="progressbar"
+                        aria-valuenow={used}
+                        aria-valuemin={0}
+                        aria-valuemax={limit}
+                        aria-label={`Pemakaian kuota harian ${model}`}
+                      >
+                        <div
+                          className="h-full transition-all duration-300"
+                          style={{
+                            width: `${isReached ? 100 : pct}%`,
+                            backgroundColor: barColor,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-dashed border-[var(--border-subtle)]">
+                      <label
+                        htmlFor={`ai-limit-${model}`}
+                        className="text-[11px] font-semibold text-[var(--text-secondary)]"
+                      >
+                        Batas kuota / hari:
+                      </label>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          id={`ai-limit-${model}`}
+                          type="number"
+                          min={1}
+                          max={1000000}
+                          value={limitInputs[model]}
+                          onChange={(e) =>
+                            setLimitInputs((prev) => ({ ...prev, [model]: e.target.value }))
+                          }
+                          onBlur={() => void handleCommitUsageLimit(model)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.currentTarget.blur();
+                            }
+                          }}
+                          className="brutal-input !w-24 !py-1 !px-2 text-right font-mono text-xs font-bold"
+                          aria-label={`Batas kuota harian ${model}`}
+                        />
+                        <span className="font-mono text-[10.5px] text-[var(--text-secondary)]">
+                          req
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* PANEL SANDBOX / DATA DUMMY (HANYA MUNCUL DI PREVIEW / LOCALHOST) */}
       {IS_SANDBOX_MODE && (
