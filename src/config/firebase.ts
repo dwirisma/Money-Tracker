@@ -9,7 +9,15 @@ export const db = getFirestore(app);
 
 export const auth = getAuth(app);
 
-export const ARTHA_USER_DOC_ID = 'user_artha';
+const isProductionDomain =
+  typeof window !== 'undefined' &&
+  window.location.hostname === 'artha-apps.vercel.app';
+
+export const ARTHA_USER_DOC_ID = isProductionDomain
+  ? 'user_artha'
+  : 'user_artha_sandbox';
+
+export const IS_SANDBOX_MODE = !isProductionDomain;
 
 export enum OperationType {
   CREATE = 'create',

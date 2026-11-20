@@ -15,10 +15,13 @@ import {
   Loader2,
   X,
   Database,
+  FlaskConical,
+  Sparkles,
+  Trash2,
 } from 'lucide-react';
 import { useUI } from '../context/UIContext';
 import { useAuth } from '../context/AuthContext';
-import { ARTHA_USER_DOC_ID } from '../config/firebase';
+import { ARTHA_USER_DOC_ID, IS_SANDBOX_MODE } from '../config/firebase';
 import {
   COLLECTION_LABELS,
   downloadCloudBackupJson,
@@ -29,6 +32,11 @@ import {
   type RestoreProgress,
   type RestoreResult,
 } from '../services/backupRestoreService';
+import {
+  resetSandboxDummyData,
+  seedSandboxDummyData,
+  type SandboxSeedResult,
+} from '../services/sandboxDataService';
 
 export function SettingsPage() {
   const { theme, privacy, toggleTheme, togglePrivacy } = useUI();
@@ -46,6 +54,12 @@ export function SettingsPage() {
   const [restoreProgress, setRestoreProgress] = useState<RestoreProgress | null>(null);
   const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
+
+  // State Sandbox Dummy Data Generator & Reset (khusus IS_SANDBOX_MODE)
+  const [isSeedingSandbox, setIsSeedingSandbox] = useState(false);
+  const [isResettingSandbox, setIsResettingSandbox] = useState(false);
+  const [confirmResetSandbox, setConfirmResetSandbox] = useState(false);
+  const [sandboxNotice, setSandboxNotice] = useState<{ type: 'success' | 'error'; title: string; detail: string } | null>(null);
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -160,11 +174,74 @@ export function SettingsPage() {
     }
   };
 
+  const handleSeedSandbox = async () => {
+    if (!IS_SANDBOX_MODE || isSeedingSandbox || isResettingSandbox) return;
+    setIsSeedingSandbox(true);
+    setConfirmResetSandbox(false);
+    setSandboxNotice(null);
+    try {
+      const res: SandboxSeedResult = await seedSandboxDummyData();
+      setSandboxNotice({
+        type: 'success',
+        title: `Data Dummy Berhasil Diisi (${res.totalCreated} dokumen)`,
+        detail: `${res.counts.ledgers} buku kas, ${res.counts.accounts} rekening, ${res.counts.transactions} transaksi, ${res.counts.bills} tagihan, ${res.counts.debts} utang, ${res.counts.goals} target, ${res.counts.automations} otomatisasi, dan ${res.counts.investments} investasi telah ditulis ke users/${ARTHA_USER_DOC_ID}.`,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal mengisi data dummy ke Sandbox.';
+      setSandboxNotice({
+        type: 'error',
+        title: 'Gagal Mengisi Data Dummy',
+        detail: msg.toLowerCase().includes('permission')
+          ? 'Izin tulis ke users/user_artha_sandbox ditolak. Pastikan firestore.rules pada database (default) mengizinkan akses ke users/user_artha_sandbox.'
+          : msg,
+      });
+    } finally {
+      setIsSeedingSandbox(false);
+    }
+  };
+
+  const handleConfirmResetSandbox = async () => {
+    if (!IS_SANDBOX_MODE || isResettingSandbox || isSeedingSandbox) return;
+    setIsResettingSandbox(true);
+    setSandboxNotice(null);
+    try {
+      const res = await resetSandboxDummyData();
+      setConfirmResetSandbox(false);
+      setSandboxNotice({
+        type: 'success',
+        title: 'Data Dummy Sandbox Dikosongkan',
+        detail:
+          res.totalDeleted > 0
+            ? `${res.totalDeleted} dokumen di users/${ARTHA_USER_DOC_ID} telah dihapus. Data produksi users/user_artha tetap aman tidak tersentuh.`
+            : `Jalur users/${ARTHA_USER_DOC_ID} sudah dalam kondisi bersih.`,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal mereset data dummy Sandbox.';
+      setSandboxNotice({
+        type: 'error',
+        title: 'Gagal Mereset Data Dummy',
+        detail: msg.toLowerCase().includes('permission')
+          ? 'Izin hapus pada users/user_artha_sandbox ditolak. Pastikan firestore.rules pada database (default) mengizinkan akses ke users/user_artha_sandbox.'
+          : msg,
+      });
+    } finally {
+      setIsResettingSandbox(false);
+    }
+  };
+
   return (
     <div className="ax-add">
       <div className="ax-pagehead">
         <div>
-          <h2>Pengaturan</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2>Pengaturan</h2>
+            {IS_SANDBOX_MODE && (
+              <span className="px-2.5 py-0.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] shadow-[2px_2px_0px_var(--border-color)] font-mono text-[11px] font-bold inline-flex items-center gap-1">
+                <FlaskConical className="w-3.5 h-3.5" />
+                SANDBOX / DUMMY MODE
+              </span>
+            )}
+          </div>
           <p>Tampilan antarmuka, akun aktif, restore backup JSON, dan sinkronisasi real-time Cloud Firestore.</p>
         </div>
       </div>
@@ -261,6 +338,131 @@ export function SettingsPage() {
           </p>
         </section>
       </div>
+
+      {/* PANEL SANDBOX / DATA DUMMY (HANYA MUNCUL DI PREVIEW / LOCALHOST) */}
+      {IS_SANDBOX_MODE && (
+        <section className="ax-panel">
+          <div className="ax-ph">
+            <h3>
+              <span className="ax-ic" style={{ background: 'var(--accent-sand)' }}>
+                <FlaskConical className="w-3.5 h-3.5" />
+              </span>
+              SANDBOX / DUMMY MODE
+            </h3>
+            <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a]">
+              users/{ARTHA_USER_DOC_ID}
+            </span>
+          </div>
+
+          <div className="ax-setrow" style={{ marginTop: 4 }}>
+            <div>
+              <b>Lingkungan Uji Coba Terisolasi (Data Produksi Aman)</b>
+              <small>
+                Aplikasi sedang berjalan di luar domain produksi (<code>artha-apps.vercel.app</code>). Semua
+                perubahan hanya menulis ke <code>users/{ARTHA_USER_DOC_ID}</code> dan tidak menyentuh data asli{' '}
+                <code>users/user_artha</code>.
+              </small>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleSeedSandbox}
+                disabled={isSeedingSandbox || isResettingSandbox}
+                className="brutal-btn brutal-btn-sand shrink-0"
+              >
+                {isSeedingSandbox ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+                {isSeedingSandbox ? 'Mengisi Data...' : 'Isi Data Dummy Contoh'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSandboxNotice(null);
+                  setConfirmResetSandbox((v) => !v);
+                }}
+                disabled={isSeedingSandbox || isResettingSandbox}
+                className="brutal-btn brutal-btn-terracotta shrink-0"
+              >
+                <Trash2 className="w-4 h-4" />
+                Reset Data Dummy
+              </button>
+            </div>
+          </div>
+
+          {confirmResetSandbox && (
+            <div className="mt-3 p-3.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-[3px_3px_0px_var(--border-color)] flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-start gap-2 text-xs text-[var(--text-primary)]">
+                <AlertTriangle className="w-4 h-4 text-[var(--accent-terracotta)] shrink-0 mt-0.5" />
+                <span>
+                  Hapus seluruh data uji coba di <code className="font-mono font-bold">users/{ARTHA_USER_DOC_ID}</code>?
+                  Data asli di <code className="font-mono">users/user_artha</code> tetap aman.
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setConfirmResetSandbox(false)}
+                  disabled={isResettingSandbox}
+                  className="brutal-btn"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmResetSandbox}
+                  disabled={isResettingSandbox}
+                  className="brutal-btn brutal-btn-terracotta"
+                >
+                  {isResettingSandbox ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Menghapus...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Ya, Kosongkan Sandbox
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {sandboxNotice && (
+            <div
+              className={`mt-3 p-3.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] shadow-[3px_3px_0px_var(--border-color)] flex items-start justify-between gap-2 ${
+                sandboxNotice.type === 'success'
+                  ? 'bg-[var(--accent-sage)] text-[#14141a]'
+                  : 'bg-[var(--accent-terracotta)] text-white'
+              }`}
+            >
+              <div className="flex items-start gap-2">
+                {sandboxNotice.type === 'success' ? (
+                  <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                )}
+                <div>
+                  <p className="font-heading font-bold text-sm">{sandboxNotice.title}</p>
+                  <p className="text-xs opacity-95 mt-0.5 leading-relaxed">{sandboxNotice.detail}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSandboxNotice(null)}
+                aria-label="Tutup notifikasi sandbox"
+                className="p-1 rounded border border-current/40 hover:bg-black/10 shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* BACKUP & RESTORE DATA (.JSON) */}
       <section className="ax-panel">

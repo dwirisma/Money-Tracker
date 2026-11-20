@@ -3,12 +3,21 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Akses penuh ke seluruh data Artha di users/user_artha hanya setelah login Firebase Auth
+    // Jalur data produksi (artha-apps.vercel.app)
     match /users/user_artha {
       allow read, write: if request.auth != null;
     }
 
     match /users/user_artha/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Jalur data dummy/testing Sandbox (AI Studio preview & localhost)
+    match /users/user_artha_sandbox {
+      allow read, write: if request.auth != null;
+    }
+
+    match /users/user_artha_sandbox/{document=**} {
       allow read, write: if request.auth != null;
     }
 

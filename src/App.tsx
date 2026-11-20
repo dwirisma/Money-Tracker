@@ -121,7 +121,7 @@ import {
   type UserPreferences,
   type CategoryBudgetMap,
 } from './services/settingsService';
-import { ARTHA_USER_DOC_ID } from './config/firebase';
+import { ARTHA_USER_DOC_ID, IS_SANDBOX_MODE } from './config/firebase';
 
 export default function App() {
   const { user, uid, authReady } = useAuth();
@@ -1913,6 +1913,17 @@ function AuthenticatedApp({ uid }: { uid: string }) {
 
             {/* Action Buttons Top Header (Tergantung Modul yang Aktif) */}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+              {IS_SANDBOX_MODE && (
+                <button
+                  type="button"
+                  onClick={() => setActiveModule('settings')}
+                  title="Anda berada di Sandbox Mode (users/user_artha_sandbox). Data asli aman. Klik untuk kelola data dummy."
+                  className="px-2 py-1 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] shadow-[2px_2px_0px_var(--border-color)] font-mono text-[10px] sm:text-[11px] font-bold tracking-tight whitespace-nowrap hover:brightness-95 transition"
+                >
+                  <span className="hidden sm:inline">SANDBOX / DUMMY MODE</span>
+                  <span className="sm:hidden">SANDBOX</span>
+                </button>
+              )}
               <HeaderTools />
               <NotificationCenter
                 uid={uid}
