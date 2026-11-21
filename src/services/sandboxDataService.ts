@@ -1,26 +1,40 @@
 /**
  * Sandbox Dummy Data Seeder & Resetter
- * KHUSUS beroperasi pada jalur `users/user_artha_sandbox` ketika `IS_SANDBOX_MODE === true`.
+ * KHUSUS beroperasi pada jalur `users/user_artha_sandbox` ketika sesi berada pada Sandbox / Demo Mode.
  * Dilindungi guard keras agar tidak pernah dapat menyentuh data produksi `users/user_artha`.
  */
 import {
   collection,
   doc,
   getDocs,
+  limit,
+  query,
   writeBatch,
   type DocumentReference,
 } from 'firebase/firestore';
 import {
-  ARTHA_USER_DOC_ID,
-  IS_SANDBOX_MODE,
+  SANDBOX_USER_DOC_ID,
+  getActiveUserDocId,
+  isSandboxSession,
   db,
   OperationType,
   handleFirestoreError,
 } from '../config/firebase';
 import { toLocalDateStr } from '../utils/dateUtils';
+import {
+  BASIC_SALARY,
+  DEFAULT_AUTO_OT_HOURS_PER_SUNDAY_SHIFT_3,
+  DEFAULT_MEAL_RATE,
+  HOUSING_ALLOWANCE,
+  HOUSING_DEDUCTION,
+  SHIFT_ALLOWANCE,
+  calculateDailyOvertimeAmount,
+  calculateSalaryBreakdown,
+  generateShiftCalendar,
+} from '../utils/salaryCalculator';
 import { DEFAULT_CATEGORY_BUDGETS } from './settingsService';
 
-const SANDBOX_UID = 'user_artha_sandbox';
+const SANDBOX_UID = SANDBOX_USER_DOC_ID;
 const BATCH_CHUNK_SIZE = 450;
 
 const SANDBOX_COLLECTIONS = [
@@ -53,6 +67,8 @@ export interface SandboxSeedResult {
     goals: number;
     automations: number;
     investments: number;
+    shiftSchedules: number;
+    salaryRecords: number;
   };
 }
 
@@ -61,8 +77,8 @@ export interface SandboxResetResult {
 }
 
 function assertSandboxOnly(): void {
-  if (!IS_SANDBOX_MODE || ARTHA_USER_DOC_ID !== SANDBOX_UID) {
-    throw new Error('Operasi data dummy hanya diizinkan pada Sandbox Mode (users/user_artha_sandbox).');
+  if (!isSandboxSession() || getActiveUserDocId() !== SANDBOX_UID) {
+    throw new Error('Operasi data dummy hanya diizinkan pada Sandbox / Demo Mode (users/user_artha_sandbox).');
   }
 }
 
@@ -70,6 +86,20 @@ function daysFromToday(deltaDays: number): string {
   const d = new Date();
   d.setDate(d.getDate() + deltaDays);
   return toLocalDateStr(d);
+}
+
+function dateInMonthsAgo(monthsAgo: number, dayOfMonth: number): string {
+  const now = new Date();
+  const target = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(dayOfMonth, lastDay));
+  return toLocalDateStr(target);
+}
+
+function periodKeyForMonthsAgo(monthsAgo: number): string {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 /**
@@ -277,6 +307,77 @@ export async function seedSandboxDummyData(): Promise<SandboxSeedResult> {
       createdAt: now - 3 * 86400000,
       updatedAt: now,
     },
+    // Riwayat 6 bulan terakhir untuk mengisi Grafik Arus Kas 6 Bulan & Laporan Analitik
+    ...[1, 2, 3, 4, 5].flatMap((mAgo, idx) => {
+      const salary = 8400000 + (idx % 3) * 225000;
+      const grocery = 1850000 + (idx % 2) * 320000;
+      const dining = 950000 + (idx % 3) * 140000;
+      const utilities = 720000 + (idx % 2) * 85000;
+      const transport = 540000 + (idx % 3) * 90000;
+      const baseTs = now - mAgo * 30 * 86400000;
+      return [
+        {
+          id: `tx_sb_6m_${mAgo}_inc`,
+          ledgerId,
+          accountId: 'acc_sb_mandiri',
+          type: 'income',
+          amount: salary,
+          category: 'Gaji Bulanan',
+          note: `Gaji bulanan ${periodKeyForMonthsAgo(mAgo)} (Sandbox)`,
+          date: dateInMonthsAgo(mAgo, 25),
+          createdAt: baseTs,
+          updatedAt: now,
+        },
+        {
+          id: `tx_sb_6m_${mAgo}_groc`,
+          ledgerId,
+          accountId: 'acc_sb_bca',
+          type: 'expense',
+          amount: grocery,
+          category: 'Belanja Bulanan',
+          note: `Belanja kebutuhan pokok ${periodKeyForMonthsAgo(mAgo)}`,
+          date: dateInMonthsAgo(mAgo, 10),
+          createdAt: baseTs - 86400000,
+          updatedAt: now,
+        },
+        {
+          id: `tx_sb_6m_${mAgo}_food`,
+          ledgerId,
+          accountId: 'acc_sb_gopay',
+          type: 'expense',
+          amount: dining,
+          category: 'Makanan & Minuman',
+          note: `Konsumsi & makan harian ${periodKeyForMonthsAgo(mAgo)}`,
+          date: dateInMonthsAgo(mAgo, 14),
+          createdAt: baseTs - 2 * 86400000,
+          updatedAt: now,
+        },
+        {
+          id: `tx_sb_6m_${mAgo}_util`,
+          ledgerId,
+          accountId: 'acc_sb_bca',
+          type: 'expense',
+          amount: utilities,
+          category: 'Tagihan & Utilitas',
+          note: `Listrik, air & WiFi ${periodKeyForMonthsAgo(mAgo)}`,
+          date: dateInMonthsAgo(mAgo, 18),
+          createdAt: baseTs - 3 * 86400000,
+          updatedAt: now,
+        },
+        {
+          id: `tx_sb_6m_${mAgo}_trans`,
+          ledgerId,
+          accountId: 'acc_sb_gopay',
+          type: 'expense',
+          amount: transport,
+          category: 'Transportasi',
+          note: `BBM & tol bulanan ${periodKeyForMonthsAgo(mAgo)}`,
+          date: dateInMonthsAgo(mAgo, 21),
+          createdAt: baseTs - 4 * 86400000,
+          updatedAt: now,
+        },
+      ];
+    }),
   ];
 
   const bills = [
@@ -486,6 +587,94 @@ export async function seedSandboxDummyData(): Promise<SandboxSeedResult> {
     },
   ];
 
+  // Data contoh Modul 6: Pengaturan Gaji, Kalender Shift periode berjalan, & Riwayat Slip Gaji
+  // Cut-off kalender shift adalah tgl 21 s/d tgl 20 bulan berikutnya (mengikuti Module6SalaryShift)
+  const nowDate = new Date();
+  const activeShiftPeriodDate =
+    nowDate.getDate() >= 21
+      ? new Date(nowDate.getFullYear(), nowDate.getMonth() + 1, 1)
+      : new Date(nowDate.getFullYear(), nowDate.getMonth(), 1);
+  const currentPeriodKey = `${activeShiftPeriodDate.getFullYear()}-${String(activeShiftPeriodDate.getMonth() + 1).padStart(2, '0')}`;
+  const rawShiftDays = generateShiftCalendar(
+    activeShiftPeriodDate.getMonth(),
+    activeShiftPeriodDate.getFullYear(),
+    'C',
+    undefined,
+    DEFAULT_AUTO_OT_HOURS_PER_SUNDAY_SHIFT_3,
+    true
+  );
+
+  let otSampleApplied = 0;
+  const shiftDays = rawShiftDays.map((day, index) => {
+    const meals = day.isWorkDay
+      ? {
+          breakfast: day.shiftCode === 'II',
+          lunch: day.shiftCode === 'II' || day.shiftCode === 'III',
+          dinner: day.shiftCode === 'I' || day.shiftCode === 'III',
+        }
+      : { breakfast: false, lunch: false, dinner: false };
+
+    let overtimeHours = 0;
+    if (day.isWorkDay && otSampleApplied < 3 && index % 6 === 2) {
+      overtimeHours = otSampleApplied === 1 ? 3 : 2;
+      otSampleApplied += 1;
+    }
+
+    const { index: overtimeIndex, amount: overtimeAmount } = calculateDailyOvertimeAmount(
+      overtimeHours,
+      day.dayType
+    );
+
+    return {
+      ...day,
+      overtimeHours,
+      overtimeIndex,
+      overtimeAmount,
+      meals,
+      note: overtimeHours > 0 ? 'Lembur operasional (Contoh Sandbox)' : day.note || '',
+    };
+  });
+
+  const sampleBreakdown = calculateSalaryBreakdown(
+    shiftDays,
+    'TK/0',
+    DEFAULT_MEAL_RATE,
+    nowDate.getFullYear(),
+    nowDate.getMonth()
+  );
+  const salarySettingsDoc = {
+    ledgerId,
+    basicSalary: BASIC_SALARY,
+    housingAllowance: HOUSING_ALLOWANCE,
+    shiftAllowance: SHIFT_ALLOWANCE,
+    housingDeduction: HOUSING_DEDUCTION,
+    mealRate: DEFAULT_MEAL_RATE,
+    ptkpStatus: 'TK/0',
+    defaultGroup: 'C',
+    autoOTHoursPerSundayShift3: DEFAULT_AUTO_OT_HOURS_PER_SUNDAY_SHIFT_3,
+    isAutoOTEnabled: true,
+    payrollAuto: {
+      enabled: false,
+      accountId: 'acc_sb_mandiri',
+    },
+    updatedAt: now,
+  };
+
+  const salaryHistoryRecords = [1, 2].map((mAgo) => {
+    const period = periodKeyForMonthsAgo(mAgo);
+    return {
+      id: `sal_sb_${ledgerId}_${period}`,
+      ledgerId,
+      period,
+      totalOtHours: Math.max(8, Math.round(sampleBreakdown.totalOTHours + (mAgo === 1 ? 2 : -1))),
+      totalMeals: Math.max(20, sampleBreakdown.totalMealCount),
+      totalAddOns: mAgo === 1 ? 500000 : 0,
+      grossSalary: Math.round(sampleBreakdown.grossIncome + (mAgo === 1 ? 500000 : 0)),
+      netSalary: Math.round(sampleBreakdown.netSalary + (mAgo === 1 ? 450000 : 0)),
+      createdAt: now - mAgo * 30 * 86400000,
+    };
+  });
+
   const batch = writeBatch(db);
 
   ledgers.forEach((item) => batch.set(doc(db, 'users', SANDBOX_UID, 'ledgers', item.id), item, { merge: true }));
@@ -496,6 +685,26 @@ export async function seedSandboxDummyData(): Promise<SandboxSeedResult> {
   goals.forEach((item) => batch.set(doc(db, 'users', SANDBOX_UID, 'goals', item.id), item, { merge: true }));
   automations.forEach((item) => batch.set(doc(db, 'users', SANDBOX_UID, 'automations', item.id), item, { merge: true }));
   investments.forEach((item) => batch.set(doc(db, 'users', SANDBOX_UID, 'investments', item.id), item, { merge: true }));
+  salaryHistoryRecords.forEach((item) =>
+    batch.set(doc(db, 'users', SANDBOX_UID, 'salaryHistory', item.id), item, { merge: true })
+  );
+
+  batch.set(
+    doc(db, 'users', SANDBOX_UID, 'salarySettings', ledgerId),
+    salarySettingsDoc,
+    { merge: true }
+  );
+
+  batch.set(
+    doc(db, 'users', SANDBOX_UID, 'shiftSchedules', `shift_${ledgerId}_${currentPeriodKey}_grp_C`),
+    {
+      ledgerId,
+      periodKey: `${currentPeriodKey}_grp_C`,
+      days: shiftDays,
+      updatedAt: now,
+    },
+    { merge: true }
+  );
 
   batch.set(
     doc(db, 'users', SANDBOX_UID, 'budgets', ledgerId),
@@ -535,10 +744,52 @@ export async function seedSandboxDummyData(): Promise<SandboxSeedResult> {
     goals: goals.length,
     automations: automations.length,
     investments: investments.length,
+    shiftSchedules: 1,
+    salaryRecords: salaryHistoryRecords.length,
   };
 
-  const totalCreated = Object.values(counts).reduce((sum, n) => sum + n, 0) + 2;
+  const totalCreated = Object.values(counts).reduce((sum, n) => sum + n, 0) + 3;
   return { totalCreated, counts };
+}
+
+let pendingAutoSeedPromise: Promise<{ seeded: boolean; result?: SandboxSeedResult }> | null = null;
+
+/**
+ * Memastikan jalur `users/user_artha_sandbox` otomatis memiliki data dummy lengkap
+ * ketika akun demo login dan database sandbox masih kosong (belum punya rekening & transaksi).
+ * Aman dipanggil berulang kali (idempoten & tidak menimpa data yang sudah ada).
+ */
+export async function ensureSandboxSeededIfEmpty(): Promise<{
+  seeded: boolean;
+  result?: SandboxSeedResult;
+}> {
+  if (!isSandboxSession() || getActiveUserDocId() !== SANDBOX_UID) {
+    return { seeded: false };
+  }
+
+  if (pendingAutoSeedPromise) {
+    return pendingAutoSeedPromise;
+  }
+
+  pendingAutoSeedPromise = (async () => {
+    try {
+      const [accountsSnap, transactionsSnap] = await Promise.all([
+        getDocs(query(collection(db, 'users', SANDBOX_UID, 'accounts'), limit(1))),
+        getDocs(query(collection(db, 'users', SANDBOX_UID, 'transactions'), limit(1))),
+      ]);
+
+      if (!accountsSnap.empty || !transactionsSnap.empty) {
+        return { seeded: false };
+      }
+
+      const result = await seedSandboxDummyData();
+      return { seeded: true, result };
+    } finally {
+      pendingAutoSeedPromise = null;
+    }
+  })();
+
+  return pendingAutoSeedPromise;
 }
 
 /**

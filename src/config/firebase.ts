@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, type User } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -9,15 +9,69 @@ export const db = getFirestore(app);
 
 export const auth = getAuth(app);
 
-const isProductionDomain =
-  typeof window !== 'undefined' &&
-  window.location.hostname === 'artha-apps.vercel.app';
+export const PRODUCTION_DOMAIN = 'artha-apps.vercel.app';
+export const PRODUCTION_USER_DOC_ID = 'user_artha';
+export const SANDBOX_USER_DOC_ID = 'user_artha_sandbox';
+export const DEMO_EMAIL_PREFIX = 'demo@';
 
-export const ARTHA_USER_DOC_ID = isProductionDomain
-  ? 'user_artha'
-  : 'user_artha_sandbox';
+/**
+ * Opsional: tambahkan UID Firebase Auth akun demo/reviewer di sini bila emailnya
+ * tidak berawalan `demo@`.
+ */
+export const DEMO_UID_ALLOWLIST: readonly string[] = [];
 
-export const IS_SANDBOX_MODE = !isProductionDomain;
+export function isProductionDomain(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    window.location.hostname === PRODUCTION_DOMAIN
+  );
+}
+
+/**
+ * Mengembalikan `true` jika pengguna yang aktif adalah akun demo/reviewer
+ * (User ID `demo` -> email virtual `demo@artha.local`, email berawalan `demo@`,
+ * atau terdaftar pada `DEMO_UID_ALLOWLIST`).
+ */
+export function isDemoAccount(
+  user?: Pick<User, 'email' | 'uid'> | null
+): boolean {
+  const target = user !== undefined ? user : auth.currentUser;
+  if (!target) return false;
+
+  const email = (target.email || '').trim().toLowerCase();
+  if (email === 'demo' || email.startsWith(DEMO_EMAIL_PREFIX)) {
+    return true;
+  }
+
+  return Boolean(target.uid && DEMO_UID_ALLOWLIST.includes(target.uid));
+}
+
+/**
+ * Prioritas routing Sandbox Mode:
+ * 1. Akun `demo` / `demo@*` -> SELALU Sandbox (`true`), termasuk di domain produksi.
+ * 2. Di luar domain produksi (AI Studio preview / localhost) -> Sandbox (`true`).
+ * 3. Akun utama pada `artha-apps.vercel.app` -> Produksi (`false`).
+ */
+export function isSandboxSession(
+  user?: Pick<User, 'email' | 'uid'> | null
+): boolean {
+  if (isDemoAccount(user)) {
+    return true;
+  }
+  return !isProductionDomain();
+}
+
+/**
+ * Menentukan ID dokumen root Firestore (`user_artha` vs `user_artha_sandbox`)
+ * secara dinamis mengikuti akun yang sedang login dan domain aktif.
+ */
+export function getActiveUserDocId(
+  user?: Pick<User, 'email' | 'uid'> | null
+): string {
+  return isSandboxSession(user)
+    ? SANDBOX_USER_DOC_ID
+    : PRODUCTION_USER_DOC_ID;
+}
 
 export enum OperationType {
   CREATE = 'create',

@@ -293,7 +293,8 @@ export function getBillDueStatus(nextPaymentDate?: string) {
 
 export function subscribeLedgers(
   uid: string,
-  onData: (ledgers: Ledger[]) => void
+  onData: (ledgers: Ledger[]) => void,
+  onError?: (error: unknown) => void
 ): () => void {
   const path = `users/${uid}/ledgers`;
   return onSnapshot(
@@ -304,7 +305,10 @@ export function subscribeLedgers(
         .sort((a, b) => toTimestampMs(a.createdAt) - toTimestampMs(b.createdAt));
       onData(list);
     },
-    (error) => logFirestoreListenerError(error, OperationType.LIST, path)
+    (error) => {
+      logFirestoreListenerError(error, OperationType.LIST, path);
+      onError?.(error);
+    }
   );
 }
 

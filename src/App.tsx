@@ -121,10 +121,11 @@ import {
   type UserPreferences,
   type CategoryBudgetMap,
 } from './services/settingsService';
-import { ARTHA_USER_DOC_ID, IS_SANDBOX_MODE } from './config/firebase';
+import { SANDBOX_USER_DOC_ID } from './config/firebase';
+import { ensureSandboxSeededIfEmpty } from './services/sandboxDataService';
 
 export default function App() {
-  const { user, uid, authReady } = useAuth();
+  const { user, uid, isDemo, isSandbox, authReady } = useAuth();
 
   if (!authReady) {
     return (
@@ -144,16 +145,33 @@ export default function App() {
     return <LoginPage />;
   }
 
-  return <AuthenticatedApp uid={ARTHA_USER_DOC_ID} />;
+  return (
+    <AuthenticatedApp
+      key={uid}
+      uid={uid}
+      isDemo={isDemo}
+      isSandbox={isSandbox}
+    />
+  );
 }
 
-function AuthenticatedApp({ uid }: { uid: string }) {
+function AuthenticatedApp({
+  uid,
+  isDemo,
+  isSandbox,
+}: {
+  uid: string;
+  isDemo: boolean;
+  isSandbox: boolean;
+}) {
   // =========================================================================
   // STATE NAVIGASI SPA & CLOUD REAL-TIME DATA
   // =========================================================================
   const [isAddAutomationOpen, setIsAddAutomationOpen] = useState(false);  
   const [activeModule, setActiveModule] = useState<ModuleId>('dashboard');
   const { toggleMobileDrawer } = useUI();
+  const { displayUserId, authUid } = useAuth();
+  const [firestorePermissionError, setFirestorePermissionError] = useState<string | null>(null);
   const [investments, setInvestments] = useState<InvestmentAsset[]>([]);
   const [investmentEntries, setInvestmentEntries] = useState<InvestmentEntry[]>([]);
   const [autopilotRules, setAutopilotRules] = useState<AutopilotRule[]>([]);
@@ -496,25 +514,78 @@ function AuthenticatedApp({ uid }: { uid: string }) {
   useEffect(() => {
     setIsLoading(true);
     setLedgersLoaded(false);
+    setFirestorePermissionError(null);
     defaultLedgerRequestedRef.current = false;
-    const unsub = subscribeLedgers(uid, (list) => {
-      setLedgers(list);
-      setLedgersLoaded(true);
-    });
+    const unsub = subscribeLedgers(
+      uid,
+      (list) => {
+        setFirestorePermissionError(null);
+        setLedgers(list);
+        setLedgersLoaded(true);
+      },
+      (err) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('insufficient')) {
+          setFirestorePermissionError(
+            `Akses Cloud Firestore ke jalur users/${uid} ditolak oleh Security Rules database (default) untuk akun ${displayUserId}${authUid ? ` (UID: ${authUid})` : ''}. Pastikan Firestore Rules di Firebase Console sudah di-Publish untuk mengizinkan akses ke users/${uid}.`
+          );
+          setIsLoading(false);
+        }
+      }
+    );
     return unsub;
-  }, [uid]);
+  }, [uid, displayUserId, authUid]);
+
+  // 2A. Auto-seed data contoh Sandbox otomatis saat akun Demo login dan sandbox masih kosong
+  useEffect(() => {
+    if (!isDemo || uid !== SANDBOX_USER_DOC_ID) return;
+    let cancelled = false;
+    void ensureSandboxSeededIfEmpty()
+      .then((res) => {
+        if (!cancelled && res.seeded) {
+          showToast('Data contoh Sandbox otomatis disiapkan untuk akun demo.', 'info');
+        }
+      })
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!cancelled && (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('insufficient'))) {
+          setFirestorePermissionError(
+            `Akses Cloud Firestore ke jalur users/${uid} ditolak oleh Security Rules database (default) untuk akun ${displayUserId}${authUid ? ` (UID: ${authUid})` : ''}. Pastikan Firestore Rules di Firebase Console sudah di-Publish untuk mengizinkan akses ke users/${uid}.`
+          );
+          setIsLoading(false);
+        } else {
+          console.error('Gagal auto-seed data dummy akun demo:', err);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isDemo, uid, displayUserId, authUid]);
 
   // 2B. Auto-provision buku kas default HANYA jika buku kas benar-benar kosong
   useEffect(() => {
     if (!ledgersLoaded) return;
     if (ledgers.length === 0 && !defaultLedgerRequestedRef.current) {
       defaultLedgerRequestedRef.current = true;
-      void ensureDefaultLedger(uid).catch((err) => {
-        console.error('Gagal membuat buku kas default:', err);
-        setIsLoading(false);
-      });
+      if (isDemo && uid === SANDBOX_USER_DOC_ID) {
+        void ensureSandboxSeededIfEmpty()
+          .then((res) => {
+            if (!res.seeded) {
+              return ensureDefaultLedger(uid);
+            }
+          })
+          .catch((err) => {
+            console.error('Gagal menyiapkan data contoh akun demo:', err);
+            setIsLoading(false);
+          });
+      } else {
+        void ensureDefaultLedger(uid).catch((err) => {
+          console.error('Gagal membuat buku kas default:', err);
+          setIsLoading(false);
+        });
+      }
     }
-  }, [uid, ledgersLoaded, ledgers.length]);
+  }, [uid, isDemo, ledgersLoaded, ledgers.length]);
 
   // 3. Sinkronkan activeLedgerIdState terhadap daftar buku kas & preferensi cloud
   useEffect(() => {
@@ -1913,15 +1984,21 @@ function AuthenticatedApp({ uid }: { uid: string }) {
 
             {/* Action Buttons Top Header (Tergantung Modul yang Aktif) */}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-              {IS_SANDBOX_MODE && (
+              {isSandbox && (
                 <button
                   type="button"
                   onClick={() => setActiveModule('settings')}
-                  title="Anda berada di Sandbox Mode (users/user_artha_sandbox). Data asli aman. Klik untuk kelola data dummy."
+                  title={
+                    isDemo
+                      ? 'Anda login sebagai Akun Demo (users/user_artha_sandbox). Data produksi aman tidak tersentuh. Klik untuk kelola data dummy.'
+                      : 'Anda berada di Sandbox Mode (users/user_artha_sandbox). Data asli aman. Klik untuk kelola data dummy.'
+                  }
                   className="px-2 py-1 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] shadow-[2px_2px_0px_var(--border-color)] dark:border dark:border-[#E2B68E]/35 dark:bg-[rgba(226,182,142,0.14)] dark:text-[#E2B68E] dark:shadow-none font-mono text-[10px] sm:text-[11px] font-bold tracking-tight whitespace-nowrap hover:brightness-95 dark:hover:bg-[rgba(226,182,142,0.22)] transition"
                 >
-                  <span className="hidden sm:inline">SANDBOX / DUMMY MODE</span>
-                  <span className="sm:hidden">SANDBOX</span>
+                  <span className="hidden sm:inline">
+                    {isDemo ? 'SANDBOX / DEMO ACCOUNT' : 'SANDBOX / DUMMY MODE'}
+                  </span>
+                  <span className="sm:hidden">{isDemo ? 'DEMO' : 'SANDBOX'}</span>
                 </button>
               )}
               <HeaderTools />
@@ -2038,6 +2115,25 @@ function AuthenticatedApp({ uid }: { uid: string }) {
 
       {/* Main Container */}
       <main className="flex-1 w-full p-2.5 sm:p-3 space-y-3 sm:space-y-3 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-10">
+        {firestorePermissionError && (
+          <div className="brutal-card p-3.5 border-[var(--accent-terracotta)] bg-[var(--accent-terracotta)]/15 dark:border-[#FB7185]/35 dark:bg-[#FB7185]/12 text-[var(--text-primary)] flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5 text-xs leading-relaxed">
+              <AlertTriangle className="w-4 h-4 text-[var(--accent-terracotta)] dark:text-[#FB7185] shrink-0 mt-0.5" />
+              <div>
+                <p className="font-heading font-extrabold text-sm">Izin Firestore Rules Belum Diperbarui</p>
+                <p className="mt-0.5 text-[var(--text-secondary)]">{firestorePermissionError}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFirestorePermissionError(null)}
+              aria-label="Tutup peringatan izin Firestore"
+              className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
         
         {/* =================================================================== */}
         {/* KONTEN MODUL 1: KAS & TRANSAKSI                                     */}

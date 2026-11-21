@@ -3,22 +3,45 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Jalur data produksi (artha-apps.vercel.app)
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Deteksi akun demo/reviewer berdasarkan prefix email `demo@` (mis. `demo@artha.local`)
+    // atau UID akun demo secara eksplisit.
+    function isDemoAccount() {
+      return isSignedIn() && (
+        ('email' in request.auth.token &&
+          request.auth.token.email is string &&
+          request.auth.token.email.lower().matches('^demo@.*'))
+        || request.auth.uid in ['IAe9s4BFAoRtIfmHMZCRjwIjhGm2']
+      );
+    }
+
+    // Akses eksklusif jalur produksi (`users/user_artha`).
+    // Memblokir akun `demo@*` di level database meskipun diakses dari domain produksi.
+    // Rekomendasi keamanan produksi: kunci juga ke UID akun utama Anda dari Firebase Auth Console:
+    //   return isSignedIn() && request.auth.uid == 'REPLACE_WITH_PRIMARY_USER_UID';
+    function isPrimaryOwner() {
+      return isSignedIn() && !isDemoAccount();
+    }
+
+    // Jalur data produksi (`artha-apps.vercel.app` - khusus akun utama, blokir akun demo)
     match /users/user_artha {
-      allow read, write: if request.auth != null;
+      allow read, write: if isPrimaryOwner();
     }
 
     match /users/user_artha/{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isPrimaryOwner();
     }
 
-    // Jalur data dummy/testing Sandbox (AI Studio preview & localhost)
+    // Jalur data dummy/testing Sandbox (akun demo, AI Studio preview, & localhost)
     match /users/user_artha_sandbox {
-      allow read, write: if request.auth != null;
+      allow read, write: if isSignedIn();
     }
 
     match /users/user_artha_sandbox/{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isSignedIn();
     }
 
     // Blokir seluruh path lainnya secara default

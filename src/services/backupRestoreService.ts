@@ -10,7 +10,7 @@
  * - Seluruh perubahan langsung terdeteksi secara real-time oleh listener `onSnapshot`.
  */
 import { collection, doc, getDoc, getDocs, writeBatch, type DocumentData } from 'firebase/firestore';
-import { ARTHA_USER_DOC_ID, db, OperationType, handleFirestoreError } from '../config/firebase';
+import { getActiveUserDocId, db, OperationType, handleFirestoreError } from '../config/firebase';
 import { LOCKED_CATEGORY } from '../hooks/useCategories';
 import { toLocalDateStr } from '../utils/dateUtils';
 
@@ -283,7 +283,7 @@ function collectSourceMap(parsedRoot: Record<string, unknown>): Record<string, u
  */
 export function parseBackupJson(
   rawText: string,
-  targetUserDocId: string = ARTHA_USER_DOC_ID
+  targetUserDocId: string = getActiveUserDocId()
 ): ParsedBackupPlan {
   if (!rawText || !rawText.trim()) {
     throw new Error('File backup kosong. Pilih file .json yang berisi data Artha.');
@@ -654,7 +654,7 @@ export function parseBackupJson(
 export async function executeBackupRestore(
   plan: ParsedBackupPlan,
   onProgress?: (progress: RestoreProgress) => void,
-  targetUserDocId: string = ARTHA_USER_DOC_ID
+  targetUserDocId: string = getActiveUserDocId()
 ): Promise<RestoreResult> {
   const { operations, countsByCollection } = plan;
   const totalDocs = operations.length;
@@ -783,7 +783,7 @@ function serializeFirestoreValue(value: unknown, stripSensitive = false): unknow
  * yang kompatibel 1:1 dengan fitur Restore Backup (.json).
  */
 export async function downloadCloudBackupJson(
-  targetUserDocId: string = ARTHA_USER_DOC_ID
+  targetUserDocId: string = getActiveUserDocId()
 ): Promise<BackupDownloadResult> {
   const exportedAt = new Date().toISOString();
   const countsByCollection: Record<string, number> = {};

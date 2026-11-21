@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { useUI } from '../context/UIContext';
 import { useAuth } from '../context/AuthContext';
-import { ARTHA_USER_DOC_ID, IS_SANDBOX_MODE } from '../config/firebase';
+import { getActiveUserDocId, PRODUCTION_USER_DOC_ID } from '../config/firebase';
 import {
   AI_TRACKED_MODELS,
   createDefaultAiUsage,
@@ -105,7 +105,9 @@ const FOCUS_STYLE_OPTIONS: Array<{
 
 export function SettingsPage() {
   const { theme, privacy, aiSettings, toggleTheme, togglePrivacy, updateAiSettings } = useUI();
-  const { displayUserId, logout } = useAuth();
+  const { displayUserId, uid, isDemo, isSandbox, logout } = useAuth();
+  const activeUserDocId = uid || getActiveUserDocId();
+  const sandboxBadgeLabel = isDemo ? 'SANDBOX / DEMO ACCOUNT' : 'SANDBOX / DUMMY MODE';
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // State indikator penyimpanan Pengaturan AI (Gemini) ke Cloud Firestore
@@ -113,7 +115,7 @@ export function SettingsPage() {
   const [aiSaveError, setAiSaveError] = useState<string | null>(null);
   const aiSaveTimerRef = useRef<number | null>(null);
 
-  // State Pelacak Estimasi Kuota Harian Gemini API (`users/{ARTHA_USER_DOC_ID}/settings/aiUsage`)
+  // State Pelacak Estimasi Kuota Harian Gemini API (`users/{activeUserDocId}/settings/aiUsage`)
   const [aiUsage, setAiUsage] = useState<AiUsageRecord>(() => createDefaultAiUsage());
   const [limitInputs, setLimitInputs] = useState<Record<AiPrimaryModel, string>>({
     'gemini-3.1-flash-lite': String(createDefaultAiUsage().limits['gemini-3.1-flash-lite']),
@@ -122,7 +124,7 @@ export function SettingsPage() {
   const [isResettingUsage, setIsResettingUsage] = useState(false);
 
   useEffect(() => {
-    const unsub = subscribeAiUsage(ARTHA_USER_DOC_ID, (record) => {
+    const unsub = subscribeAiUsage(activeUserDocId, (record) => {
       setAiUsage(record);
       setLimitInputs({
         'gemini-3.1-flash-lite': String(record.limits['gemini-3.1-flash-lite']),
@@ -130,7 +132,7 @@ export function SettingsPage() {
       });
     });
     return () => unsub();
-  }, []);
+  }, [activeUserDocId]);
 
   useEffect(() => {
     return () => {
@@ -167,6 +169,10 @@ export function SettingsPage() {
   };
 
   const handleCommitUsageLimit = async (model: AiPrimaryModel) => {
+    if (isDemo) {
+      setLimitInputs((prev) => ({ ...prev, [model]: String(aiUsage.limits[model]) }));
+      return;
+    }
     const raw = limitInputs[model].trim();
     const parsed = Math.round(Number(raw));
     if (!Number.isFinite(parsed) || parsed < 1) {
@@ -181,7 +187,7 @@ export function SettingsPage() {
     setAiSaveStatus('saving');
     setAiSaveError(null);
     try {
-      await updateAiUsageLimits(ARTHA_USER_DOC_ID, { [model]: clamped });
+      await updateAiUsageLimits(activeUserDocId, { [model]: clamped });
       flashAiSaved();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Gagal memperbarui batas kuota harian AI.';
@@ -191,12 +197,12 @@ export function SettingsPage() {
   };
 
   const handleResetAiUsageToday = async () => {
-    if (isResettingUsage) return;
+    if (isDemo || isResettingUsage) return;
     setIsResettingUsage(true);
     setAiSaveStatus('saving');
     setAiSaveError(null);
     try {
-      await resetAiUsageToday(ARTHA_USER_DOC_ID);
+      await resetAiUsageToday(activeUserDocId);
       flashAiSaved();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Gagal mereset hitungan kuota hari ini.';
@@ -207,7 +213,7 @@ export function SettingsPage() {
     }
   };
 
-  // State Download & Restore Backup (.json) <-> Cloud Firestore (users/user_artha)
+  // State Download & Restore Backup (.json) <-> Cloud Firestore (users/{activeUserDocId})
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDownloadingBackup, setIsDownloadingBackup] = useState(false);
   const [downloadResult, setDownloadResult] = useState<BackupDownloadResult | null>(null);
@@ -219,7 +225,7 @@ export function SettingsPage() {
   const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
 
-  // State Sandbox Dummy Data Generator & Reset (khusus IS_SANDBOX_MODE)
+  // State Sandbox Dummy Data Generator & Reset (khusus Sandbox / Demo Account)
   const [isSeedingSandbox, setIsSeedingSandbox] = useState(false);
   const [isResettingSandbox, setIsResettingSandbox] = useState(false);
   const [confirmResetSandbox, setConfirmResetSandbox] = useState(false);
@@ -247,7 +253,7 @@ export function SettingsPage() {
     setRestoreError(null);
     setDownloadResult(null);
     try {
-      const result = await downloadCloudBackupJson(ARTHA_USER_DOC_ID);
+      const result = await downloadCloudBackupJson(activeUserDocId);
       setDownloadResult(result);
     } catch (err) {
       const rawMsg =
@@ -255,7 +261,7 @@ export function SettingsPage() {
       let friendlyMsg = rawMsg;
       if (rawMsg.toLowerCase().includes('permission') || rawMsg.toLowerCase().includes('missing or insufficient')) {
         friendlyMsg =
-          'Izin baca ditolak oleh Firestore Rules (permission-denied). Pastikan Rules pada database (default) mengizinkan akses baca ke users/user_artha untuk pengguna yang sudah login.';
+          `Izin baca ditolak oleh Firestore Rules (permission-denied). Pastikan Rules pada database (default) mengizinkan akses baca ke users/${activeUserDocId} untuk pengguna yang sudah login.`;
       }
       setRestoreError(friendlyMsg);
     } finally {
@@ -284,7 +290,7 @@ export function SettingsPage() {
     reader.onload = () => {
       try {
         const text = typeof reader.result === 'string' ? reader.result : '';
-        const plan = parseBackupJson(text, ARTHA_USER_DOC_ID);
+        const plan = parseBackupJson(text, activeUserDocId);
         setPendingPlan(plan);
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Gagal membaca struktur file backup JSON.';
@@ -321,7 +327,7 @@ export function SettingsPage() {
       const result = await executeBackupRestore(
         pendingPlan,
         (progress) => setRestoreProgress(progress),
-        ARTHA_USER_DOC_ID
+        activeUserDocId
       );
       setRestoreResult(result);
       setPendingPlan(null);
@@ -330,7 +336,7 @@ export function SettingsPage() {
       let friendlyMsg = rawMsg;
       if (rawMsg.toLowerCase().includes('permission') || rawMsg.toLowerCase().includes('missing or insufficient')) {
         friendlyMsg =
-          'Izin tulis ditolak oleh Firestore Rules (permission-denied). Pastikan Rules pada database (default) mengizinkan akses tulis ke users/user_artha untuk pengguna yang sudah login.';
+          `Izin tulis ditolak oleh Firestore Rules (permission-denied). Pastikan Rules pada database (default) mengizinkan akses tulis ke users/${activeUserDocId} untuk pengguna yang sudah login.`;
       }
       setRestoreError(friendlyMsg);
     } finally {
@@ -339,7 +345,7 @@ export function SettingsPage() {
   };
 
   const handleSeedSandbox = async () => {
-    if (!IS_SANDBOX_MODE || isSeedingSandbox || isResettingSandbox) return;
+    if (!isSandbox || isSeedingSandbox || isResettingSandbox) return;
     setIsSeedingSandbox(true);
     setConfirmResetSandbox(false);
     setSandboxNotice(null);
@@ -348,7 +354,7 @@ export function SettingsPage() {
       setSandboxNotice({
         type: 'success',
         title: `Data Dummy Berhasil Diisi (${res.totalCreated} dokumen)`,
-        detail: `${res.counts.ledgers} buku kas, ${res.counts.accounts} rekening, ${res.counts.transactions} transaksi, ${res.counts.bills} tagihan, ${res.counts.debts} utang, ${res.counts.goals} target, ${res.counts.automations} otomatisasi, dan ${res.counts.investments} investasi telah ditulis ke users/${ARTHA_USER_DOC_ID}.`,
+        detail: `${res.counts.ledgers} buku kas, ${res.counts.accounts} rekening, ${res.counts.transactions} transaksi (6 bulan), ${res.counts.bills} tagihan, ${res.counts.debts} utang, ${res.counts.goals} target, ${res.counts.automations} otomatisasi, ${res.counts.investments} investasi, ${res.counts.shiftSchedules} jadwal shift, dan ${res.counts.salaryRecords} riwayat gaji telah ditulis ke users/${activeUserDocId}.`,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Gagal mengisi data dummy ke Sandbox.';
@@ -356,7 +362,7 @@ export function SettingsPage() {
         type: 'error',
         title: 'Gagal Mengisi Data Dummy',
         detail: msg.toLowerCase().includes('permission')
-          ? 'Izin tulis ke users/user_artha_sandbox ditolak. Pastikan firestore.rules pada database (default) mengizinkan akses ke users/user_artha_sandbox.'
+          ? `Izin tulis ke users/${activeUserDocId} ditolak. Pastikan firestore.rules pada database (default) mengizinkan akses ke users/${activeUserDocId}.`
           : msg,
       });
     } finally {
@@ -365,7 +371,7 @@ export function SettingsPage() {
   };
 
   const handleConfirmResetSandbox = async () => {
-    if (!IS_SANDBOX_MODE || isResettingSandbox || isSeedingSandbox) return;
+    if (!isSandbox || isResettingSandbox || isSeedingSandbox) return;
     setIsResettingSandbox(true);
     setSandboxNotice(null);
     try {
@@ -376,8 +382,8 @@ export function SettingsPage() {
         title: 'Data Dummy Sandbox Dikosongkan',
         detail:
           res.totalDeleted > 0
-            ? `${res.totalDeleted} dokumen di users/${ARTHA_USER_DOC_ID} telah dihapus. Data produksi users/user_artha tetap aman tidak tersentuh.`
-            : `Jalur users/${ARTHA_USER_DOC_ID} sudah dalam kondisi bersih.`,
+            ? `${res.totalDeleted} dokumen di users/${activeUserDocId} telah dihapus. Data produksi users/${PRODUCTION_USER_DOC_ID} tetap aman tidak tersentuh.`
+            : `Jalur users/${activeUserDocId} sudah dalam kondisi bersih.`,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Gagal mereset data dummy Sandbox.';
@@ -385,7 +391,7 @@ export function SettingsPage() {
         type: 'error',
         title: 'Gagal Mereset Data Dummy',
         detail: msg.toLowerCase().includes('permission')
-          ? 'Izin hapus pada users/user_artha_sandbox ditolak. Pastikan firestore.rules pada database (default) mengizinkan akses ke users/user_artha_sandbox.'
+          ? `Izin hapus pada users/${activeUserDocId} ditolak. Pastikan firestore.rules pada database (default) mengizinkan akses ke users/${activeUserDocId}.`
           : msg,
       });
     } finally {
@@ -399,10 +405,10 @@ export function SettingsPage() {
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h2>Pengaturan</h2>
-            {IS_SANDBOX_MODE && (
+            {isSandbox && (
               <span className="px-2.5 py-0.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] shadow-[2px_2px_0px_var(--border-color)] dark:border dark:border-[#E2B68E]/35 dark:bg-[#E2B68E]/15 dark:text-[#E2B68E] dark:shadow-none font-mono text-[11px] font-bold inline-flex items-center gap-1">
                 <FlaskConical className="w-3.5 h-3.5" />
-                SANDBOX / DUMMY MODE
+                {sandboxBadgeLabel}
               </span>
             )}
           </div>
@@ -487,7 +493,7 @@ export function SettingsPage() {
               <Cloud className="w-3.5 h-3.5" />
               Cloud Firestore Real-Time
             </div>
-            <span className="ax-badge-s">AUTO SYNC</span>
+            <span className="ax-badge-s">{isDemo ? 'DEMO SANDBOX' : 'AUTO SYNC'}</span>
           </div>
           <div
             className="ax-big"
@@ -497,8 +503,9 @@ export function SettingsPage() {
             {displayUserId}
           </div>
           <p className="ax-note-h">
-            Seluruh buku kas, rekening, transaksi, target, tagihan, investasi, gaji &amp; shift, serta
-            preferensi Anda tersimpan aman di Cloud Firestore dan tersinkron otomatis di semua perangkat.
+            {isDemo
+              ? `Akun demo terisolasi penuh pada jalur users/${activeUserDocId}. Seluruh aktivitas tinjauan tidak pernah menyentuh data produksi users/${PRODUCTION_USER_DOC_ID}.`
+              : 'Seluruh buku kas, rekening, transaksi, target, tagihan, investasi, gaji & shift, serta preferensi Anda tersimpan aman di Cloud Firestore dan tersinkron otomatis di semua perangkat.'}
           </p>
         </section>
       </div>
@@ -763,8 +770,9 @@ export function SettingsPage() {
               <button
                 type="button"
                 onClick={() => void handleResetAiUsageToday()}
-                disabled={isResettingUsage}
-                className="brutal-btn text-xs !py-1.5 !px-2.5 shrink-0"
+                disabled={isDemo || isResettingUsage}
+                title={isDemo ? 'Dinonaktifkan pada Akun Demo untuk menjaga akurasi pelacakan kuota.' : 'Reset hitungan kuota hari ini'}
+                className="brutal-btn text-xs !py-1.5 !px-2.5 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isResettingUsage ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -774,6 +782,15 @@ export function SettingsPage() {
                 Reset Hitungan Hari Ini
               </button>
             </div>
+
+            {isDemo && (
+              <div className="p-2.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] dark:border dark:border-[#E2B68E]/25 dark:bg-[#E2B68E]/10 text-xs text-[var(--text-secondary)] flex items-start gap-2">
+                <ShieldCheck className="w-4 h-4 text-[var(--accent-sand)] shrink-0 mt-0.5" />
+                <span>
+                  <strong className="text-[var(--text-primary)]">Perlindungan Akun Demo:</strong> API Key Gemini dikelola sepenuhnya di sisi server dan tidak pernah ditampilkan di antarmuka. Pengubahan batas kuota harian &amp; reset hitungan dikunci selama sesi demo.
+                </span>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {AI_TRACKED_MODELS.map((model) => {
@@ -863,6 +880,7 @@ export function SettingsPage() {
                           type="number"
                           min={1}
                           max={1000000}
+                          disabled={isDemo}
                           value={limitInputs[model]}
                           onChange={(e) =>
                             setLimitInputs((prev) => ({ ...prev, [model]: e.target.value }))
@@ -873,7 +891,7 @@ export function SettingsPage() {
                               e.currentTarget.blur();
                             }
                           }}
-                          className="brutal-input !w-24 !py-1 !px-2 text-right font-mono text-xs font-bold"
+                          className="brutal-input !w-24 !py-1 !px-2 text-right font-mono text-xs font-bold disabled:opacity-60 disabled:cursor-not-allowed"
                           aria-label={`Batas kuota harian ${model}`}
                         />
                         <span className="font-mono text-[10.5px] text-[var(--text-secondary)]">
@@ -889,28 +907,42 @@ export function SettingsPage() {
         </div>
       </section>
 
-      {/* PANEL SANDBOX / DATA DUMMY (HANYA MUNCUL DI PREVIEW / LOCALHOST) */}
-      {IS_SANDBOX_MODE && (
+      {/* PANEL SANDBOX / DATA DUMMY (MUNCUL DI AKUN DEMO, PREVIEW, ATAU LOCALHOST) */}
+      {isSandbox && (
         <section className="ax-panel">
           <div className="ax-ph">
             <h3>
               <span className="ax-ic" style={{ background: 'var(--accent-sand)', '--c': 'var(--accent-sand)' } as React.CSSProperties}>
                 <FlaskConical className="w-3.5 h-3.5" />
               </span>
-              SANDBOX / DUMMY MODE
+              {sandboxBadgeLabel}
             </h3>
             <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] dark:border-[#E2B68E]/35 dark:bg-[#E2B68E]/15 dark:text-[#E2B68E]">
-              users/{ARTHA_USER_DOC_ID}
+              users/{activeUserDocId}
             </span>
           </div>
 
           <div className="ax-setrow" style={{ marginTop: 4 }}>
             <div>
-              <b>Lingkungan Uji Coba Terisolasi (Data Produksi Aman)</b>
+              <b>
+                {isDemo
+                  ? 'Akun Demo / Reviewer Terisolasi (Data Produksi Aman)'
+                  : 'Lingkungan Uji Coba Terisolasi (Data Produksi Aman)'}
+              </b>
               <small>
-                Aplikasi sedang berjalan di luar domain produksi (<code>artha-apps.vercel.app</code>). Semua
-                perubahan hanya menulis ke <code>users/{ARTHA_USER_DOC_ID}</code> dan tidak menyentuh data asli{' '}
-                <code>users/user_artha</code>.
+                {isDemo ? (
+                  <>
+                    Anda masuk menggunakan akun demo (<code>{displayUserId}</code>). Semua aktivitas secara otomatis
+                    diarahkan ke jalur dummy <code>users/{activeUserDocId}</code> dan tidak pernah menyentuh data asli{' '}
+                    <code>users/{PRODUCTION_USER_DOC_ID}</code>, termasuk di domain produksi.
+                  </>
+                ) : (
+                  <>
+                    Aplikasi sedang berjalan di luar domain produksi (<code>artha-apps.vercel.app</code>). Semua
+                    perubahan hanya menulis ke <code>users/{activeUserDocId}</code> dan tidak menyentuh data asli{' '}
+                    <code>users/{PRODUCTION_USER_DOC_ID}</code>.
+                  </>
+                )}
               </small>
             </div>
             <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -947,8 +979,8 @@ export function SettingsPage() {
               <div className="flex items-start gap-2 text-xs text-[var(--text-primary)]">
                 <AlertTriangle className="w-4 h-4 text-[var(--accent-terracotta)] shrink-0 mt-0.5" />
                 <span>
-                  Hapus seluruh data uji coba di <code className="font-mono font-bold">users/{ARTHA_USER_DOC_ID}</code>?
-                  Data asli di <code className="font-mono">users/user_artha</code> tetap aman.
+                  Hapus seluruh data uji coba di <code className="font-mono font-bold">users/{activeUserDocId}</code>?
+                  Data asli di <code className="font-mono">users/{PRODUCTION_USER_DOC_ID}</code> tetap aman.
                 </span>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -1024,7 +1056,7 @@ export function SettingsPage() {
             Backup &amp; Restore Data (.json)
           </h3>
           <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] dark:border-white/[0.12] dark:bg-[#1F2333] dark:text-[#CBD5E1] max-w-full truncate">
-            users/{ARTHA_USER_DOC_ID}
+            users/{activeUserDocId}
           </span>
         </div>
 
@@ -1043,7 +1075,7 @@ export function SettingsPage() {
               Cadangkan &amp; Pulihkan Data Cloud Firestore
             </b>
             <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-              Unduh seluruh data terbaru dari <code className="font-mono font-semibold text-[var(--text-primary)]">users/{ARTHA_USER_DOC_ID}</code> ke satu file{' '}
+              Unduh seluruh data terbaru dari <code className="font-mono font-semibold text-[var(--text-primary)]">users/{activeUserDocId}</code> ke satu file{' '}
               <code className="font-mono font-semibold text-[var(--text-primary)]">.json</code>, atau unggah file backup lama (termasuk format{' '}
               <code className="font-mono font-semibold text-[var(--text-primary)]">artha_offline_*</code>) untuk dipulihkan langsung ke Cloud.
             </p>
@@ -1132,7 +1164,7 @@ export function SettingsPage() {
                   </p>
                   <p className="text-xs text-[var(--text-muted)] mt-0.5">
                     Ditemukan <strong className="text-[var(--text-primary)]">{pendingPlan.totalDocuments} dokumen</strong> siap ditulis ke{' '}
-                    <code className="font-mono text-[11px]">users/{ARTHA_USER_DOC_ID}</code> (database{' '}
+                    <code className="font-mono text-[11px]">users/{activeUserDocId}</code> (database{' '}
                     <code className="font-mono text-[11px]">(default)</code>).
                   </p>
                 </div>
