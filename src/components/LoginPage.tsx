@@ -25,17 +25,15 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-[var(--bg-primary)] text-[var(--text-primary)]">
+    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-[var(--bg-primary)] dark:bg-[#0F1117] text-[var(--text-primary)]">
       <div className="w-full max-w-md">
         <div
-          className="rounded-2xl border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 sm:p-8"
-          style={{ boxShadow: '6px 6px 0 0 var(--border-color)' }}
+          className="rounded-2xl border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-[6px_6px_0_0_var(--border-color)] dark:border dark:border-white/[0.08] dark:bg-[#171924] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)] p-6 sm:p-8"
         >
           {/* Brand Header */}
           <div className="flex flex-col items-center text-center mb-7">
             <div
-              className="w-14 h-14 rounded-2xl border-2 border-[var(--border-color)] bg-[var(--accent-gold)] flex items-center justify-center mb-4"
-              style={{ boxShadow: '3px 3px 0 0 var(--border-color)' }}
+              className="w-14 h-14 rounded-2xl border-2 border-[var(--border-color)] bg-[var(--accent-gold)] shadow-[3px_3px_0_0_var(--border-color)] dark:border dark:border-[#E2B68E]/35 dark:bg-[rgba(226,182,142,0.16)] dark:shadow-none flex items-center justify-center mb-4"
             >
               <img src="/icon.svg" alt="Artha" className="w-8 h-8 object-contain" />
             </div>
@@ -50,9 +48,9 @@ export const LoginPage: React.FC = () => {
           {errorMessage && (
             <div
               role="alert"
-              className="mb-5 flex items-start gap-2.5 rounded-xl border-2 border-[var(--accent-coral)] bg-[var(--accent-coral)]/10 px-3.5 py-3 text-sm text-[var(--text-primary)]"
+              className="mb-5 flex items-start gap-2.5 rounded-xl border-2 border-[var(--accent-coral)] bg-[var(--accent-coral)]/10 dark:border dark:border-[#FB7185]/35 dark:bg-[rgba(244,63,94,0.14)] px-3.5 py-3 text-sm text-[var(--text-primary)]"
             >
-              <AlertCircle className="w-4 h-4 text-[var(--accent-coral)] shrink-0 mt-0.5" />
+              <AlertCircle className="w-4 h-4 text-[var(--accent-coral)] dark:text-[#FB7185] shrink-0 mt-0.5" />
               <span className="leading-snug">{errorMessage}</span>
             </div>
           )}
@@ -77,7 +75,7 @@ export const LoginPage: React.FC = () => {
                   onChange={(e) => setUserId(e.target.value)}
                   placeholder="Masukkan User ID"
                   disabled={isSubmitting}
-                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border-2 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--accent-gold)]"
+                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border-2 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--accent-gold)] dark:border dark:border-white/[0.14] dark:bg-[#1F2333] dark:text-[#F1F5F9] dark:placeholder:text-[#8B9A9F] dark:focus:border-[#E2B68E] dark:focus:ring-[#E2B68E]/30 transition-colors"
                 />
               </div>
             </div>
@@ -99,14 +97,14 @@ export const LoginPage: React.FC = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Masukkan Password"
                   disabled={isSubmitting}
-                  className="w-full pl-10 pr-11 py-2.5 rounded-xl border-2 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--accent-gold)]"
+                  className="w-full pl-10 pr-11 py-2.5 rounded-xl border-2 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--accent-gold)] dark:border dark:border-white/[0.14] dark:bg-[#1F2333] dark:text-[#F1F5F9] dark:placeholder:text-[#8B9A9F] dark:focus:border-[#E2B68E] dark:focus:ring-[#E2B68E]/30 transition-colors"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
                   tabIndex={-1}
                   aria-label={showPassword ? 'Sembunyikan password' : 'Lihat password'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -116,12 +114,11 @@ export const LoginPage: React.FC = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full mt-2 py-3 px-4 rounded-xl border-2 border-[var(--border-color)] bg-[var(--accent-gold)] text-[#111] font-extrabold text-sm flex items-center justify-center gap-2 transition-transform active:translate-y-[1px] disabled:opacity-60 cursor-pointer"
-              style={{ boxShadow: '3px 3px 0 0 var(--border-color)' }}
+              className="w-full mt-2 py-3 px-4 rounded-xl border-2 border-[var(--border-color)] bg-[var(--accent-gold)] text-[#111] shadow-[3px_3px_0_0_var(--border-color)] dark:border dark:border-[#AF8C6D] dark:bg-[#E2B68E] dark:hover:bg-[#AF8C6D] dark:text-[#0F1117] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)] font-extrabold text-sm flex items-center justify-center gap-2 transition-all active:translate-y-[1px] disabled:opacity-60 cursor-pointer"
             >
               {isSubmitting ? (
                 <>
-                  <span className="w-4 h-4 border-2 border-[#111] border-t-transparent rounded-full animate-spin" />
+                  <span className="w-4 h-4 border-2 border-[#111] dark:border-[#0F1117] border-t-transparent rounded-full animate-spin" />
                   <span>Memverifikasi...</span>
                 </>
               ) : (

@@ -88,14 +88,14 @@ export function AllocateGoalModal(p: AllocateProps) {
                 p.onSetAmount((cur + amt).toString());
               }}>+{amt >= 1000000 ? `${amt / 1000000}jt` : `${amt / 1000}k`}</button>
             ))}
-            <button type="button" onClick={() => p.onSetAmount(remaining.toString())} style={{ background: '#14141a', color: '#fff' }}>Isi sisa</button>
+            <button type="button" className="ax-qs-fill" onClick={() => p.onSetAmount(remaining.toString())}>Isi sisa</button>
           </div>
           <p className="ax-hint">Mendukung kalkulator, contoh: 100000*3</p>
         </div>
 
         {/* PRATINJAU */}
         {alloc > 0 && (
-          <div className="ax-sum" style={{ background: reaches ? 'var(--accent-sage-dark)' : undefined }}>
+          <div className={`ax-sum ${reaches ? 'ax-sum-ok' : ''}`}>
             <div><small>Terkumpul setelah alokasi</small><b>{formatRupiah(afterSaved)} · {pct(afterSaved)}%</b></div>
             <div><small>{reaches ? 'Status' : 'Sisa target'}</small><b>{reaches ? 'TERCAPAI 🎉' : formatRupiah(Math.max(0, g.targetAmount - afterSaved))}</b></div>
           </div>

@@ -200,14 +200,14 @@ export function PayDebtModal(p: PayDebtProps) {
                 p.onSetAmount((cur + amt).toString());
               }}>+{amt >= 1000000 ? `${amt / 1000000}jt` : `${amt / 1000}k`}</button>
             ))}
-            <button type="button" onClick={() => p.onSetAmount(String(d.remainingDebt))} style={{ background: '#14141a', color: '#fff' }}>Lunasi sisa</button>
+            <button type="button" className="ax-qs-fill" onClick={() => p.onSetAmount(String(d.remainingDebt))}>Lunasi sisa</button>
           </div>
           <p className="ax-hint">Mendukung kalkulator, contoh: 250000*2</p>
         </div>
 
         {/* PRATINJAU SETELAH BAYAR */}
         {payAmount > 0 && (
-          <div className="ax-sum" style={{ background: settles ? 'var(--accent-sage-dark)' : undefined }}>
+          <div className={`ax-sum ${settles ? 'ax-sum-ok' : ''}`}>
             <div><small>Sisa setelah dibayar</small><b>{settles ? 'LUNAS 🎉' : formatRupiah(after)}</b></div>
             <div><small>Dibayar</small><b>-{formatRupiah(Math.min(payAmount, d.remainingDebt))}</b></div>
           </div>

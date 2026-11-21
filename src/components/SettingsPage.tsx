@@ -400,7 +400,7 @@ export function SettingsPage() {
           <div className="flex flex-wrap items-center gap-2">
             <h2>Pengaturan</h2>
             {IS_SANDBOX_MODE && (
-              <span className="px-2.5 py-0.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] shadow-[2px_2px_0px_var(--border-color)] font-mono text-[11px] font-bold inline-flex items-center gap-1">
+              <span className="px-2.5 py-0.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] shadow-[2px_2px_0px_var(--border-color)] dark:border dark:border-[#E2B68E]/35 dark:bg-[#E2B68E]/15 dark:text-[#E2B68E] dark:shadow-none font-mono text-[11px] font-bold inline-flex items-center gap-1">
                 <FlaskConical className="w-3.5 h-3.5" />
                 SANDBOX / DUMMY MODE
               </span>
@@ -415,7 +415,7 @@ export function SettingsPage() {
         <section className="ax-b s6 ax-panel">
           <div className="ax-ph">
             <h3>
-              <span className="ax-ic" style={{ background: 'var(--accent-sand)' }}>
+              <span className="ax-ic" style={{ background: 'var(--accent-sand)', '--c': 'var(--accent-sand)' } as React.CSSProperties}>
                 <Sun className="w-3.5 h-3.5" />
               </span>
               Tampilan
@@ -450,10 +450,10 @@ export function SettingsPage() {
               }}
             >
               <span className="ax-theme-pv" aria-hidden="true">
-                <i style={{ background: '#1f1f27' }} />
-                <div style={{ background: '#16161c' }}>
-                  <b style={{ background: '#ffc933' }} />
-                  <b style={{ background: '#292933', width: '70%' }} />
+                <i style={{ background: '#13151F' }} />
+                <div style={{ background: '#0F1117' }}>
+                  <b style={{ background: '#E2B68E' }} />
+                  <b style={{ background: '#1F2333', width: '70%' }} />
                 </div>
               </span>
               <span>
@@ -507,26 +507,26 @@ export function SettingsPage() {
       <section className="ax-panel">
         <div className="ax-ph">
           <h3>
-            <span className="ax-ic" style={{ background: 'var(--accent-lavender)' }}>
+            <span className="ax-ic" style={{ background: 'var(--accent-lavender)', '--c': 'var(--accent-lavender)' } as React.CSSProperties}>
               <Cpu className="w-3.5 h-3.5" />
             </span>
             Pengaturan AI &amp; Kuota
           </h3>
           <div className="flex items-center gap-2">
             {aiSaveStatus === 'saving' && (
-              <span className="inline-flex items-center gap-1 font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a]">
+              <span className="inline-flex items-center gap-1 font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] dark:border-[#E2B68E]/35 dark:bg-[#E2B68E]/15 dark:text-[#E2B68E]">
                 <Loader2 className="w-3 h-3 animate-spin" />
                 Menyimpan...
               </span>
             )}
             {aiSaveStatus === 'saved' && (
-              <span className="inline-flex items-center gap-1 font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--accent-sage)] text-[#14141a]">
+              <span className="inline-flex items-center gap-1 font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--accent-sage)] text-[#14141a] dark:border-[#34D399]/35 dark:bg-[#34D399]/15 dark:text-[#34D399]">
                 <CheckCircle2 className="w-3 h-3" />
                 Tersimpan di Cloud
               </span>
             )}
             {aiSaveStatus === 'idle' && (
-              <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
+              <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] dark:border-white/[0.12] dark:bg-[#1F2333] dark:text-[#CBD5E1]">
                 Gemini AI
               </span>
             )}
@@ -534,9 +534,9 @@ export function SettingsPage() {
         </div>
 
         {aiSaveError && (
-          <div className="mt-3 p-3 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-terracotta)] text-white flex items-start justify-between gap-2 text-xs">
+          <div className="mt-3 p-3 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-terracotta)] text-white dark:border dark:border-[#FB7185]/35 dark:bg-[#FB7185]/14 dark:text-[#F1F5F9] flex items-start justify-between gap-2 text-xs">
             <div className="flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 dark:text-[#FB7185]" />
               <span>{aiSaveError}</span>
             </div>
             <button
@@ -546,7 +546,7 @@ export function SettingsPage() {
                 setAiSaveStatus('idle');
               }}
               aria-label="Tutup pesan error pengaturan AI"
-              className="p-0.5 rounded hover:bg-black/15 shrink-0"
+              className="p-0.5 rounded hover:bg-black/15 dark:hover:bg-white/10 shrink-0"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -576,8 +576,8 @@ export function SettingsPage() {
                     onClick={() => void handleAiSettingChange({ insightMode: opt.value })}
                     className={`text-left p-3 rounded-xl border-2 transition-all cursor-pointer ${
                       active
-                        ? 'border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] shadow-[3px_3px_0_var(--border-color)]'
-                        : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:border-[var(--border-color)]'
+                        ? 'border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] shadow-[3px_3px_0_var(--border-color)] dark:border dark:border-[#E2B68E]/45 dark:bg-[#E2B68E]/14 dark:text-[#F1F5F9] dark:shadow-none'
+                        : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:border-[var(--border-color)] dark:border dark:border-white/[0.08] dark:bg-[#1F2333] dark:hover:border-white/[0.16]'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -586,8 +586,8 @@ export function SettingsPage() {
                         <span
                           className={`shrink-0 font-mono text-[10px] font-bold px-1.5 py-0.5 rounded border ${
                             active
-                              ? 'border-[#14141a] bg-white/80 text-[#14141a]'
-                              : 'border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-secondary)]'
+                              ? 'border-[#14141a] bg-white/80 text-[#14141a] dark:border-[#E2B68E]/40 dark:bg-[#E2B68E]/20 dark:text-[#E2B68E]'
+                              : 'border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-secondary)] dark:border-white/[0.12] dark:bg-[#171924] dark:text-[#8B9A9F]'
                           }`}
                         >
                           {opt.badge}
@@ -596,7 +596,7 @@ export function SettingsPage() {
                     </div>
                     <p
                       className={`mt-1 text-[11.5px] leading-relaxed ${
-                        active ? 'text-[#14141a]/85' : 'text-[var(--text-secondary)]'
+                        active ? 'text-[#14141a]/85 dark:text-[#CBD5E1]' : 'text-[var(--text-secondary)]'
                       }`}
                     >
                       {opt.desc}
@@ -608,7 +608,7 @@ export function SettingsPage() {
           </div>
 
           {/* 2 & 4. Model Gemini Utama + Durasi Cache Analisis */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t-2 border-dashed border-[var(--border-subtle)]">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t-2 border-dashed border-[var(--border-subtle)] dark:border-t dark:border-white/[0.08]">
             <label className="block space-y-1.5">
               <span className="flex items-center gap-1.5 text-xs font-heading font-extrabold text-[var(--text-primary)]">
                 <Sparkles className="w-3.5 h-3.5 text-[var(--accent-lavender)]" />
@@ -657,7 +657,7 @@ export function SettingsPage() {
           </div>
 
           {/* 5. Gaya Fokus Analisis AI */}
-          <div className="space-y-2 pt-2 border-t-2 border-dashed border-[var(--border-subtle)]">
+          <div className="space-y-2 pt-2 border-t-2 border-dashed border-[var(--border-subtle)] dark:border-t dark:border-white/[0.08]">
             <div>
               <b className="block text-sm font-heading font-extrabold text-[var(--text-primary)]">
                 Gaya Fokus Analisis AI
@@ -678,14 +678,14 @@ export function SettingsPage() {
                     onClick={() => void handleAiSettingChange({ focusStyle: opt.value })}
                     className={`text-left p-3 rounded-xl border-2 transition-all cursor-pointer ${
                       active
-                        ? 'border-[var(--border-color)] bg-[var(--accent-sage)] text-[#14141a] shadow-[3px_3px_0_var(--border-color)]'
-                        : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:border-[var(--border-color)]'
+                        ? 'border-[var(--border-color)] bg-[var(--accent-sage)] text-[#14141a] shadow-[3px_3px_0_var(--border-color)] dark:border dark:border-[#34D399]/45 dark:bg-[#34D399]/14 dark:text-[#F1F5F9] dark:shadow-none'
+                        : 'border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:border-[var(--border-color)] dark:border dark:border-white/[0.08] dark:bg-[#1F2333] dark:hover:border-white/[0.16]'
                     }`}
                   >
                     <span className="block font-heading font-extrabold text-xs">{opt.title}</span>
                     <p
                       className={`mt-1 text-[11.5px] leading-relaxed ${
-                        active ? 'text-[#14141a]/85' : 'text-[var(--text-secondary)]'
+                        active ? 'text-[#14141a]/85 dark:text-[#CBD5E1]' : 'text-[var(--text-secondary)]'
                       }`}
                     >
                       {opt.desc}
@@ -697,7 +697,7 @@ export function SettingsPage() {
           </div>
 
           {/* 3 & 6. Toggles: Auto-Fallback Model & Kompresi Foto Scan Struk */}
-          <div className="space-y-2 pt-2 border-t-2 border-dashed border-[var(--border-subtle)]">
+          <div className="space-y-2 pt-2 border-t-2 border-dashed border-[var(--border-subtle)] dark:border-t dark:border-white/[0.08]">
             <div className="ax-setrow" style={{ marginTop: 0 }}>
               <div>
                 <b className="inline-flex items-center gap-1.5">
@@ -746,13 +746,13 @@ export function SettingsPage() {
           </div>
 
           {/* ESTIMASI KUOTA HARIAN (HARI INI) - REAL-TIME FIRESTORE `settings/aiUsage` */}
-          <div className="space-y-3 pt-3 border-t-2 border-dashed border-[var(--border-subtle)]">
+          <div className="space-y-3 pt-3 border-t-2 border-dashed border-[var(--border-subtle)] dark:border-t dark:border-white/[0.08]">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <b className="inline-flex items-center gap-1.5 text-sm font-heading font-extrabold text-[var(--text-primary)]">
                   <Gauge className="w-4 h-4 text-[var(--accent-sage)]" />
                   Estimasi Kuota Harian (Hari Ini)
-                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
+                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] dark:border-white/[0.12] dark:bg-[#1F2333] dark:text-[#CBD5E1]">
                     {aiUsage.date}
                   </span>
                 </b>
@@ -796,7 +796,7 @@ export function SettingsPage() {
                 return (
                   <div
                     key={model}
-                    className="p-3 rounded-xl border-2 border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[2px_2px_0_var(--border-color)] space-y-2.5"
+                    className="p-3 rounded-xl border-2 border-[var(--border-color)] bg-[var(--bg-elevated)] shadow-[2px_2px_0_var(--border-color)] dark:border dark:border-white/[0.08] dark:bg-[#1F2333] dark:shadow-none space-y-2.5"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
@@ -805,7 +805,7 @@ export function SettingsPage() {
                             {model}
                           </span>
                           {aiSettings.primaryModel === model && (
-                            <span className="font-mono text-[9.5px] font-bold px-1.5 py-0.5 rounded border border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a]">
+                            <span className="font-mono text-[9.5px] font-bold px-1.5 py-0.5 rounded border border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] dark:border-[#E2B68E]/35 dark:bg-[#E2B68E]/16 dark:text-[#E2B68E]">
                               Utama
                             </span>
                           )}
@@ -816,7 +816,7 @@ export function SettingsPage() {
                       </div>
 
                       {isReached && (
-                        <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold px-2 py-0.5 rounded border-2 border-[var(--border-color)] bg-[var(--accent-terracotta)] text-white shrink-0">
+                        <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold px-2 py-0.5 rounded border-2 border-[var(--border-color)] bg-[var(--accent-terracotta)] text-white dark:border dark:border-[#FB7185]/35 dark:bg-[#FB7185]/16 dark:text-[#FB7185] shrink-0">
                           <AlertTriangle className="w-3 h-3" />
                           Limit 429 Tercapai Hari Ini
                         </span>
@@ -833,7 +833,7 @@ export function SettingsPage() {
                         </span>
                       </div>
                       <div
-                        className="w-full h-3 rounded-full border-2 border-[var(--border-color)] bg-[var(--bg-surface)] overflow-hidden"
+                        className="w-full h-3 rounded-full border-2 border-[var(--border-color)] bg-[var(--bg-surface)] dark:border dark:border-white/[0.08] dark:bg-white/[0.08] overflow-hidden"
                         role="progressbar"
                         aria-valuenow={used}
                         aria-valuemin={0}
@@ -850,7 +850,7 @@ export function SettingsPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-dashed border-[var(--border-subtle)]">
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-dashed border-[var(--border-subtle)] dark:border-white/[0.08]">
                       <label
                         htmlFor={`ai-limit-${model}`}
                         className="text-[11px] font-semibold text-[var(--text-secondary)]"
@@ -894,12 +894,12 @@ export function SettingsPage() {
         <section className="ax-panel">
           <div className="ax-ph">
             <h3>
-              <span className="ax-ic" style={{ background: 'var(--accent-sand)' }}>
+              <span className="ax-ic" style={{ background: 'var(--accent-sand)', '--c': 'var(--accent-sand)' } as React.CSSProperties}>
                 <FlaskConical className="w-3.5 h-3.5" />
               </span>
               SANDBOX / DUMMY MODE
             </h3>
-            <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a]">
+            <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] dark:border-[#E2B68E]/35 dark:bg-[#E2B68E]/15 dark:text-[#E2B68E]">
               users/{ARTHA_USER_DOC_ID}
             </span>
           </div>
@@ -943,7 +943,7 @@ export function SettingsPage() {
           </div>
 
           {confirmResetSandbox && (
-            <div className="mt-3 p-3.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-[3px_3px_0px_var(--border-color)] flex flex-wrap items-center justify-between gap-3">
+            <div className="mt-3 p-3.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-[3px_3px_0px_var(--border-color)] dark:border dark:border-white/[0.10] dark:bg-[#1F2333] dark:shadow-none flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-start gap-2 text-xs text-[var(--text-primary)]">
                 <AlertTriangle className="w-4 h-4 text-[var(--accent-terracotta)] shrink-0 mt-0.5" />
                 <span>
@@ -984,17 +984,17 @@ export function SettingsPage() {
 
           {sandboxNotice && (
             <div
-              className={`mt-3 p-3.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] shadow-[3px_3px_0px_var(--border-color)] flex items-start justify-between gap-2 ${
+              className={`mt-3 p-3.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] shadow-[3px_3px_0px_var(--border-color)] dark:border dark:shadow-none flex items-start justify-between gap-2 ${
                 sandboxNotice.type === 'success'
-                  ? 'bg-[var(--accent-sage)] text-[#14141a]'
-                  : 'bg-[var(--accent-terracotta)] text-white'
+                  ? 'bg-[var(--accent-sage)] text-[#14141a] dark:border-[#34D399]/35 dark:bg-[#34D399]/14 dark:text-[#F1F5F9]'
+                  : 'bg-[var(--accent-terracotta)] text-white dark:border-[#FB7185]/35 dark:bg-[#FB7185]/14 dark:text-[#F1F5F9]'
               }`}
             >
               <div className="flex items-start gap-2">
                 {sandboxNotice.type === 'success' ? (
-                  <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+                  <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 dark:text-[#34D399]" />
                 ) : (
-                  <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                  <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 dark:text-[#FB7185]" />
                 )}
                 <div>
                   <p className="font-heading font-bold text-sm">{sandboxNotice.title}</p>
@@ -1005,7 +1005,7 @@ export function SettingsPage() {
                 type="button"
                 onClick={() => setSandboxNotice(null)}
                 aria-label="Tutup notifikasi sandbox"
-                className="p-1 rounded border border-current/40 hover:bg-black/10 shrink-0"
+                className="p-1 rounded border border-current/40 hover:bg-black/10 dark:border-white/20 dark:hover:bg-white/10 shrink-0"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -1018,12 +1018,12 @@ export function SettingsPage() {
       <section className="ax-panel">
         <div className="ax-ph">
           <h3>
-            <span className="ax-ic" style={{ background: 'var(--accent-sky)' }}>
+            <span className="ax-ic" style={{ background: 'var(--accent-blue)', '--c': 'var(--accent-blue)' } as React.CSSProperties}>
               <Database className="w-3.5 h-3.5" />
             </span>
             Backup &amp; Restore Data (.json)
           </h3>
-          <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
+          <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] dark:border-white/[0.12] dark:bg-[#1F2333] dark:text-[#CBD5E1]">
             users/{ARTHA_USER_DOC_ID}
           </span>
         </div>
@@ -1078,10 +1078,10 @@ export function SettingsPage() {
 
         {/* KONFIRMASI DOWNLOAD BACKUP BERHASIL */}
         {downloadResult && (
-          <div className="mt-4 p-3.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-sage)] text-[#14141a] shadow-[3px_3px_0px_var(--border-color)] space-y-2">
+          <div className="mt-4 p-3.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-sage)] text-[#14141a] shadow-[3px_3px_0px_var(--border-color)] dark:border dark:border-[#34D399]/35 dark:bg-[#34D399]/14 dark:text-[#F1F5F9] dark:shadow-none space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2">
-                <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 dark:text-[#34D399]" />
                 <div>
                   <p className="font-heading font-bold text-sm">
                     Backup Berhasil Diunduh ({downloadResult.totalDocuments} dokumen)
@@ -1096,7 +1096,7 @@ export function SettingsPage() {
                 type="button"
                 onClick={() => setDownloadResult(null)}
                 aria-label="Tutup notifikasi download"
-                className="p-1 rounded border border-[#14141a]/40 hover:bg-black/10"
+                className="p-1 rounded border border-[#14141a]/40 hover:bg-black/10 dark:border-white/20 dark:hover:bg-white/10"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -1106,7 +1106,7 @@ export function SettingsPage() {
                 {Object.entries(downloadResult.countsByCollection).map(([col, count]) => (
                   <span
                     key={col}
-                    className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-[#14141a] bg-white/80 text-[#14141a]"
+                    className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-[#14141a] bg-white/80 text-[#14141a] dark:border-white/[0.14] dark:bg-[#171924] dark:text-[#CBD5E1]"
                   >
                     {COLLECTION_LABELS[col] || col}: {count}
                   </span>
@@ -1118,10 +1118,10 @@ export function SettingsPage() {
 
         {/* KONFIRMASI SEBELUM MENIMPA / MERGE KE FIRESTORE */}
         {pendingPlan && (
-          <div className="mt-4 p-4 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-[3px_3px_0px_var(--border-color)] space-y-3">
+          <div className="mt-4 p-4 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-[3px_3px_0px_var(--border-color)] dark:border dark:border-white/[0.10] dark:bg-[#1F2333] dark:shadow-none space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start gap-2.5 min-w-0">
-                <div className="w-9 h-9 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] dark:border dark:border-[#E2B68E]/35 dark:bg-[#E2B68E]/16 dark:text-[#E2B68E] flex items-center justify-center shrink-0">
                   <FileJson className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
@@ -1140,7 +1140,7 @@ export function SettingsPage() {
                   type="button"
                   onClick={handleCancelRestore}
                   aria-label="Batalkan restore"
-                  className="p-1.5 rounded-[var(--radius-sm)] border border-[var(--border-color)] text-[var(--text-muted)] hover:bg-[var(--bg-card)]"
+                  className="p-1.5 rounded-[var(--radius-sm)] border border-[var(--border-color)] text-[var(--text-muted)] hover:bg-[var(--bg-card)] dark:border-white/[0.12] dark:hover:bg-[#262B3D]"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1152,7 +1152,7 @@ export function SettingsPage() {
               {Object.entries(pendingPlan.countsByCollection).map(([col, count]) => (
                 <div
                   key={col}
-                  className="px-2.5 py-2 rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--bg-card)] flex items-center justify-between gap-2"
+                  className="px-2.5 py-2 rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--bg-card)] dark:border-white/[0.08] dark:bg-[#171924] flex items-center justify-between gap-2"
                 >
                   <span className="text-xs font-medium text-[var(--text-secondary)] truncate">
                     {COLLECTION_LABELS[col] || col}
@@ -1164,7 +1164,7 @@ export function SettingsPage() {
               ))}
             </div>
 
-            <div className="flex items-start gap-2 p-2.5 rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--bg-card)] text-xs text-[var(--text-secondary)]">
+            <div className="flex items-start gap-2 p-2.5 rounded-[var(--radius-sm)] border border-[var(--border-color)] bg-[var(--bg-card)] dark:border-white/[0.08] dark:bg-[#171924] text-xs text-[var(--text-secondary)]">
               <AlertTriangle className="w-4 h-4 text-[var(--accent-terracotta)] shrink-0 mt-0.5" />
               <span>
                 Dokumen dengan ID yang sama di Cloud Firestore akan digabungkan &amp; diperbarui (
@@ -1185,7 +1185,7 @@ export function SettingsPage() {
                     {restoreProgress.completedDocs}/{restoreProgress.totalDocs} ({restoreProgress.percent}%)
                   </span>
                 </div>
-                <div className="w-full h-3 rounded-full border-2 border-[var(--border-color)] bg-[var(--bg-card)] overflow-hidden">
+                <div className="w-full h-3 rounded-full border-2 border-[var(--border-color)] bg-[var(--bg-card)] dark:border dark:border-white/[0.08] dark:bg-white/[0.08] overflow-hidden">
                   <div
                     className="h-full bg-[var(--accent-sage)] transition-all duration-200"
                     style={{ width: `${Math.max(5, restoreProgress.percent)}%` }}
@@ -1227,10 +1227,10 @@ export function SettingsPage() {
 
         {/* NOTIFIKASI SUKSES */}
         {restoreResult && (
-          <div className="mt-4 p-3.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-sage)] text-[#14141a] shadow-[3px_3px_0px_var(--border-color)] space-y-2">
+          <div className="mt-4 p-3.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-sage)] text-[#14141a] shadow-[3px_3px_0px_var(--border-color)] dark:border dark:border-[#34D399]/35 dark:bg-[#34D399]/14 dark:text-[#F1F5F9] dark:shadow-none space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2">
-                <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 dark:text-[#34D399]" />
                 <div>
                   <p className="font-heading font-bold text-sm">
                     Restore Backup Berhasil ({restoreResult.totalWritten} dokumen)
@@ -1246,7 +1246,7 @@ export function SettingsPage() {
                 type="button"
                 onClick={() => setRestoreResult(null)}
                 aria-label="Tutup notifikasi sukses"
-                className="p-1 rounded border border-[#14141a]/40 hover:bg-black/10"
+                className="p-1 rounded border border-[#14141a]/40 hover:bg-black/10 dark:border-white/20 dark:hover:bg-white/10"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -1255,7 +1255,7 @@ export function SettingsPage() {
               {Object.entries(restoreResult.countsByCollection).map(([col, count]) => (
                 <span
                   key={col}
-                  className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-[#14141a] bg-white/80 text-[#14141a]"
+                  className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-[#14141a] bg-white/80 text-[#14141a] dark:border-white/[0.14] dark:bg-[#171924] dark:text-[#CBD5E1]"
                 >
                   {COLLECTION_LABELS[col] || col}: {count}
                 </span>
@@ -1266,9 +1266,9 @@ export function SettingsPage() {
 
         {/* NOTIFIKASI GAGAL */}
         {restoreError && (
-          <div className="mt-4 p-3.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-terracotta)] text-white shadow-[3px_3px_0px_var(--border-color)] flex items-start justify-between gap-2">
+          <div className="mt-4 p-3.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-terracotta)] text-white shadow-[3px_3px_0px_var(--border-color)] dark:border dark:border-[#FB7185]/35 dark:bg-[#FB7185]/14 dark:text-[#F1F5F9] dark:shadow-none flex items-start justify-between gap-2">
             <div className="flex items-start gap-2">
-              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 dark:text-[#FB7185]" />
               <div>
                 <p className="font-heading font-bold text-sm">Gagal Memproses Restore Backup</p>
                 <p className="text-xs opacity-95 mt-0.5 leading-relaxed">{restoreError}</p>
@@ -1278,7 +1278,7 @@ export function SettingsPage() {
               type="button"
               onClick={() => setRestoreError(null)}
               aria-label="Tutup pesan error"
-              className="p-1 rounded border border-white/40 hover:bg-black/15 shrink-0"
+              className="p-1 rounded border border-white/40 hover:bg-black/15 dark:border-white/20 dark:hover:bg-white/10 shrink-0"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -1290,7 +1290,7 @@ export function SettingsPage() {
       <section className="ax-panel">
         <div className="ax-ph">
           <h3>
-            <span className="ax-ic" style={{ background: 'var(--accent-sage)' }}>
+            <span className="ax-ic" style={{ background: 'var(--accent-sage)', '--c': 'var(--accent-sage)' } as React.CSSProperties}>
               <ShieldCheck className="w-3.5 h-3.5" />
             </span>
             Sesi &amp; Keamanan Akun

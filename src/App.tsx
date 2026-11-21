@@ -130,7 +130,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex items-center justify-center p-4">
         <div className="brutal-card p-6 flex flex-col items-center gap-3 text-center max-w-xs w-full">
-          <div className="w-12 h-12 bg-[var(--accent-sand)] text-[#14141a] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[3px_3px_0px_#000] flex items-center justify-center font-heading font-bold text-2xl animate-pulse">
+          <div className="w-12 h-12 bg-[var(--accent-sand)] text-[#14141a] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[3px_3px_0px_#000] dark:border dark:border-[#E2B68E]/35 dark:bg-[#E2B68E]/16 dark:text-[#E2B68E] dark:shadow-none flex items-center justify-center font-heading font-bold text-2xl animate-pulse">
             A
           </div>
           <p className="font-heading font-bold text-sm">Memeriksa sesi Artha Cloud...</p>
@@ -1762,12 +1762,12 @@ function AuthenticatedApp({ uid }: { uid: string }) {
       {/* Toast Notification Banner (Floating di Atas Layar) */}
       {toastMessage && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-full px-3 animate-in fade-in slide-in-from-top-4 duration-200">
-          <div className={`brutal-card p-3 flex items-center gap-2.5 shadow-[var(--shadow-lg)] ${
+          <div className={`brutal-card p-3 flex items-center gap-2.5 shadow-[var(--shadow-lg)] dark:shadow-[0_12px_32px_rgba(0,0,0,0.48)] ${
             toastMessage.type === 'success' 
-              ? 'bg-[var(--accent-sage-dark)] border-[var(--accent-sage)] text-white' 
+              ? 'bg-[var(--accent-sage-dark)] border-[var(--accent-sage)] text-white dark:bg-[#171924] dark:border-[#34D399]/40 dark:text-[#F1F5F9]' 
               : toastMessage.type === 'error'
-              ? 'bg-[var(--accent-terracotta-dark)] border-[var(--accent-terracotta)] text-white'
-              : 'bg-[var(--bg-elevated)] border-[var(--border-color)] text-white'
+              ? 'bg-[var(--accent-terracotta-dark)] border-[var(--accent-terracotta)] text-white dark:bg-[#171924] dark:border-[#FB7185]/40 dark:text-[#F1F5F9]'
+              : 'bg-[var(--bg-elevated)] border-[var(--border-color)] text-white dark:bg-[#1F2333] dark:border-white/[0.14] dark:text-[#F1F5F9]'
           }`}>
             {toastMessage.type === 'success' && <CheckCircle2 className="w-5 h-5 text-[var(--accent-sage-light)] shrink-0" />}
             {toastMessage.type === 'error' && <AlertTriangle className="w-5 h-5 text-[var(--accent-terracotta-light)] shrink-0" />}
@@ -1787,10 +1787,10 @@ function AuthenticatedApp({ uid }: { uid: string }) {
       {/* 1. TOP STICKY HEADER & NAVIGATION BAR (UNIFIED NEO-BRUTALISME)         */}
       {/* Menyatukan Header dan Navigasi agar tidak tumpang tindih atau terpotong */}
       {/* ===================================================================== */}
-      <div className="sticky top-0 z-30 bg-[var(--bg-surface)] border-b-[2.5px] border-[var(--border-color)] shadow-[0_3px_0px_#000]">
+      <div className="sticky top-0 z-30 bg-[var(--bg-surface)] border-b-[2.5px] border-[var(--border-color)] shadow-[0_3px_0px_#000] dark:bg-[#13151F] dark:border-b dark:border-white/[0.08] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
         
         {/* 1A. Top Header Bar */}
-        <header className="border-b border-[var(--border-subtle)] px-2.5 sm:px-3 py-1.5">
+        <header className="border-b border-[var(--border-subtle)] dark:border-b-0 px-2.5 sm:px-3 py-1.5">
           <div className="w-full flex items-center justify-between gap-1.5 sm:gap-2">
             
             {/* Logo & Dropdown Buku Kas Aktif */}
@@ -1801,7 +1801,7 @@ function AuthenticatedApp({ uid }: { uid: string }) {
                 onClick={toggleMobileDrawer}
                 aria-label="Buka Menu Navigasi"
                 title="Buka Menu Navigasi Artha"
-                className="w-10 h-10 bg-[var(--accent-sand)] text-[#14141a] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] flex items-center justify-center font-heading font-bold text-lg shrink-0 md:hidden hover:opacity-90 active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+                className="w-11 h-11 bg-[var(--accent-sand)] text-[#14141a] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] dark:bg-[rgba(226,182,142,0.16)] dark:text-[#E2B68E] dark:border dark:border-[#E2B68E]/35 dark:shadow-none flex items-center justify-center font-heading font-bold text-lg shrink-0 md:hidden hover:opacity-90 active:translate-x-0.5 active:translate-y-0.5 dark:active:translate-x-0 dark:active:translate-y-0 cursor-pointer"
               >
                 A
               </button>
@@ -1815,7 +1815,7 @@ function AuthenticatedApp({ uid }: { uid: string }) {
                     id="ledger-switcher-btn"
                     type="button"
                     onClick={() => setIsLedgerDropdownOpen(!isLedgerDropdownOpen)}
-                    className="inline-flex items-center gap-1 px-2 py-1 bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] text-xs font-heading font-bold text-white transition-all active:translate-x-0.5 active:translate-y-0.5 max-w-[120px] xs:max-w-[150px] sm:max-w-[180px]"
+                    className="inline-flex items-center gap-1 px-2 py-1 min-h-[38px] bg-[var(--bg-elevated)] hover:bg-[var(--bg-muted)] border-2 border-[var(--border-color)] rounded-[var(--radius-sm)] shadow-[2px_2px_0px_#000] dark:bg-[#1F2333] dark:hover:bg-[#262B3D] dark:border dark:border-white/[0.14] dark:shadow-none text-xs font-heading font-bold text-white dark:text-[#F1F5F9] transition-all active:translate-x-0.5 active:translate-y-0.5 dark:active:translate-x-0 dark:active:translate-y-0 max-w-[120px] xs:max-w-[150px] sm:max-w-[180px]"
                     style={{ borderLeftColor: currentLedger.colorAccent || 'var(--accent-sage)', borderLeftWidth: '4px' }}
                   >
                     <BookOpen className="w-3.5 h-3.5 text-[var(--accent-sand)] shrink-0" />
@@ -1827,7 +1827,7 @@ function AuthenticatedApp({ uid }: { uid: string }) {
                   {isLedgerDropdownOpen && (
                     <div 
                       id="ledger-dropdown-menu" 
-                      className="absolute left-0 top-full mt-2 w-72 sm:w-80 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)] p-2.5 z-50 space-y-2 animate-in fade-in slide-in-from-top-2 duration-150"
+                      className="absolute left-0 top-full mt-2 w-72 sm:w-80 bg-[var(--bg-surface)] border-2 border-[var(--border-color)] rounded-[var(--radius-md)] shadow-[var(--shadow-lg)] dark:bg-[#171924] dark:border dark:border-white/[0.10] dark:shadow-[0_16px_40px_rgba(0,0,0,0.55)] p-2.5 z-50 space-y-2 animate-in fade-in slide-in-from-top-2 duration-150"
                     >
                       <div className="px-2 py-1 border-b border-[var(--border-subtle)] flex items-center justify-between">
                         <span className="text-[10px] font-mono uppercase text-[var(--text-muted)] font-bold">Pilih Buku Kas Aktif</span>
@@ -1842,7 +1842,7 @@ function AuthenticatedApp({ uid }: { uid: string }) {
                               key={l.id}
                               className={`w-full p-2 rounded-[var(--radius-sm)] border transition-all flex items-center justify-between gap-2 ${
                                 isActive 
-                                  ? 'bg-[var(--bg-elevated)] border-white shadow-[2px_2px_0px_#000]' 
+                                  ? 'bg-[var(--bg-elevated)] border-white shadow-[2px_2px_0px_#000] dark:bg-[rgba(226,182,142,0.12)] dark:border-[#E2B68E]/35 dark:shadow-none' 
                                   : 'border-transparent hover:bg-[var(--bg-elevated)] hover:border-[var(--border-subtle)] text-[var(--text-secondary)]'
                               }`}
                             >
@@ -1858,7 +1858,7 @@ function AuthenticatedApp({ uid }: { uid: string }) {
                                 />
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-1.5">
-                                    <p className="font-heading font-bold text-xs text-white truncate">{l.name}</p>
+                                    <p className="font-heading font-bold text-xs text-white dark:text-[#F1F5F9] truncate">{l.name}</p>
                                     {isActive && <Check className="w-3.5 h-3.5 text-[var(--accent-sage)] shrink-0" />}
                                   </div>
                                   {l.description ? (
@@ -1918,7 +1918,7 @@ function AuthenticatedApp({ uid }: { uid: string }) {
                   type="button"
                   onClick={() => setActiveModule('settings')}
                   title="Anda berada di Sandbox Mode (users/user_artha_sandbox). Data asli aman. Klik untuk kelola data dummy."
-                  className="px-2 py-1 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] shadow-[2px_2px_0px_var(--border-color)] font-mono text-[10px] sm:text-[11px] font-bold tracking-tight whitespace-nowrap hover:brightness-95 transition"
+                  className="px-2 py-1 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] shadow-[2px_2px_0px_var(--border-color)] dark:border dark:border-[#E2B68E]/35 dark:bg-[rgba(226,182,142,0.14)] dark:text-[#E2B68E] dark:shadow-none font-mono text-[10px] sm:text-[11px] font-bold tracking-tight whitespace-nowrap hover:brightness-95 dark:hover:bg-[rgba(226,182,142,0.22)] transition"
                 >
                   <span className="hidden sm:inline">SANDBOX / DUMMY MODE</span>
                   <span className="sm:hidden">SANDBOX</span>
@@ -1947,10 +1947,10 @@ function AuthenticatedApp({ uid }: { uid: string }) {
                   id="header-btn-add-goal"
                   type="button"
                   onClick={() => setIsAddGoalOpen(true)}
-                  className="brutal-btn brutal-btn-sand !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] flex items-center justify-center font-bold"
+                  className="brutal-btn brutal-btn-sand !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] dark:!shadow-none flex items-center justify-center font-bold"
                   title="Tambah Target Baru"
                 >
-                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black" />
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#14141a] dark:text-[#0F1117]" />
                 </button>
               )}
 
@@ -1961,7 +1961,7 @@ function AuthenticatedApp({ uid }: { uid: string }) {
                     id="header-btn-add-bill"
                     type="button"
                     onClick={() => setIsAddBillOpen(true)}
-                    className="brutal-btn brutal-btn-blue !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] flex items-center justify-center font-bold text-white"
+                    className="brutal-btn brutal-btn-blue !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] dark:!shadow-none flex items-center justify-center font-bold text-white dark:text-[#0F1117]"
                     title="Tambah Tagihan Baru"
                   >
                     <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -1970,7 +1970,7 @@ function AuthenticatedApp({ uid }: { uid: string }) {
                     id="header-btn-add-debt"
                     type="button"
                     onClick={() => setIsAddDebtOpen(true)}
-                    className="brutal-btn brutal-btn-terracotta !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] flex items-center justify-center font-bold text-white"
+                    className="brutal-btn brutal-btn-terracotta !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] dark:!shadow-none flex items-center justify-center font-bold text-white dark:text-[#0F1117]"
                     title="Catat Utang Baru"
                   >
                     <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -1984,10 +1984,10 @@ function AuthenticatedApp({ uid }: { uid: string }) {
                   id="header-btn-add-automation"
                   type="button"
                   onClick={() => setIsAddAutomationOpen(true)}
-                  className="brutal-btn brutal-btn-sand !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] flex items-center justify-center font-bold"
+                  className="brutal-btn brutal-btn-sand !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] dark:!shadow-none flex items-center justify-center font-bold"
                   title="Tambah Aturan Otomasi Baru"
                 >
-                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black" />
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#14141a] dark:text-[#0F1117]" />
                 </button>
               )}
 
@@ -1997,10 +1997,10 @@ function AuthenticatedApp({ uid }: { uid: string }) {
                   id="header-btn-add-asset"
                   type="button"
                   onClick={() => window.dispatchEvent(new CustomEvent('open-add-asset-modal'))}
-                  className="brutal-btn brutal-btn-sand !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] flex items-center justify-center font-bold"
+                  className="brutal-btn brutal-btn-sand !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] dark:!shadow-none flex items-center justify-center font-bold"
                   title="Tambah Aset Investasi Baru"
                 >
-                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black" />
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#14141a] dark:text-[#0F1117]" />
                 </button>
               )}
 
@@ -2009,10 +2009,10 @@ function AuthenticatedApp({ uid }: { uid: string }) {
                 <button
                   type="button"
                   onClick={() => window.dispatchEvent(new CustomEvent('open-tx-tab-settings'))}
-                  className="brutal-btn brutal-btn-sand !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] flex items-center justify-center font-bold"
+                  className="brutal-btn brutal-btn-sand !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] dark:!shadow-none flex items-center justify-center font-bold"
                   title="Buka Pengaturan Tab Transaksi (Kategori & Alokasi Budget)"
                 >
-                  <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black" />
+                  <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#14141a] dark:text-[#0F1117]" />
                 </button>
               )}
 
@@ -2021,10 +2021,10 @@ function AuthenticatedApp({ uid }: { uid: string }) {
                 <button
                   type="button"
                   onClick={() => setActiveModule('add_transaction')}
-                  className="brutal-btn brutal-btn-sand !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] flex items-center justify-center font-bold"
+                  className="brutal-btn brutal-btn-sand !p-1.5 sm:!p-2 !shadow-[var(--shadow-sm)] dark:!shadow-none flex items-center justify-center font-bold"
                   title="Catat Transaksi Baru"
                 >
-                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black" />
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#14141a] dark:text-[#0F1117]" />
                 </button>
               )}
 
@@ -2851,7 +2851,7 @@ function AuthenticatedApp({ uid }: { uid: string }) {
       )}
 
       {/* Footer */}
-      <footer className="border-t-[2.5px] border-[var(--border-color)] bg-[var(--bg-surface)] py-3 px-3 pb-20 md:pb-3 text-center text-xs font-mono text-[var(--text-secondary)]">
+      <footer className="border-t-[2.5px] border-[var(--border-color)] bg-[var(--bg-surface)] dark:border-t dark:border-white/[0.08] dark:bg-[#13151F] py-3 px-3 pb-20 md:pb-3 text-center text-xs font-mono text-[var(--text-secondary)]">
         Artha Neo-Brutalism • Multi-Buku Kas (Aktif: {currentLedger.name}) & Cloud Firestore Real-Time
       </footer>
     </div>

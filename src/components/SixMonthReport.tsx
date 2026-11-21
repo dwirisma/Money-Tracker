@@ -5,6 +5,7 @@ import type { Transaction } from '../types';
 import { formatRupiah } from '../utils/financeUtils';
 import { buildSixMonths, sixMonthsCsv } from '../utils/dateUtils';
 import { Money } from './ui/BaseUI';
+import { useUI } from '../context/UIContext';
 
 const compact = (v: number) => (Math.abs(v) >= 1e6 ? `${+(v / 1e6).toFixed(1)} jt` : Math.abs(v) >= 1e3 ? `${Math.round(v / 1e3)} rb` : String(v));
 
@@ -12,13 +13,21 @@ const compact = (v: number) => (Math.abs(v) >= 1e6 ? `${+(v / 1e6).toFixed(1)} j
 function printLight() {
   const root = document.documentElement;
   const prev = root.getAttribute('data-theme');
+  const hadDark = root.classList.contains('dark');
   root.setAttribute('data-theme', 'light');
-  const restore = () => { root.setAttribute('data-theme', prev || 'dark'); window.removeEventListener('afterprint', restore); };
+  root.classList.remove('dark');
+  const restore = () => {
+    root.setAttribute('data-theme', prev || 'dark');
+    root.classList.toggle('dark', hadDark);
+    window.removeEventListener('afterprint', restore);
+  };
   window.addEventListener('afterprint', restore);
   window.print();
 }
 
 export function SixMonthReport({ transactions, ledgerName }: { transactions: Transaction[]; ledgerName: string }) {
+  const { theme } = useUI();
+  const isDark = theme === 'dark';
   const rows = useMemo(() => buildSixMonths(transactions), [transactions]);
 
   const downloadCsv = () => {
@@ -50,13 +59,45 @@ export function SixMonthReport({ transactions, ledgerName }: { transactions: Tra
       <div className="ax-rchart">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
-            <XAxis dataKey="label" tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} />
-            <YAxis tickFormatter={compact} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} width={48} />
-            <Tooltip formatter={(v) => formatRupiah(Number(v))} cursor={{ fill: 'var(--bg-muted)', opacity: 0.5 }}
-              contentStyle={{ background: 'var(--bg-surface)', border: '2px solid var(--border-color)', borderRadius: 12, color: 'var(--text-primary)', boxShadow: 'var(--shadow-md)' }} />
-            <Bar dataKey="income" name="Pemasukan" fill="var(--accent-sage)" stroke="var(--border-color)" strokeWidth={1.5} radius={[4, 4, 0, 0]} />
-            <Bar dataKey="expense" name="Pengeluaran" fill="var(--accent-terracotta)" stroke="var(--border-color)" strokeWidth={1.5} radius={[4, 4, 0, 0]} />
+            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255, 255, 255, 0.07)' : 'var(--border-subtle)'} vertical={false} />
+            <XAxis
+              dataKey="label"
+              tickLine={false}
+              axisLine={{ stroke: isDark ? 'rgba(255, 255, 255, 0.08)' : 'var(--border-subtle)' }}
+              tick={{ fill: isDark ? '#8B9A9F' : 'var(--text-secondary)', fontSize: 11 }}
+            />
+            <YAxis
+              tickFormatter={compact}
+              tickLine={false}
+              axisLine={{ stroke: isDark ? 'rgba(255, 255, 255, 0.08)' : 'var(--border-subtle)' }}
+              tick={{ fill: isDark ? '#8B9A9F' : 'var(--text-secondary)', fontSize: 11 }}
+              width={48}
+            />
+            <Tooltip
+              formatter={(v) => formatRupiah(Number(v))}
+              cursor={{ fill: isDark ? 'rgba(255, 255, 255, 0.05)' : 'var(--bg-muted)', opacity: isDark ? 1 : 0.5 }}
+              contentStyle={
+                isDark
+                  ? {
+                      background: '#1F2333',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      borderRadius: 12,
+                      color: '#F1F5F9',
+                      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
+                    }
+                  : {
+                      background: 'var(--bg-surface)',
+                      border: '2px solid var(--border-color)',
+                      borderRadius: 12,
+                      color: 'var(--text-primary)',
+                      boxShadow: 'var(--shadow-md)',
+                    }
+              }
+              labelStyle={isDark ? { color: '#F1F5F9', fontWeight: 700, marginBottom: 4 } : undefined}
+              itemStyle={isDark ? { color: '#CBD5E1' } : undefined}
+            />
+            <Bar dataKey="income" name="Pemasukan" fill="var(--accent-sage)" stroke={isDark ? 'none' : 'var(--border-color)'} strokeWidth={isDark ? 0 : 1.5} radius={[6, 6, 0, 0]} />
+            <Bar dataKey="expense" name="Pengeluaran" fill="var(--accent-terracotta)" stroke={isDark ? 'none' : 'var(--border-color)'} strokeWidth={isDark ? 0 : 1.5} radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

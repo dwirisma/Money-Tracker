@@ -43,7 +43,7 @@ type Filter = 'all' | 'unread';
 
 const SEVERITY_COLOR: Record<AppNotification['severity'], string> = {
   danger: 'var(--accent-terracotta)',
-  warning: 'var(--accent-sand)',
+  warning: 'var(--accent-warning)',
   success: 'var(--accent-sage)',
   info: 'var(--accent-blue)',
 };

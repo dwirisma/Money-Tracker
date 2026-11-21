@@ -171,7 +171,7 @@ export function AppNav({ active, onNavigate }: AppNavProps) {
             <div className="ax-handle" />
             <div className="ax-sh">
               <div><h2>Menu</h2><p>{tgl} · {jam}</p></div>
-              <button type="button" className="brutal-btn !p-2" onClick={() => setMobileDrawerOpen(false)} aria-label="Tutup menu"><X size={16} /></button>
+              <button type="button" className="brutal-btn !p-2 min-w-[44px] min-h-[44px]" onClick={() => setMobileDrawerOpen(false)} aria-label="Tutup menu"><X size={16} /></button>
             </div>
             <div className="ax-tools">
               <button type="button" className="brutal-btn" onClick={togglePrivacy}>{privacy ? <EyeOff size={14} /> : <Eye size={14} />}{privacy ? 'Saldo disensor' : 'Saldo terbuka'}</button>

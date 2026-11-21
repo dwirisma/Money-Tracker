@@ -102,7 +102,7 @@ export function ObligationsView(p: Props) {
       <section className="ax-sec">
         <div className="ax-secthead">
           <div>
-            <h3><span className="ax-ic" style={{ background: 'var(--accent-blue)' }}><RotateCw className="w-3.5 h-3.5" /></span>Tagihan rutin & langganan</h3>
+            <h3><span className="ax-ic" style={{ '--c': 'var(--accent-blue)', background: 'var(--accent-blue)' } as CSSProperties}><RotateCw className="w-3.5 h-3.5" /></span>Tagihan rutin & langganan</h3>
             <p className="ax-sec-sub">Siklus otomatis dan pengingat jatuh tempo. Ketuk kartu untuk detail dan riwayat.</p>
           </div>
           <button type="button" className="brutal-btn brutal-btn-blue" onClick={p.onAddBill}><Plus className="w-4 h-4" />Tambah tagihan</button>
@@ -157,7 +157,7 @@ export function ObligationsView(p: Props) {
       <section className="ax-sec">
         <div className="ax-secthead">
           <div>
-            <h3><span className="ax-ic" style={{ background: 'var(--accent-terracotta)' }}><CreditCard className="w-3.5 h-3.5" /></span>Utang & cicilan</h3>
+            <h3><span className="ax-ic" style={{ '--c': 'var(--accent-terracotta)', background: 'var(--accent-terracotta)' } as CSSProperties}><CreditCard className="w-3.5 h-3.5" /></span>Utang & cicilan</h3>
             <p className="ax-sec-sub">Lacak pinjaman, sisa pokok, dan pelunasan. Ketuk kartu untuk riwayat cicilan.</p>
           </div>
           <button type="button" className="brutal-btn brutal-btn-terracotta" onClick={p.onAddDebt}><Plus className="w-4 h-4" />Catat pinjaman</button>

@@ -23,6 +23,8 @@ import { formatRupiah } from '../utils/financeUtils';
 import { Money } from './ui/BaseUI';
 import type { ModuleId } from './layout/Navigation';
 import { AiInsightCard } from './AiInsightCard';
+import { useUI } from '../context/UIContext';
+import type { CSSProperties } from 'react';
 import { 
   ResponsiveContainer, 
   LineChart, 
@@ -67,6 +69,8 @@ function scoreMeta(score: number) {
 }
 
 export function DashboardPage({ ledgerName, currentLedger, accounts, transactions, goals, bills, debts, investments = [], onNavigate }: Props) {
+  const { theme } = useUI();
+  const isDark = theme === 'dark';
   const [windowDays, setWindowDays] = useState<number>(7);
   const now = new Date();
   const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -192,7 +196,7 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
 
       {/* SKOR + RASIO TABUNGAN */}
       <section className="ax-b s4 ax-panel ax-score">
-        <div className="ax-ph"><h3><span className="ax-ic" style={{ background: 'var(--accent-lavender)' }}><Activity className="w-3.5 h-3.5" /></span>Skor Finansial</h3></div>
+        <div className="ax-ph"><h3><span className="ax-ic" style={{ '--c': 'var(--accent-lavender)', background: 'var(--accent-lavender)' } as CSSProperties}><Activity className="w-3.5 h-3.5" /></span>Skor Finansial</h3></div>
         <div className="ax-ring">
           <svg width="104" height="104" viewBox="0 0 64 64" className="-rotate-90" aria-hidden="true">
             <circle cx="32" cy="32" r={R} fill="none" stroke="var(--bg-muted)" strokeWidth="8" />
@@ -200,7 +204,7 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
           </svg>
           <div className="ax-ring-n"><b>{d.score}</b><small>/ 100</small></div>
         </div>
-        <div className="ax-meta" style={{ background: meta.color }}>{meta.label}</div>
+        <div className="ax-meta" style={{ '--c': meta.color, background: meta.color } as CSSProperties}>{meta.label}</div>
         <div className="ax-ratio" title="(Pemasukan - Pengeluaran) / Pemasukan">
           <span><PiggyBank className="w-3.5 h-3.5" />Rasio tabungan</span>
           <b>{d.income > 0 ? `${d.savingsRatio.toFixed(1)}%` : '-'}</b>
@@ -222,7 +226,7 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
       {/* ARUS KAS BULAN INI */}
       <section className="ax-b s4 ax-panel">
         <div className="ax-ph">
-          <h3><span className="ax-ic" style={{ background: 'var(--accent-sage)' }}><BarChart2 className="w-3.5 h-3.5" /></span>Arus Kas Bulan Ini</h3>
+          <h3><span className="ax-ic" style={{ '--c': 'var(--accent-sage)', background: 'var(--accent-sage)' } as CSSProperties}><BarChart2 className="w-3.5 h-3.5" /></span>Arus Kas Bulan Ini</h3>
           <span className={`ax-pill ${d.netCashFlow >= 0 ? 'pos' : 'neg'}`}>{d.netCashFlow >= 0 ? 'Surplus' : 'Defisit'}</span>
         </div>
         <div className="ax-flow-n" style={{ color: d.netCashFlow >= 0 ? 'var(--accent-sage-light)' : 'var(--accent-terracotta-light)' }}>
@@ -249,7 +253,7 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
       {/* TREN 6 BULAN */}
       <section className="ax-b s8 ax-panel ax-trend">
         <div className="ax-ph">
-          <h3><span className="ax-ic" style={{ background: 'var(--accent-blue)' }}><TrendingUp className="w-3.5 h-3.5" /></span>Tren 6 Bulan</h3>
+          <h3><span className="ax-ic" style={{ '--c': 'var(--accent-blue)', background: 'var(--accent-blue)' } as CSSProperties}><TrendingUp className="w-3.5 h-3.5" /></span>Tren 6 Bulan</h3>
           <div className="ax-leg">
             <span><i style={{ background: 'var(--accent-sage)' }} />Masuk</span>
             <span><i style={{ background: 'var(--accent-terracotta)' }} />Keluar</span>
@@ -259,13 +263,17 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
         <div className="ax-chart">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={d.monthsData} margin={{ top: 8, right: 10, left: -18, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
-              <XAxis dataKey="label" stroke="var(--text-muted)" fontSize={10} tickLine={false} fontFamily="var(--font-mono)" />
-              <YAxis
-                stroke="var(--text-muted)"
-                fontSize={9}
+              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255, 255, 255, 0.07)' : 'var(--border-subtle)'} vertical={false} />
+              <XAxis
+                dataKey="label"
+                stroke={isDark ? 'rgba(255, 255, 255, 0.08)' : 'var(--text-muted)'}
+                tick={{ fill: isDark ? '#8B9A9F' : 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)' }}
                 tickLine={false}
-                fontFamily="var(--font-mono)"
+              />
+              <YAxis
+                stroke={isDark ? 'rgba(255, 255, 255, 0.08)' : 'var(--text-muted)'}
+                tick={{ fill: isDark ? '#8B9A9F' : 'var(--text-muted)', fontSize: 9, fontFamily: 'var(--font-mono)' }}
+                tickLine={false}
                 tickFormatter={(v) => {
                   if (Math.abs(v) >= 1000000) return `${(v / 1000000).toFixed(0)}jt`;
                   if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(0)}rb`;
@@ -290,9 +298,9 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
                   return null;
                 }}
               />
-              <Line type="monotone" dataKey="income" name="Pemasukan" stroke="var(--accent-sage)" strokeWidth={3} dot={{ r: 3, fill: 'var(--accent-sage)', strokeWidth: 1.5, stroke: 'var(--ink)' }} activeDot={{ r: 5 }} />
-              <Line type="monotone" dataKey="expense" name="Pengeluaran" stroke="var(--accent-terracotta)" strokeWidth={3} dot={{ r: 3, fill: 'var(--accent-terracotta)', strokeWidth: 1.5, stroke: 'var(--ink)' }} activeDot={{ r: 5 }} />
-              <Line type="monotone" dataKey="net" name="Arus Kas Bersih" stroke="var(--accent-blue)" strokeWidth={2} strokeDasharray="4 4" dot={{ r: 3, fill: 'var(--accent-blue)', strokeWidth: 1.5, stroke: 'var(--ink)' }} activeDot={{ r: 5 }} />
+              <Line type="monotone" dataKey="income" name="Pemasukan" stroke="var(--accent-sage)" strokeWidth={3} dot={{ r: 3, fill: 'var(--accent-sage)', strokeWidth: 1.5, stroke: isDark ? '#171924' : 'var(--ink)' }} activeDot={{ r: 5 }} />
+              <Line type="monotone" dataKey="expense" name="Pengeluaran" stroke="var(--accent-terracotta)" strokeWidth={3} dot={{ r: 3, fill: 'var(--accent-terracotta)', strokeWidth: 1.5, stroke: isDark ? '#171924' : 'var(--ink)' }} activeDot={{ r: 5 }} />
+              <Line type="monotone" dataKey="net" name="Arus Kas Bersih" stroke="var(--accent-blue)" strokeWidth={2} strokeDasharray="4 4" dot={{ r: 3, fill: 'var(--accent-blue)', strokeWidth: 1.5, stroke: isDark ? '#171924' : 'var(--ink)' }} activeDot={{ r: 5 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -305,7 +313,7 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
       {/* SALDO AKUN (saldo bebas per akun; total tetap di kartu kekayaan) */}
       <section className="ax-b s4 ax-panel">
         <div className="ax-ph">
-          <h3><span className="ax-ic" style={{ background: 'var(--accent-sage)' }}><Wallet className="w-3.5 h-3.5" /></span>Saldo Akun</h3>
+          <h3><span className="ax-ic" style={{ '--c': 'var(--accent-sage)', background: 'var(--accent-sage)' } as CSSProperties}><Wallet className="w-3.5 h-3.5" /></span>Saldo Akun</h3>
         </div>
         {(() => {
           const list = accounts.filter(a => !a.isArchived);
@@ -341,7 +349,7 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
       {/* SINKING FUNDS */}
       <section className="ax-b s6 ax-panel">
         <div className="ax-ph">
-          <h3><span className="ax-ic" style={{ background: 'var(--accent-sand)' }}><Target className="w-3.5 h-3.5" /></span>Sinking Funds Terdekat</h3>
+          <h3><span className="ax-ic" style={{ '--c': 'var(--accent-sand)', background: 'var(--accent-sand)' } as CSSProperties}><Target className="w-3.5 h-3.5" /></span>Sinking Funds Terdekat</h3>
           <button type="button" className="ax-link" onClick={() => onNavigate('module2')}>Lihat semua →</button>
         </div>
         {d.nearGoals.length === 0 ? (
@@ -367,7 +375,7 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
       {/* PORTOFOLIO INVESTASI */}
       <section className="ax-b s6 ax-panel ax-inv">
         <div className="ax-ph">
-          <h3><span className="ax-ic" style={{ background: 'var(--accent-lavender)' }}><Coins className="w-3.5 h-3.5" /></span>Portofolio Investasi</h3>
+          <h3><span className="ax-ic" style={{ '--c': 'var(--accent-lavender)', background: 'var(--accent-lavender)' } as CSSProperties}><Coins className="w-3.5 h-3.5" /></span>Portofolio Investasi</h3>
           <button type="button" className="ax-link" onClick={() => onNavigate('investments')}>Detail →</button>
         </div>
         <div className="ax-eyebrow dim">Nilai pasar portofolio</div>
@@ -386,7 +394,7 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
       {/* TAGIHAN MENDATANG */}
       <section className="ax-b s6 ax-panel">
         <div className="ax-ph">
-          <h3><span className="ax-ic" style={{ background: 'var(--accent-terracotta)' }}><CalendarClock className="w-3.5 h-3.5" /></span>Tagihan & Cicilan</h3>
+          <h3><span className="ax-ic" style={{ '--c': 'var(--accent-terracotta)', background: 'var(--accent-terracotta)' } as CSSProperties}><CalendarClock className="w-3.5 h-3.5" /></span>Tagihan & Cicilan</h3>
           <div className="ax-chips">
             {WINDOWS.map(w => (
               <button key={w} type="button" onClick={() => setWindowDays(w)} data-on={windowDays === w}>{w}H</button>
@@ -418,16 +426,18 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
       {/* 5 TRANSAKSI TERAKHIR */}
       <section className="ax-b s6 ax-panel">
         <div className="ax-ph">
-          <h3><span className="ax-ic" style={{ background: 'var(--accent-blue)' }}><Receipt className="w-3.5 h-3.5" /></span>5 Transaksi Terakhir</h3>
+          <h3><span className="ax-ic" style={{ '--c': 'var(--accent-blue)', background: 'var(--accent-blue)' } as CSSProperties}><Receipt className="w-3.5 h-3.5" /></span>5 Transaksi Terakhir</h3>
           <button type="button" className="ax-link" onClick={() => onNavigate('history_transaction')}>Semua riwayat →</button>
         </div>
         {d.recent.length === 0 ? (
           <p className="ax-empty">Belum ada transaksi di buku kas ini. Tekan tombol Catat untuk mulai mencatat.</p>
         ) : (
           <ul className="ax-list">
-            {d.recent.map(t => (
+            {d.recent.map(t => {
+              const rowAccent = t.type === 'income' ? 'var(--accent-sage)' : t.type === 'expense' ? 'var(--accent-terracotta)' : 'var(--accent-blue)';
+              return (
               <li key={t.id} className="ax-row static">
-                <span className="ax-ic" style={{ background: t.type === 'income' ? 'var(--accent-sage)' : t.type === 'expense' ? 'var(--accent-terracotta)' : 'var(--accent-blue)' }}>
+                <span className="ax-ic" style={{ '--c': rowAccent, background: rowAccent } as CSSProperties}>
                   {t.type === 'income' ? <TrendingUp className="w-3.5 h-3.5" /> : t.type === 'expense' ? <TrendingDown className="w-3.5 h-3.5" /> : <ArrowRightLeft className="w-3.5 h-3.5" />}
                 </span>
                 <span className="ax-row-t">
@@ -438,7 +448,8 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
                   {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : '⇄'} {formatRupiah(t.amount)}
                 </span>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </section>

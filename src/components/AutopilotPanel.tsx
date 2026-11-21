@@ -399,7 +399,7 @@ export function AutopilotList({ uid, ledgerId, accounts, goals, bills, debts, ru
       <div className="ax-secthead">
         <div>
           <h3>
-            <span className="ax-ic" style={{ background: 'var(--accent-sand)' }}>
+            <span className="ax-ic" style={{ '--c': 'var(--accent-sand)', background: 'var(--accent-sand)' } as CSSProperties}>
               <Rocket className="w-3.5 h-3.5" />
             </span>
             Aturan Autopilot<em>{rules.length}</em>
@@ -451,7 +451,7 @@ export function AutopilotList({ uid, ledgerId, accounts, goals, bills, debts, ru
                 <div className="ax-ac-h">
                   <span
                     className="ax-tag"
-                    style={{ background: KIND_TONE[r.kind], color: '#14141a' }}
+                    style={{ '--c': KIND_TONE[r.kind], background: KIND_TONE[r.kind], color: '#14141a' } as CSSProperties}
                   >
                     {KIND_LABEL[r.kind]}
                   </span>

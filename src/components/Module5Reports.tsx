@@ -37,6 +37,7 @@ import {
 import * as XLSX from 'xlsx';
 import { Transaction, Ledger, Account, ReportTimeRange, CategoryExpenseSummary, CashFlowTrendPoint, ReportMetrics } from '../types';
 import { DEFAULT_CATEGORY_BUDGETS, type CategoryBudgetMap } from '../services/settingsService';
+import { useUI } from '../context/UIContext';
 
 type Tone = 'ok' | 'mid' | 'low';
 const TONE_COLOR: Record<Tone, string> = { ok: 'var(--accent-sage)', mid: 'var(--accent-sand)', low: 'var(--accent-terracotta)' };
@@ -74,6 +75,9 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
   formatDate,
   onNavigateToTab
 }) => {
+  const { theme } = useUI();
+  const isDark = theme === 'dark';
+
   // State Filter Waktu
   const [timeRange, setTimeRange] = useState<ReportTimeRange>('this_month');
   const [customStartDate, setCustomStartDate] = useState<string>('');
@@ -654,25 +658,25 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       const exp = payload.find((p: any) => p.dataKey === 'expense')?.value || 0;
       const net = inc - exp;
       return (
-        <div className="bg-[var(--bg-surface)] border-2 border-[var(--border-color)] p-3 rounded-[var(--radius-sm)] shadow-[4px_4px_0px_#000] text-xs space-y-1.5 font-mono">
-          <p className="font-heading font-bold text-[var(--text-primary)] text-sm border-b border-[var(--border-subtle)] pb-1">
+        <div className="bg-[var(--bg-surface)] border-2 border-[var(--border-color)] dark:bg-[#1F2333] dark:border dark:border-white/[0.12] dark:shadow-[0_8px_24px_rgba(0,0,0,0.45)] p-3 rounded-[var(--radius-sm)] shadow-[4px_4px_0px_#000] text-xs space-y-1.5 font-mono">
+          <p className="font-heading font-bold text-[var(--text-primary)] text-sm border-b border-[var(--border-subtle)] dark:border-white/[0.08] pb-1">
             {label}
           </p>
           <div className="flex items-center justify-between gap-3 text-[var(--accent-sage)]">
             <span className="flex items-center gap-1.5 font-bold">
-              <span className="w-2.5 h-2.5 bg-[var(--accent-sage)] border border-black inline-block" />
+              <span className="w-2.5 h-2.5 bg-[var(--accent-sage)] border border-black dark:border-white/20 inline-block" />
               Pemasukan:
             </span>
             <span>{formatRupiah(inc)}</span>
           </div>
           <div className="flex items-center justify-between gap-3 text-[var(--accent-terracotta-light)]">
             <span className="flex items-center gap-1.5 font-bold">
-              <span className="w-2.5 h-2.5 bg-[var(--accent-terracotta)] border border-black inline-block" />
+              <span className="w-2.5 h-2.5 bg-[var(--accent-terracotta)] border border-black dark:border-white/20 inline-block" />
               Pengeluaran:
             </span>
             <span>{formatRupiah(exp)}</span>
           </div>
-          <div className="flex items-center justify-between gap-3 pt-1 border-t border-[var(--border-subtle)] font-bold text-[var(--text-primary)]">
+          <div className="flex items-center justify-between gap-3 pt-1 border-t border-[var(--border-subtle)] dark:border-white/[0.08] font-bold text-[var(--text-primary)]">
             <span>Net Arus Kas:</span>
             <span className={net >= 0 ? 'text-[var(--accent-sage)]' : 'text-[var(--accent-terracotta)]'}>
               {net >= 0 ? `+${formatRupiah(net)}` : `-${formatRupiah(Math.abs(net))}`}
@@ -688,15 +692,15 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
     if (active && payload && payload.length) {
       const data = payload[0].payload as CategoryExpenseSummary;
       return (
-        <div className="bg-[var(--bg-surface)] border-2 border-[var(--border-color)] p-3 rounded-[var(--radius-sm)] shadow-[4px_4px_0px_#000] text-xs space-y-1 font-mono">
+        <div className="bg-[var(--bg-surface)] border-2 border-[var(--border-color)] dark:bg-[#1F2333] dark:border dark:border-white/[0.12] dark:shadow-[0_8px_24px_rgba(0,0,0,0.45)] p-3 rounded-[var(--radius-sm)] shadow-[4px_4px_0px_#000] text-xs space-y-1 font-mono">
           <p className="font-heading font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 border border-black inline-block" style={{ backgroundColor: data.color }} />
+            <span className="w-2.5 h-2.5 border border-black dark:border-white/20 inline-block" style={{ backgroundColor: data.color }} />
             {data.category}
           </p>
           <p className="text-[var(--accent-terracotta-light)] font-bold text-sm">
             {formatRupiah(data.amount)}
           </p>
-          <div className="flex items-center justify-between gap-2.5 text-[var(--text-secondary)] text-[11px] pt-1 border-t border-[var(--border-subtle)]">
+          <div className="flex items-center justify-between gap-2.5 text-[var(--text-secondary)] text-[11px] pt-1 border-t border-[var(--border-subtle)] dark:border-white/[0.08]">
             <span>Porsi Pengeluaran:</span>
             <span className="font-bold text-[var(--text-primary)]">{data.percentage}%</span>
           </div>
@@ -943,10 +947,18 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
             {trendData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={trendData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
-                  <XAxis dataKey="label" stroke="var(--text-secondary)" fontSize={11} tickLine={false} fontFamily="var(--font-mono)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255, 255, 255, 0.07)' : 'var(--border-subtle)'} vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    stroke={isDark ? '#8B9A9F' : 'var(--text-secondary)'}
+                    axisLine={isDark ? { stroke: 'rgba(255, 255, 255, 0.08)' } : true}
+                    fontSize={11}
+                    tickLine={false}
+                    fontFamily="var(--font-mono)"
+                  />
                   <YAxis
-                    stroke="var(--text-secondary)"
+                    stroke={isDark ? '#8B9A9F' : 'var(--text-secondary)'}
+                    axisLine={isDark ? { stroke: 'rgba(255, 255, 255, 0.08)' } : true}
                     fontSize={10}
                     tickLine={false}
                     fontFamily="var(--font-mono)"
@@ -956,9 +968,12 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
                       return String(val);
                     }}
                   />
-                  <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'var(--bg-muted)', opacity: 0.5 }} />
-                  <Bar dataKey="income" name="Pemasukan" fill="var(--accent-sage)" stroke="var(--border-color)" strokeWidth={1.5} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="expense" name="Pengeluaran" fill="var(--accent-terracotta)" stroke="var(--border-color)" strokeWidth={1.5} radius={[4, 4, 0, 0]} />
+                  <Tooltip
+                    content={<CustomBarTooltip />}
+                    cursor={{ fill: isDark ? 'rgba(255, 255, 255, 0.04)' : 'var(--bg-muted)', opacity: isDark ? 1 : 0.5 }}
+                  />
+                  <Bar dataKey="income" name="Pemasukan" fill="var(--accent-sage)" stroke={isDark ? 'none' : 'var(--border-color)'} strokeWidth={isDark ? 0 : 1.5} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="expense" name="Pengeluaran" fill="var(--accent-terracotta)" stroke={isDark ? 'none' : 'var(--border-color)'} strokeWidth={isDark ? 0 : 1.5} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -1007,7 +1022,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Tooltip content={<CustomPieTooltip />} />
-                      <Pie data={categoryBreakdown} dataKey="amount" nameKey="category" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} stroke="var(--border-color)" strokeWidth={2.5}>
+                      <Pie data={categoryBreakdown} dataKey="amount" nameKey="category" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} stroke={isDark ? '#171924' : 'var(--border-color)'} strokeWidth={isDark ? 2 : 2.5}>
                         {categoryBreakdown.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} cursor="pointer" />
                         ))}

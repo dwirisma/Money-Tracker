@@ -1013,12 +1013,12 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
       {/* Toast Feedback */}
       {toastMessage && (
         <div className="fixed top-16 right-4 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
-          <div className={`brutal-card p-3 px-3 text-xs font-mono font-bold flex items-center gap-2.5 shadow-[var(--shadow-md)] ${
+          <div className={`brutal-card p-3 px-3 text-xs font-mono font-bold flex items-center gap-2.5 shadow-[var(--shadow-md)] dark:shadow-[0_12px_32px_rgba(0,0,0,0.48)] ${
             toastMessage.type === 'success' 
-              ? 'bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] border-[var(--accent-sage)]'
+              ? 'bg-[var(--accent-sage-dark)] text-[var(--accent-sage-light)] border-[var(--accent-sage)] dark:bg-[#171924] dark:text-[#34D399] dark:border-[#34D399]/40'
               : toastMessage.type === 'error'
-              ? 'bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)] border-[var(--accent-terracotta)]'
-              : 'bg-[var(--accent-blue-dark)] text-[var(--accent-blue-light)] border-[var(--accent-blue)]'
+              ? 'bg-[var(--accent-terracotta-dark)] text-[var(--accent-terracotta-light)] border-[var(--accent-terracotta)] dark:bg-[#171924] dark:text-[#FB7185] dark:border-[#FB7185]/40'
+              : 'bg-[var(--accent-blue-dark)] text-[var(--accent-blue-light)] border-[var(--accent-blue)] dark:bg-[#171924] dark:text-[#60A5FA] dark:border-[#60A5FA]/40'
           }`}>
             <Sparkles className="w-4 h-4 shrink-0" />
             <span>{toastMessage.text}</span>

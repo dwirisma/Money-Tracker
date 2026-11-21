@@ -99,7 +99,7 @@ export function AccountsView({ ledgerName, accounts, totals, isLoading, onAddAcc
               >
                 <div className="ax-ac-h">
                   <div className="ax-ac-id">
-                    <span className="ax-ic" style={{ background: color }}><Icon className="w-4 h-4" /></span>
+                    <span className="ax-ic" style={{ '--c': color, background: color } as CSSProperties}><Icon className="w-4 h-4" /></span>
                     <div><b>{acc.name}</b><small>{TYPE_LABEL[acc.type] || acc.type}</small></div>
                   </div>
                   <div className="ax-acts" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>

@@ -73,7 +73,7 @@ export function AutomationsView(p: Props) {
       {/* DAFTAR ATURAN */}
       <div className="ax-secthead">
         <div>
-          <h3><span className="ax-ic" style={{ background: 'var(--accent-lavender)' }}><Zap className="w-3.5 h-3.5" /></span>Aturan otomatisasi</h3>
+          <h3><span className="ax-ic" style={{ '--c': 'var(--accent-lavender)', background: 'var(--accent-lavender)' } as CSSProperties}><Zap className="w-3.5 h-3.5" /></span>Aturan otomatisasi</h3>
           <p className="ax-sec-sub">Auto-income, auto-expense, dan auto-transfer berjalan otomatis saat aplikasi dibuka.</p>
         </div>
         <button type="button" className="brutal-btn brutal-btn-lavender" onClick={p.onAdd}><Plus className="w-4 h-4" />Buat aturan</button>

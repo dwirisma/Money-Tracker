@@ -46,7 +46,7 @@ export function ModalFrame({ title, subtitle, icon, tint, onClose, children, foo
   }, [onClose]);
 
   return (
-    <div className={`ax-modal fixed inset-0 ${top ? 'z-[70]' : 'z-50'} bg-black/80 flex items-center justify-center p-3`}>
+    <div className={`ax-modal fixed inset-0 ${top ? 'z-[70]' : 'z-50'} flex items-center justify-center p-3`}>
       <div
         className={`ax-mdl ${wide ? 'wide' : ''}`}
         role="dialog"

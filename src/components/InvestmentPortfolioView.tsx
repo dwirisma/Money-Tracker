@@ -289,7 +289,7 @@ export function InvestmentPortfolioView({
         <div className="ax-b s8 ax-panel ax-hero lav">
           <div className="ax-hero-head">
             <div className="ax-eyebrow" style={{ marginTop: 0 }}><Coins className="w-3.5 h-3.5" />Total nilai pasar</div>
-            <span className="ax-badge-s">{summary.netGainLoss >= 0 ? '▲' : '▼'} {summary.netGainLossPercent.toFixed(2)}% ROI</span>
+            <span className={`ax-badge-s ${summary.netGainLoss >= 0 ? 'pos' : 'neg'}`}>{summary.netGainLoss >= 0 ? '▲' : '▼'} {summary.netGainLossPercent.toFixed(2)}% ROI</span>
           </div>
           <div className="ax-big" style={{ marginBottom: 10 }}>{formatRupiah(summary.totalCurrentValue)}</div>
           <div className="ax-stats">
@@ -310,7 +310,7 @@ export function InvestmentPortfolioView({
 
         <div className="ax-b s4 ax-panel ax-alloc">
           <div className="ax-ph" style={{ margin: 0 }}>
-            <h3><span className="ax-ic" style={{ background: 'var(--accent-sand)' }}><PieIcon className="w-3.5 h-3.5" /></span>Alokasi aset</h3>
+            <h3><span className="ax-ic" style={{ '--c': 'var(--accent-sand)', background: 'var(--accent-sand)' } as React.CSSProperties}><PieIcon className="w-3.5 h-3.5" /></span>Alokasi aset</h3>
           </div>
           {summary.totalCurrentValue === 0 ? (
             <p className="ax-empty">Belum ada aset investasi terdaftar.</p>
@@ -370,7 +370,7 @@ export function InvestmentPortfolioView({
                 <div className="ax-ac-h">
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', minWidth: 0 }}>
                     {asset.symbolOrTicker && <span className="ax-ticker">{asset.symbolOrTicker}</span>}
-                    <span className="ax-tag" style={{ backgroundColor: meta.bg }}>{meta.label}</span>
+                    <span className="ax-tag" style={{ '--c': meta.color, backgroundColor: meta.bg } as React.CSSProperties}>{meta.label}</span>
                     {closed && <span className="ax-tag n">Selesai</span>}
                   </div>
                   <div className="ax-acts">
@@ -404,7 +404,7 @@ export function InvestmentPortfolioView({
                     {ret.topupTotal > 0 && <div className="ax-ob-row2"><span>Dana tambahan</span><b>{formatRupiah(ret.topupTotal)}</b></div>}
                     {ret.yieldTotal > 0 && <div className="ax-ob-row2"><span>Hasil terkumpul</span><b style={{ color: 'var(--accent-sage-light)' }}>+{formatRupiah(ret.yieldTotal)}</b></div>}
                     {ret.cashedOut > 0 && <div className="ax-ob-row2"><span>Sudah dicairkan</span><b>{formatRupiah(ret.cashedOut)}</b></div>}
-                    <div className="ax-ob-row2"><span>ROI total</span><b>{ret.roiTotal >= 0 ? '+' : ''}{ret.roiTotal.toFixed(1)}%</b></div>
+                    <div className="ax-ob-row2"><span>ROI total</span><b style={{ color: ret.roiTotal >= 0 ? 'var(--accent-sage-light)' : 'var(--accent-terracotta-light)' }}>{ret.roiTotal >= 0 ? '+' : ''}{ret.roiTotal.toFixed(1)}%</b></div>
                   </div>
                 )}
 

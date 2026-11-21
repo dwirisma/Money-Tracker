@@ -63,7 +63,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
     root.classList.toggle('dark', theme === 'dark');
     document
       .querySelector('meta[name="theme-color"]')
-      ?.setAttribute('content', theme === 'dark' ? '#16161c' : '#fff4dc');
+      ?.setAttribute('content', theme === 'dark' ? '#0F1117' : '#fff4dc');
   }, [theme]);
 
   // setPrivacyMode dipanggil sinkron saat render agar semua formatRupiah di render yang sama ikut tersensor

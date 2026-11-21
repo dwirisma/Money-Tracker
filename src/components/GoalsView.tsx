@@ -76,7 +76,7 @@ export function GoalsView(p: Props) {
       {/* FILTER + TAMBAH */}
       <div className="ax-secthead">
         <div>
-          <h3><span className="ax-ic" style={{ background: 'var(--accent-sand)' }}><Target className="w-3.5 h-3.5" /></span>Wishlist & Sinking Funds</h3>
+          <h3><span className="ax-ic" style={{ '--c': 'var(--accent-sand)', background: 'var(--accent-sand)' } as CSSProperties}><Target className="w-3.5 h-3.5" /></span>Wishlist & Sinking Funds</h3>
           <p className="ax-sec-sub">Sisihkan dana bertahap agar pengeluaran besar tidak datang mendadak.</p>
         </div>
         <button type="button" className="brutal-btn brutal-btn-sand" onClick={p.onAddGoal}><Plus className="w-4 h-4" />Tambah target</button>

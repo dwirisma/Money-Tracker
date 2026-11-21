@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from 'react';
+import type { CSSProperties, MouseEvent, ReactNode } from 'react';
 import { Banknote, Calendar, Coins, CreditCard, History, Pencil, Receipt, Trash2, Zap, ArrowRightLeft, TrendingDown, TrendingUp } from 'lucide-react';
 import type { Account, AutomationRule, Bill, Debt, Goal, Transaction } from '../types';
 import { formatRupiah, freeBalanceText } from '../utils/financeUtils';
@@ -94,7 +94,7 @@ function DetailModal(p: GenericProps) {
               const acc = accName(tx.accountId);
               return (
                 <article key={tx.id} className="ax-tx flat">
-                  <span className="ax-txi" style={{ background: st.chip }}>{st.icon}</span>
+                  <span className="ax-txi" style={{ '--c': st.chip, background: st.chip } as CSSProperties}>{st.icon}</span>
                   <div className="ax-txm">
                     <b>{p.rowTitle(tx)}</b>
                     <small>{tx.date}{acc ? ` · ${acc}` : ''}</small>

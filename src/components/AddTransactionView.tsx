@@ -449,7 +449,7 @@ export function AddTransactionView({
 
                   <div className="ax-scanbar-top">
                     <h3>
-                      <span className="ax-ic" style={{ background: 'var(--accent-lavender)' }}>
+                      <span className="ax-ic" style={{ '--c': 'var(--accent-lavender)', background: 'var(--accent-lavender)' } as React.CSSProperties}>
                         <ScanCamera className="w-3.5 h-3.5" />
                       </span>
                       Input pengeluaran
@@ -710,7 +710,7 @@ export function AddTransactionView({
         <div className="ax-side-col">
           <section className="ax-panel">
             <div className="ax-ph">
-              <h3><span className="ax-ic" style={{ background: 'var(--accent-sage)' }}><Tag className="w-3.5 h-3.5" /></span>Akun di buku ini</h3>
+              <h3><span className="ax-ic" style={{ '--c': 'var(--accent-sage)', background: 'var(--accent-sage)' } as React.CSSProperties}><Tag className="w-3.5 h-3.5" /></span>Akun di buku ini</h3>
               <button type="button" className="ax-link" onClick={() => onNavigate('module1')}>Kelola →</button>
             </div>
             <div className="ax-list" style={{ maxHeight: 220, overflowY: 'auto' }}>
@@ -722,7 +722,7 @@ export function AddTransactionView({
 
           <section className="ax-panel">
             <div className="ax-ph">
-              <h3><span className="ax-ic" style={{ background: 'var(--accent-blue)' }}><History className="w-3.5 h-3.5" /></span>Baru saja dicatat</h3>
+              <h3><span className="ax-ic" style={{ '--c': 'var(--accent-blue)', background: 'var(--accent-blue)' } as React.CSSProperties}><History className="w-3.5 h-3.5" /></span>Baru saja dicatat</h3>
               <button type="button" className="ax-link" onClick={() => onNavigate('history_transaction')}>Semua →</button>
             </div>
             {recentTransactions.length === 0 ? (

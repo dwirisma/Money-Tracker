@@ -223,8 +223,8 @@ export function CameraCaptureModal({ onCaptureFile, onClose }: CameraCaptureModa
         />
 
         {cameraState === 'error' ? (
-          <div className="p-4 rounded-xl border-2 border-[var(--border-color)] bg-[var(--bg-elevated)] space-y-3 text-center">
-            <div className="w-11 h-11 mx-auto rounded-xl bg-[var(--accent-terracotta)] text-[#14141a] border-2 border-[var(--border-color)] grid place-items-center">
+          <div className="p-4 rounded-xl border-2 border-[var(--border-color)] bg-[var(--bg-elevated)] dark:border dark:border-white/[0.10] dark:bg-[#1F2333] space-y-3 text-center">
+            <div className="w-11 h-11 mx-auto rounded-xl bg-[var(--accent-terracotta)] text-[#14141a] border-2 border-[var(--border-color)] dark:bg-[rgba(244,63,94,0.16)] dark:text-[#FB7185] dark:border dark:border-[#FB7185]/35 grid place-items-center">
               <AlertTriangle className="w-5 h-5" />
             </div>
             <p className="text-xs sm:text-sm font-bold text-[var(--text-primary)] leading-relaxed">
@@ -250,7 +250,7 @@ export function CameraCaptureModal({ onCaptureFile, onClose }: CameraCaptureModa
             </div>
           </div>
         ) : (
-          <div className="relative w-full overflow-hidden rounded-2xl border-2 border-[var(--border-color)] bg-[#111] shadow-[var(--shadow-sm)] aspect-[3/4] sm:aspect-[4/3] max-h-[60vh]">
+          <div className="relative w-full overflow-hidden rounded-2xl border-2 border-[var(--border-color)] bg-[#111] shadow-[var(--shadow-sm)] dark:border dark:border-white/[0.12] dark:bg-[#0B0D12] dark:shadow-none aspect-[3/4] sm:aspect-[4/3] max-h-[60vh]">
             {cameraState === 'loading' && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white text-xs font-mono z-10 bg-black/70">
                 <RefreshCw className="w-6 h-6 animate-spin text-[var(--accent-sand)]" />

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type CSSProperties } from 'react';
 import {
   Search,
   Filter,
@@ -176,7 +176,6 @@ export function TransactionHistoryView({
           <div className="ax-seg four" role="tablist" aria-label="Jenis transaksi">
             {([['all', 'Semua'], ['expense', 'Keluar'], ['income', 'Masuk'], ['transfer', 'Transfer']] as const).map(([k, label]) => (
               <button key={k} type="button" role="tab" aria-selected={typeFilter === k} data-on={typeFilter === k} data-k={k === 'all' ? 'sand' : k}
-                style={typeFilter === k && k === 'all' ? { background: 'var(--accent-sand)' } : undefined}
                 onClick={() => setTypeFilter(k)}>{label}</button>
             ))}
           </div>
@@ -233,7 +232,7 @@ export function TransactionHistoryView({
                   const bg = tx.type === 'income' ? 'var(--accent-sage)' : tx.type === 'expense' ? 'var(--accent-terracotta)' : 'var(--accent-blue)';
                   return (
                     <article key={tx.id} className="ax-tx">
-                      <span className="ax-txi" style={{ background: bg }}>
+                      <span className="ax-txi" style={{ '--c': bg, background: bg } as CSSProperties}>
                         {tx.type === 'income' ? <TrendingUp className="w-4 h-4" /> : tx.type === 'expense' ? <TrendingDown className="w-4 h-4" /> : <ArrowRightLeft className="w-4 h-4" />}
                       </span>
                       <div className="ax-txm">

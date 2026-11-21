@@ -255,9 +255,10 @@ export function AccountDetailModal({
                 const otherAccName = tx.type === 'transfer'
                   ? accounts.find(a => a.id === (isIncome ? tx.accountId : tx.toAccountId))?.name || 'Akun Lain'
                   : null;
+                const txColor = tx.type === 'transfer' ? 'var(--accent-blue)' : isIncome ? 'var(--accent-sage)' : 'var(--accent-terracotta)';
                 return (
                   <article key={tx.id} className="ax-tx flat">
-                    <span className="ax-txi" style={{ background: tx.type === 'transfer' ? 'var(--accent-blue)' : isIncome ? 'var(--accent-sage)' : 'var(--accent-terracotta)' }}>
+                    <span className="ax-txi" style={{ '--c': txColor, background: txColor } as React.CSSProperties}>
                       {tx.type === 'transfer' ? <ArrowRightLeft className="w-4 h-4" /> : isIncome ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
                     </span>
                     <div className="ax-txm">
