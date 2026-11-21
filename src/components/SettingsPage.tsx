@@ -1015,15 +1015,15 @@ export function SettingsPage() {
       )}
 
       {/* BACKUP & RESTORE DATA (.JSON) */}
-      <section className="ax-panel">
-        <div className="ax-ph">
-          <h3>
+      <section className="ax-panel overflow-hidden">
+        <div className="ax-ph flex flex-wrap items-center justify-between gap-2">
+          <h3 className="min-w-0">
             <span className="ax-ic" style={{ background: 'var(--accent-blue)', '--c': 'var(--accent-blue)' } as React.CSSProperties}>
               <Database className="w-3.5 h-3.5" />
             </span>
             Backup &amp; Restore Data (.json)
           </h3>
-          <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] dark:border-white/[0.12] dark:bg-[#1F2333] dark:text-[#CBD5E1]">
+          <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] dark:border-white/[0.12] dark:bg-[#1F2333] dark:text-[#CBD5E1] max-w-full truncate">
             users/{ARTHA_USER_DOC_ID}
           </span>
         </div>
@@ -1037,41 +1037,43 @@ export function SettingsPage() {
           aria-label="Pilih file backup JSON"
         />
 
-        <div className="ax-setrow" style={{ marginTop: 4 }}>
-          <div>
-            <b>Cadangkan &amp; Pulihkan Data Cloud Firestore</b>
-            <small>
-              Unduh seluruh data terbaru dari <code>users/{ARTHA_USER_DOC_ID}</code> ke satu file{' '}
-              <code>.json</code>, atau unggah file backup lama (termasuk format <code>artha_offline_*</code>)
-              untuk dipulihkan langsung ke Cloud.
-            </small>
+        <div className="mt-3 pt-3 border-t-2 border-dashed border-[var(--border-subtle)] dark:border-t dark:border-white/[0.08] flex flex-col gap-4 w-full">
+          <div className="w-full space-y-1">
+            <b className="block text-[13.5px] font-heading font-extrabold text-[var(--text-primary)]">
+              Cadangkan &amp; Pulihkan Data Cloud Firestore
+            </b>
+            <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+              Unduh seluruh data terbaru dari <code className="font-mono font-semibold text-[var(--text-primary)]">users/{ARTHA_USER_DOC_ID}</code> ke satu file{' '}
+              <code className="font-mono font-semibold text-[var(--text-primary)]">.json</code>, atau unggah file backup lama (termasuk format{' '}
+              <code className="font-mono font-semibold text-[var(--text-primary)]">artha_offline_*</code>) untuk dipulihkan langsung ke Cloud.
+            </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
             <button
               type="button"
               onClick={handleDownloadBackup}
               disabled={isDownloadingBackup || isReadingFile || isRestoring}
-              className="brutal-btn shrink-0"
+              className="brutal-btn brutal-btn-sand w-full min-h-[44px] justify-center text-center dark:bg-[#E2B68E] dark:hover:bg-[#D4A373] dark:text-[#171924] dark:border dark:border-[#E2B68E]/60 dark:shadow-none"
             >
               {isDownloadingBackup ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
               ) : (
-                <Download className="w-4 h-4" />
+                <Download className="w-4 h-4 shrink-0" />
               )}
-              {isDownloadingBackup ? 'Menyiapkan Backup...' : 'Download Backup (.json)'}
+              <span>{isDownloadingBackup ? 'Menyiapkan Backup...' : 'Download Backup (.json)'}</span>
             </button>
             <button
               type="button"
               onClick={handlePickBackupFile}
               disabled={isDownloadingBackup || isReadingFile || isRestoring}
-              className="brutal-btn brutal-btn-primary shrink-0"
+              className="brutal-btn w-full min-h-[44px] justify-center text-center dark:bg-[#1F2333] dark:hover:bg-[#262B3D] dark:text-[#F1F5F9] dark:border dark:border-white/[0.14] dark:shadow-none"
             >
               {isReadingFile ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
               ) : (
-                <Upload className="w-4 h-4" />
+                <Upload className="w-4 h-4 shrink-0" />
               )}
-              {isReadingFile ? 'Membaca File...' : 'Restore Backup (.json)'}
+              <span>{isReadingFile ? 'Membaca File...' : 'Restore Backup (.json)'}</span>
             </button>
           </div>
         </div>

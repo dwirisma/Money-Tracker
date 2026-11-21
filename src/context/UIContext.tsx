@@ -12,6 +12,31 @@ import {
 
 export type Theme = 'dark' | 'light';
 
+const THEME_STORAGE_KEY = 'artha_theme_mode';
+
+function readStoredTheme(): Theme {
+  if (typeof window === 'undefined') return 'light';
+  try {
+    const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if (saved === 'dark' || saved === 'light') return saved;
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+  } catch {
+    // Abaikan jika localStorage tidak tersedia
+  }
+  return 'light';
+}
+
+function persistStoredTheme(next: Theme): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(THEME_STORAGE_KEY, next);
+  } catch {
+    // Abaikan jika localStorage tidak tersedia
+  }
+}
+
 interface UIState {
   theme: Theme;
   privacy: boolean;
@@ -30,7 +55,7 @@ const UIContext = createContext<UIState | null>(null);
 
 export function UIProvider({ children }: { children: ReactNode }) {
   const { uid } = useAuth();
-  const [theme, setTheme] = useState<Theme>('light');
+  const [theme, setTheme] = useState<Theme>(readStoredTheme);
   const [privacy, setPrivacy] = useState<boolean>(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
@@ -39,7 +64,6 @@ export function UIProvider({ children }: { children: ReactNode }) {
   // Sinkronisasi preferensi UI & AI real-time dari Cloud Firestore
   useEffect(() => {
     if (!uid) {
-      setTheme('light');
       setPrivacy(false);
       setSidebarCollapsed(false);
       setMobileDrawerOpen(false);
@@ -49,6 +73,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
 
     const unsubscribe = subscribeUserPreferences(uid, (prefs) => {
       setTheme(prefs.theme);
+      persistStoredTheme(prefs.theme);
       setPrivacy(prefs.privacy);
       setSidebarCollapsed(prefs.sidebarCollapsed);
       setAiSettings(prefs.aiSettings);
@@ -56,7 +81,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [uid]);
 
-  // Sinkronkan ke <html> dan meta theme-color
+  // Sinkronkan ke <html>, localStorage, dan meta theme-color
   useEffect(() => {
     const root = document.documentElement;
     root.setAttribute('data-theme', theme);
@@ -64,6 +89,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
     document
       .querySelector('meta[name="theme-color"]')
       ?.setAttribute('content', theme === 'dark' ? '#0F1117' : '#fff4dc');
+    persistStoredTheme(theme);
   }, [theme]);
 
   // setPrivacyMode dipanggil sinkron saat render agar semua formatRupiah di render yang sama ikut tersensor
@@ -76,6 +102,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const toggleTheme = useCallback(() => {
     const next: Theme = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
+    persistStoredTheme(next);
     if (uid) {
       void updateUserPreferences(uid, { theme: next });
     }
