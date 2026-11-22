@@ -219,7 +219,12 @@ export function AiInsightCard({
             exhaustedModels,
           });
         }
-        setErrorMsg(payload?.error || `Gagal memuat analisis Gemini AI (HTTP ${response.status}).`);
+        setErrorMsg(
+          payload?.error ||
+            (response.status === 404
+              ? 'Endpoint /api/gemini/insight tidak ditemukan di server (HTTP 404). Pastikan fungsi API sudah ter-deploy.'
+              : `Gagal memuat analisis Gemini AI (HTTP ${response.status}).`)
+        );
         return;
       }
 

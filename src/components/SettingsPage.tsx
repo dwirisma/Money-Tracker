@@ -54,6 +54,7 @@ import {
 import {
   resetSandboxDummyData,
   seedSandboxDummyData,
+  type SandboxSeedProgress,
   type SandboxSeedResult,
 } from '../services/sandboxDataService';
 
@@ -227,6 +228,7 @@ export function SettingsPage() {
 
   // State Sandbox Dummy Data Generator & Reset (khusus Sandbox / Demo Account)
   const [isSeedingSandbox, setIsSeedingSandbox] = useState(false);
+  const [seedProgress, setSeedProgress] = useState<SandboxSeedProgress | null>(null);
   const [isResettingSandbox, setIsResettingSandbox] = useState(false);
   const [confirmResetSandbox, setConfirmResetSandbox] = useState(false);
   const [sandboxNotice, setSandboxNotice] = useState<{ type: 'success' | 'error'; title: string; detail: string } | null>(null);
@@ -347,26 +349,31 @@ export function SettingsPage() {
   const handleSeedSandbox = async () => {
     if (!isSandbox || isSeedingSandbox || isResettingSandbox) return;
     setIsSeedingSandbox(true);
+    setSeedProgress(null);
     setConfirmResetSandbox(false);
     setSandboxNotice(null);
     try {
-      const res: SandboxSeedResult = await seedSandboxDummyData();
+      const res: SandboxSeedResult = await seedSandboxDummyData({
+        resetBeforeSeed: true,
+        onProgress: (p) => setSeedProgress(p),
+      });
       setSandboxNotice({
         type: 'success',
-        title: `Data Dummy Berhasil Diisi (${res.totalCreated} dokumen)`,
-        detail: `${res.counts.ledgers} buku kas, ${res.counts.accounts} rekening, ${res.counts.transactions} transaksi (6 bulan), ${res.counts.bills} tagihan, ${res.counts.debts} utang, ${res.counts.goals} target, ${res.counts.automations} otomatisasi, ${res.counts.investments} investasi, ${res.counts.shiftSchedules} jadwal shift, dan ${res.counts.salaryRecords} riwayat gaji telah ditulis ke users/${activeUserDocId}.`,
+        title: `Data Dummy 1 Tahun Berhasil Diisi (${res.totalCreated} dokumen · ${res.totalBatches} batch)`,
+        detail: `${res.counts.ledgers} buku kas, ${res.counts.accounts} rekening, ${res.counts.transactions} transaksi (12 bulan + transfer antar-akun), ${res.counts.salaryRecords} riwayat slip gaji, ${res.counts.bills} tagihan, ${res.counts.debts} utang, ${res.counts.goals} target, ${res.counts.investments} investasi, ${res.counts.automations} otomatisasi, dan ${res.counts.shiftSchedules} jadwal shift telah ditulis ke users/${activeUserDocId}.`,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Gagal mengisi data dummy ke Sandbox.';
       setSandboxNotice({
         type: 'error',
-        title: 'Gagal Mengisi Data Dummy',
+        title: 'Gagal Mengisi Data Dummy 1 Tahun',
         detail: msg.toLowerCase().includes('permission')
           ? `Izin tulis ke users/${activeUserDocId} ditolak. Pastikan firestore.rules pada database (default) mengizinkan akses ke users/${activeUserDocId}.`
           : msg,
       });
     } finally {
       setIsSeedingSandbox(false);
+      setSeedProgress(null);
     }
   };
 
@@ -957,7 +964,11 @@ export function SettingsPage() {
                 ) : (
                   <Sparkles className="w-4 h-4" />
                 )}
-                {isSeedingSandbox ? 'Mengisi Data...' : 'Isi Data Dummy Contoh'}
+                {isSeedingSandbox
+                  ? seedProgress?.phase === 'writing'
+                    ? `Membuat data 1 tahun (${seedProgress.completedBatches}/${seedProgress.totalBatches})...`
+                    : 'Membuat data 1 tahun...'
+                  : 'Isi Data Dummy 1 Tahun'}
               </button>
               <button
                 type="button"
@@ -973,6 +984,19 @@ export function SettingsPage() {
               </button>
             </div>
           </div>
+
+          {isSeedingSandbox && (
+            <div className="mt-3 p-3 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] dark:border dark:border-[#E2B68E]/30 dark:bg-[#1F2333] flex items-center gap-2.5 text-xs text-[var(--text-primary)]">
+              <Loader2 className="w-4 h-4 animate-spin text-[var(--accent-sand)] shrink-0" />
+              <span>
+                {seedProgress?.phase === 'cleaning'
+                  ? `Membersihkan data Sandbox lama di users/${activeUserDocId}...`
+                  : seedProgress?.phase === 'writing'
+                    ? `Menulis ${seedProgress.totalDocs} dokumen simulasi 1 tahun (batch ${seedProgress.completedBatches}/${seedProgress.totalBatches}) ke users/${activeUserDocId}...`
+                    : `Menyiapkan data simulasi 12 bulan ke users/${activeUserDocId}...`}
+              </span>
+            </div>
+          )}
 
           {confirmResetSandbox && (
             <div className="mt-3 p-3.5 rounded-[var(--radius-sm)] border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-[3px_3px_0px_var(--border-color)] dark:border dark:border-white/[0.10] dark:bg-[#1F2333] dark:shadow-none flex flex-wrap items-center justify-between gap-3">

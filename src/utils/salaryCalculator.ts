@@ -379,7 +379,7 @@ export function generateShiftCalendar(
       shiftHours: shiftInfo.hours,
       dayType: shiftInfo.dayType,
       isPublicHoliday: shiftInfo.isPublicHoliday,
-      holidayName: shiftInfo.holidayName,
+      ...(shiftInfo.holidayName ? { holidayName: shiftInfo.holidayName } : {}),
       hasAutoOT,
       autoOTHours,
       overtimeHours: 0,
@@ -425,13 +425,15 @@ export function refreshShiftLogsMetadata(
     const autoOTHours = hasAutoOT ? autoOTPerSundayShift3 : 0;
     const { index, amount } = calculateDailyOvertimeAmount(day.overtimeHours || 0, dayType, baseRate);
 
+    const { holidayName: _prevHoliday, ...restDay } = day;
+
     return {
-      ...day,
+      ...restDay,
       shiftCode,
       isWorkDay,
       dayType,
       isPublicHoliday,
-      holidayName,
+      ...(holidayName ? { holidayName } : {}),
       hasAutoOT,
       autoOTHours,
       overtimeIndex: index,

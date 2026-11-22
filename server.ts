@@ -82,6 +82,12 @@ function isQuotaExceededError(err: unknown): boolean {
   return lower.includes('resource_exhausted') || lower.includes('429') || lower.includes('quota');
 }
 
+function isModelNotFoundError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err || '');
+  const lower = msg.toLowerCase();
+  return lower.includes('not_found') || lower.includes('404');
+}
+
 interface GeminiFallbackResult {
   response: Awaited<ReturnType<GoogleGenAI['models']['generateContent']>>;
   modelUsed: string;
@@ -116,13 +122,14 @@ async function generateContentWithFallback(
       return { response, modelUsed: model, exhaustedModels };
     } catch (err) {
       lastError = err;
-      if (isQuotaExceededError(err)) {
+      const quotaErr = isQuotaExceededError(err);
+      const notFoundErr = isModelNotFoundError(err);
+      if (quotaErr) {
         exhaustedModels.push(model);
-        const hasNext = i < models.length - 1;
-        if (hasNext) {
-          console.warn(`[Gemini] Quota exhausted on ${model}, falling back to ${models[i + 1]}`);
-          continue;
-        }
+      }
+      if ((quotaErr || notFoundErr) && i < models.length - 1) {
+        console.warn(`[Gemini] Model ${model} failed (${quotaErr ? '429' : '404'}), falling back to ${models[i + 1]}`);
+        continue;
       }
       throw attachExhaustedModels(err, exhaustedModels);
     }

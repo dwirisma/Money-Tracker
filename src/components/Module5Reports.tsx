@@ -1,5 +1,5 @@
 import { toLocalDateStr } from '../utils/dateUtils';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { 
   BarChart, 
   Bar, 
@@ -32,7 +32,10 @@ import {
   Bus,
   Utensils,
   Leaf,
-  ListFilter
+  ListFilter,
+  Wallet,
+  ArrowLeftRight,
+  ChevronDown
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Transaction, Ledger, Account, ReportTimeRange, CategoryExpenseSummary, CashFlowTrendPoint, ReportMetrics } from '../types';
@@ -66,23 +69,84 @@ const CHART_PALETTE = [
   '#8e96a6'  // Muted Slate
 ];
 
+// Label tipe akun untuk tampilan dropdown filter
+const ACCOUNT_TYPE_LABELS: Record<string, string> = {
+  bank: 'Bank',
+  ewallet: 'E-Wallet',
+  cash: 'Tunai',
+  investment: 'Investasi',
+  credit: 'Kartu Kredit',
+};
+
 export const Module5Reports: React.FC<Module5ReportsProps> = ({
   transactions,
   activeLedger,
   accounts,
   categoryBudgets = DEFAULT_CATEGORY_BUDGETS,
   formatRupiah,
-  formatDate,
+  formatDate: _formatDate,
   onNavigateToTab
 }) => {
   const { theme } = useUI();
   const isDark = theme === 'dark';
 
-  // State Filter Waktu
+  // State Filter Waktu, Akun & Transfer Internal
   const [timeRange, setTimeRange] = useState<ReportTimeRange>('this_month');
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('all');
+  const [includeTransfers, setIncludeTransfers] = useState<boolean>(false);
+  const [categoryViewMode, setCategoryViewMode] = useState<'expense' | 'income'>('expense');
   const [expenseSourcesTab, setExpenseSourcesTab] = useState<'overview' | 'detail'>('overview');
+
+  // Daftar akun aktif pada ledger terpilih
+  const ledgerAccounts = useMemo(() => {
+    if (!activeLedger) return [];
+    return accounts.filter(a => a.ledgerId === activeLedger.id && !a.isArchived);
+  }, [accounts, activeLedger]);
+
+  // Reset filter akun ke 'all' jika user berpindah buku kas atau akun tidak lagi ada
+  useEffect(() => {
+    if (selectedAccountId !== 'all' && !ledgerAccounts.some(a => a.id === selectedAccountId)) {
+      setSelectedAccountId('all');
+    }
+  }, [ledgerAccounts, selectedAccountId]);
+
+  const selectedAccount = useMemo(
+    () => (selectedAccountId === 'all' ? null : ledgerAccounts.find(a => a.id === selectedAccountId) || null),
+    [selectedAccountId, ledgerAccounts]
+  );
+
+  // Evaluasi arah arus kas transaksi berdasarkan filter akun & toggle transfer antar-akun
+  const getEffectiveFlow = useCallback(
+    (t: Transaction): 'income' | 'expense' | null => {
+      const isSpecificAccount = selectedAccountId !== 'all';
+
+      if (t.type === 'income') {
+        if (isSpecificAccount && t.accountId !== selectedAccountId) return null;
+        return 'income';
+      }
+
+      if (t.type === 'expense') {
+        if (isSpecificAccount && t.accountId !== selectedAccountId) return null;
+        return 'expense';
+      }
+
+      if (t.type === 'transfer') {
+        if (!includeTransfers || !isSpecificAccount) return null;
+        if (t.toAccountId === selectedAccountId && t.accountId !== selectedAccountId) {
+          return 'income';
+        }
+        if (t.accountId === selectedAccountId && t.toAccountId !== selectedAccountId) {
+          return 'expense';
+        }
+        return null;
+      }
+
+      return null;
+    },
+    [selectedAccountId, includeTransfers]
+  );
 
   // Perhitungan Rentang Tanggal berdasarkan Filter Waktu
   const dateBounds = useMemo(() => {
@@ -127,7 +191,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
     return { start, end, label };
   }, [timeRange, customStartDate, customEndDate]);
 
-  // Filter Transaksi Berdasarkan Rentang Tanggal dan Ledger Aktif
+  // Filter Transaksi Berdasarkan Rentang Tanggal, Ledger Aktif, Akun Terpilih & Toggle Transfer
   const filteredTransactions = useMemo(() => {
     if (!activeLedger) return [];
     return transactions.filter(t => {
@@ -135,9 +199,19 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       const txDate = t.date || '';
       if (dateBounds.start && txDate < dateBounds.start) return false;
       if (dateBounds.end && txDate > dateBounds.end) return false;
+
+      if (selectedAccountId !== 'all') {
+        if (t.type === 'transfer') {
+          if (!includeTransfers) return false;
+          return t.accountId === selectedAccountId || t.toAccountId === selectedAccountId;
+        }
+        return t.accountId === selectedAccountId;
+      }
+
+      if (t.type === 'transfer' && !includeTransfers) return false;
       return true;
     });
-  }, [transactions, activeLedger, dateBounds]);
+  }, [transactions, activeLedger, dateBounds, selectedAccountId, includeTransfers]);
 
   // =========================================================================
   // 1. AGREGASI SCORECARDS (TOTAL INCOME, EXPENSE, NET CASH FLOW)
@@ -150,10 +224,11 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
     let variableExpenseTotal = 0;
 
     filteredTransactions.forEach(t => {
-      if (t.type === 'income') {
+      const flow = getEffectiveFlow(t);
+      if (flow === 'income') {
         totalIncome += Number(t.amount) || 0;
         validTxCount++;
-      } else if (t.type === 'expense') {
+      } else if (flow === 'expense') {
         const amt = Number(t.amount) || 0;
         totalExpense += amt;
         validTxCount++;
@@ -161,22 +236,24 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
         // -------------------------------------------------------------------
         // KLASIFIKASI PENGELUARAN (FIXED/KEWAJIBAN VS VARIABLE/GAYA HIDUP)
         // Fixed: Transaksi dari tagihan (billId), utang/cicilan (debtId), atau kategori kewajiban
-        // Variable: Sisanya (makanan, hobi, belanja fleksibel)
+        // Variable: Sisanya (makanan, hobi, belanja fleksibel, atau transfer keluar)
         // -------------------------------------------------------------------
         const catLower = (t.category || '').toLowerCase();
-        const isFixed = Boolean(
-          t.billId || 
-          t.debtId || 
-          catLower.includes('tagihan') || 
-          catLower.includes('utilitas') || 
-          catLower.includes('cicilan') || 
-          catLower.includes('utang') || 
-          catLower.includes('pinjaman') || 
-          catLower.includes('sewa') || 
-          catLower.includes('asuransi') ||
-          catLower.includes('sinking fund') ||
-          catLower.includes('langganan')
-        );
+        const isFixed =
+          t.type !== 'transfer' &&
+          Boolean(
+            t.billId ||
+            t.debtId ||
+            catLower.includes('tagihan') ||
+            catLower.includes('utilitas') ||
+            catLower.includes('cicilan') ||
+            catLower.includes('utang') ||
+            catLower.includes('pinjaman') ||
+            catLower.includes('sewa') ||
+            catLower.includes('asuransi') ||
+            catLower.includes('sinking fund') ||
+            catLower.includes('langganan')
+          );
 
         if (isFixed) {
           fixedExpenseTotal += amt;
@@ -184,7 +261,6 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
           variableExpenseTotal += amt;
         }
       }
-      // Transfer internal antar-akun tidak dianggap sebagai beban pengeluaran luar
     });
 
     const netCashFlow = totalIncome - totalExpense;
@@ -251,9 +327,10 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
         if (prevStart && txDate < prevStart) return;
         if (prevEnd && txDate > prevEnd) return;
 
-        if (t.type === 'income') {
+        const flow = getEffectiveFlow(t);
+        if (flow === 'income') {
           prevIncome += Number(t.amount) || 0;
-        } else if (t.type === 'expense') {
+        } else if (flow === 'expense') {
           prevExpense += Number(t.amount) || 0;
         }
       });
@@ -282,20 +359,21 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
 
     // -----------------------------------------------------------------------
     // 3. METRIK FINANCIAL RUNWAY (NAPAS KAS)
-    // Formula: (Total Saldo Seluruh Akun Kas) / (Rata-rata Pengeluaran per Bulan selama 3 bulan terakhir)
+    // Formula: (Saldo Akun Terfilter) / (Rata-rata Pengeluaran per Bulan selama 3 bulan terakhir)
     // -----------------------------------------------------------------------
-    const totalCashBalance = accounts
-      .filter(a => a.ledgerId === activeLedger?.id && !a.isArchived)
-      .reduce((sum, a) => sum + (Number(a.balance) || 0), 0);
+    const totalCashBalance = selectedAccount
+      ? Number(selectedAccount.balance) || 0
+      : ledgerAccounts.reduce((sum, a) => sum + (Number(a.balance) || 0), 0);
 
     const threeMonthsAgo = new Date();
     threeMonthsAgo.setDate(threeMonthsAgo.getDate() - 90);
     const threeMonthsAgoStr = toLocalDateStr(threeMonthsAgo);
 
-    const past3MTxs = transactions.filter(t => 
-      t.ledgerId === activeLedger?.id && 
-      t.type === 'expense' && 
-      (t.date || '') >= threeMonthsAgoStr
+    const past3MTxs = transactions.filter(
+      t =>
+        t.ledgerId === activeLedger?.id &&
+        (t.date || '') >= threeMonthsAgoStr &&
+        getEffectiveFlow(t) === 'expense'
     );
 
     const totalExpensePast3M = past3MTxs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
@@ -329,18 +407,21 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       totalCashBalance,
       avgMonthlyExpense3M
     };
-  }, [filteredTransactions, transactions, accounts, activeLedger, dateBounds, timeRange]);
+  }, [filteredTransactions, transactions, ledgerAccounts, selectedAccount, activeLedger, dateBounds, timeRange, getEffectiveFlow]);
 
   // =========================================================================
-  // 2. AGREGASI KOMPOSISI PENGELUARAN BERDASARKAN KATEGORI (PIE CHART)
+  // 2. AGREGASI KOMPOSISI PENGELUARAN & PEMASUKAN BERDASARKAN KATEGORI (PIE CHART)
   // =========================================================================
   const categoryBreakdown: CategoryExpenseSummary[] = useMemo(() => {
     const catMap = new Map<string, { amount: number; count: number }>();
     let totalExpenseAmount = 0;
 
     filteredTransactions.forEach(t => {
-      if (t.type === 'expense') {
-        const rawCat = (t.category || 'Lain-lain').trim();
+      if (getEffectiveFlow(t) === 'expense') {
+        const rawCat =
+          t.type === 'transfer'
+            ? 'Transfer Keluar'
+            : (t.category || 'Lain-lain').trim();
         // Bersihkan prefix seperti "Sinking Fund: " atau "Wishlist: " untuk konsistensi tampilan
         let cat = rawCat;
         if (cat.startsWith('Sinking Fund:')) cat = 'Alokasi Sinking Fund';
@@ -359,8 +440,8 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
     let colorIdx = 0;
 
     catMap.forEach((val, cat) => {
-      const percentage = totalExpenseAmount > 0 
-        ? Math.round((val.amount / totalExpenseAmount) * 1000) / 10 
+      const percentage = totalExpenseAmount > 0
+        ? Math.round((val.amount / totalExpenseAmount) * 1000) / 10
         : 0;
 
       result.push({
@@ -375,7 +456,49 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
 
     // Urutkan dari nominal terbesar ke terkecil
     return result.sort((a, b) => b.amount - a.amount);
-  }, [filteredTransactions]);
+  }, [filteredTransactions, getEffectiveFlow]);
+
+  const incomeCategoryBreakdown: CategoryExpenseSummary[] = useMemo(() => {
+    const catMap = new Map<string, { amount: number; count: number }>();
+    let totalIncomeAmount = 0;
+
+    filteredTransactions.forEach(t => {
+      if (getEffectiveFlow(t) === 'income') {
+        const cat =
+          t.type === 'transfer'
+            ? 'Transfer Masuk'
+            : (t.category || 'Pemasukan Lainnya').trim();
+        const curr = catMap.get(cat) || { amount: 0, count: 0 };
+        const amt = Number(t.amount) || 0;
+        curr.amount += amt;
+        curr.count += 1;
+        catMap.set(cat, curr);
+        totalIncomeAmount += amt;
+      }
+    });
+
+    const result: CategoryExpenseSummary[] = [];
+    let colorIdx = 0;
+
+    catMap.forEach((val, cat) => {
+      const percentage = totalIncomeAmount > 0
+        ? Math.round((val.amount / totalIncomeAmount) * 1000) / 10
+        : 0;
+
+      result.push({
+        category: cat,
+        amount: val.amount,
+        percentage,
+        count: val.count,
+        color: CHART_PALETTE[(colorIdx + 4) % CHART_PALETTE.length]
+      });
+      colorIdx++;
+    });
+
+    return result.sort((a, b) => b.amount - a.amount);
+  }, [filteredTransactions, getEffectiveFlow]);
+
+  const activeCategoryBreakdown = categoryViewMode === 'income' ? incomeCategoryBreakdown : categoryBreakdown;
 
   // =========================================================================
   // 2B. INDIKATOR ANALISIS KESEHATAN FINANSIAL & RASIO VITAL
@@ -383,7 +506,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
   const financialHealth = useMemo(() => {
     let totalDebtPayments = 0;
     filteredTransactions.forEach(t => {
-      if (t.type === 'expense') {
+      if (getEffectiveFlow(t) === 'expense' && t.type !== 'transfer') {
         const cat = (t.category || '').toLowerCase();
         if (t.debtId || cat.includes('utang') || cat.includes('cicilan') || cat.includes('pinjaman') || cat.includes('kredit')) {
           totalDebtPayments += Number(t.amount) || 0;
@@ -440,7 +563,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       healthBadgeBg,
       runwayMonthsVal
     };
-  }, [filteredTransactions, metrics]);
+  }, [filteredTransactions, metrics, getEffectiveFlow]);
 
   // Helper render ikon kategori untuk kartu Expense Sources
   const renderCategoryIcon = (category: string) => {
@@ -533,6 +656,8 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
 
       filteredTransactions.forEach(t => {
         if (!t.date) return;
+        const flow = getEffectiveFlow(t);
+        if (!flow) return;
         const monthKey = t.date.substring(0, 7); // YYYY-MM
         const parts = monthKey.split('-');
         const monthNum = parseInt(parts[1], 10);
@@ -540,14 +665,16 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
         const label = monthsShort[monthNum - 1] || monthKey;
 
         const curr = groupMap.get(monthKey) || { label, income: 0, expense: 0 };
-        if (t.type === 'income') curr.income += Number(t.amount) || 0;
-        if (t.type === 'expense') curr.expense += Number(t.amount) || 0;
+        if (flow === 'income') curr.income += Number(t.amount) || 0;
+        if (flow === 'expense') curr.expense += Number(t.amount) || 0;
         groupMap.set(monthKey, curr);
       });
     } else {
       // Pengelompokan harian
       filteredTransactions.forEach(t => {
         if (!t.date) return;
+        const flow = getEffectiveFlow(t);
+        if (!flow) return;
         const dayKey = t.date; // YYYY-MM-DD
         const d = new Date(dayKey);
         const dayNum = d.getDate();
@@ -555,8 +682,8 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
         const label = `${dayNum} ${monthShort}`;
 
         const curr = groupMap.get(dayKey) || { label, income: 0, expense: 0 };
-        if (t.type === 'income') curr.income += Number(t.amount) || 0;
-        if (t.type === 'expense') curr.expense += Number(t.amount) || 0;
+        if (flow === 'income') curr.income += Number(t.amount) || 0;
+        if (flow === 'expense') curr.expense += Number(t.amount) || 0;
         groupMap.set(dayKey, curr);
       });
     }
@@ -572,15 +699,15 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
         net: item.income - item.expense
       };
     });
-  }, [filteredTransactions, timeRange]);
+  }, [filteredTransactions, timeRange, getEffectiveFlow]);
 
   // Transaksi Pengeluaran Terbesar (Top 5 Expenses)
   const topExpenses = useMemo(() => {
     return filteredTransactions
-      .filter(t => t.type === 'expense')
+      .filter(t => getEffectiveFlow(t) === 'expense')
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5);
-  }, [filteredTransactions]);
+  }, [filteredTransactions, getEffectiveFlow]);
 
   // Alokasi Anggaran Cerdas (Aturan Emas 50/30/20)
   const allocation503020 = useMemo(() => {
@@ -588,22 +715,24 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
     let wants = 0;
 
     filteredTransactions.forEach(t => {
-      if (t.type === 'expense') {
+      if (getEffectiveFlow(t) === 'expense') {
         const cat = (t.category || '').toLowerCase();
-        const isNeed = Boolean(
-          t.billId || 
-          t.debtId || 
-          cat.includes('makan') || 
-          cat.includes('transport') || 
-          cat.includes('tagihan') || 
-          cat.includes('utilitas') || 
-          cat.includes('kesehatan') || 
-          cat.includes('bulanan') ||
-          cat.includes('sewa') ||
-          cat.includes('pendidikan') ||
-          cat.includes('cicilan') ||
-          cat.includes('utang')
-        );
+        const isNeed =
+          t.type !== 'transfer' &&
+          Boolean(
+            t.billId ||
+            t.debtId ||
+            cat.includes('makan') ||
+            cat.includes('transport') ||
+            cat.includes('tagihan') ||
+            cat.includes('utilitas') ||
+            cat.includes('kesehatan') ||
+            cat.includes('bulanan') ||
+            cat.includes('sewa') ||
+            cat.includes('pendidikan') ||
+            cat.includes('cicilan') ||
+            cat.includes('utang')
+          );
         if (isNeed) {
           needs += t.amount;
         } else {
@@ -622,20 +751,33 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
     const savingsPct = Math.round((savings / base) * 100);
 
     return { needs, wants, savings, needsPct, wantsPct, savingsPct, base };
-  }, [filteredTransactions, metrics.totalIncome]);
+  }, [filteredTransactions, metrics.totalIncome, getEffectiveFlow]);
 
   // Ekspor Data Transaksi ke File Excel / CSV
   const handleExportData = () => {
     try {
       const rows = filteredTransactions.map((t, idx) => {
         const acc = accounts.find(a => a.id === t.accountId);
+        const toAcc = t.toAccountId ? accounts.find(a => a.id === t.toAccountId) : null;
+        const flow = getEffectiveFlow(t);
+        const typeLabel =
+          t.type === 'income'
+            ? 'Pemasukan'
+            : t.type === 'expense'
+              ? 'Pengeluaran'
+              : flow === 'income'
+                ? 'Transfer Masuk'
+                : flow === 'expense'
+                  ? 'Transfer Keluar'
+                  : 'Transfer';
         return {
           No: idx + 1,
           Tanggal: t.date,
-          Tipe: t.type === 'income' ? 'Pemasukan' : t.type === 'expense' ? 'Pengeluaran' : 'Transfer',
+          Tipe: typeLabel,
           Kategori: t.category || '-',
           Nominal: t.amount,
           'Akun Rekening': acc ? acc.name : '-',
+          'Akun Tujuan': toAcc ? toAcc.name : '-',
           Catatan: t.note || ''
         };
       });
@@ -644,7 +786,8 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Transaksi');
 
-      const fileName = `Laporan_Keuangan_${activeLedger?.name || 'Artha'}_${dateBounds.start}_to_${dateBounds.end}.xlsx`;
+      const accountSuffix = selectedAccount ? `_${selectedAccount.name.replace(/\s+/g, '_')}` : '';
+      const fileName = `Laporan_Keuangan_${activeLedger?.name || 'Artha'}${accountSuffix}_${dateBounds.start}_to_${dateBounds.end}.xlsx`;
       XLSX.writeFile(workbook, fileName);
     } catch (e) {
       console.error('Gagal mengekspor laporan:', e);
@@ -691,17 +834,18 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
   const CustomPieTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload as CategoryExpenseSummary;
+      const isIncomeMode = categoryViewMode === 'income';
       return (
         <div className="bg-[var(--bg-surface)] border-2 border-[var(--border-color)] dark:bg-[#1F2333] dark:border dark:border-white/[0.12] dark:shadow-[0_8px_24px_rgba(0,0,0,0.45)] p-3 rounded-[var(--radius-sm)] shadow-[4px_4px_0px_#000] text-xs space-y-1 font-mono">
           <p className="font-heading font-bold text-[var(--text-primary)] flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 border border-black dark:border-white/20 inline-block" style={{ backgroundColor: data.color }} />
             {data.category}
           </p>
-          <p className="text-[var(--accent-terracotta-light)] font-bold text-sm">
+          <p className={`${isIncomeMode ? 'text-[var(--accent-sage)]' : 'text-[var(--accent-terracotta-light)]'} font-bold text-sm`}>
             {formatRupiah(data.amount)}
           </p>
           <div className="flex items-center justify-between gap-2.5 text-[var(--text-secondary)] text-[11px] pt-1 border-t border-[var(--border-subtle)] dark:border-white/[0.08]">
-            <span>Porsi Pengeluaran:</span>
+            <span>{isIncomeMode ? 'Porsi Pemasukan:' : 'Porsi Pengeluaran:'}</span>
             <span className="font-bold text-[var(--text-primary)]">{data.percentage}%</span>
           </div>
           <p className="text-[10px] text-[var(--text-muted)]">
@@ -787,21 +931,106 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
   return (
     <div className="space-y-3 animate-in fade-in duration-200">
       
-      {/* HEADER + PERIODE */}
+      {/* HEADER + PERIODE & FILTER AKUN */}
       <div className="ax-pagehead">
-        <div>
+        <div className="min-w-0">
           <h2>Laporan & Analitik</h2>
-          <p>Buku kas <b>{activeLedger?.name || 'Utama'}</b> · {dateBounds.label}</p>
+          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+            <span>Buku kas <b>{activeLedger?.name || 'Utama'}</b> · {dateBounds.label}</span>
+            {selectedAccount && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border-2 border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] dark:border dark:border-[#E2B68E]/35 dark:bg-[#E2B68E]/15 dark:text-[#E2B68E]">
+                <Wallet className="w-3 h-3 shrink-0" />
+                Menampilkan: {selectedAccount.name}
+                {includeTransfers && (
+                  <span className="opacity-85 font-mono text-[10px]">· +Transfer</span>
+                )}
+              </span>
+            )}
+          </p>
         </div>
-        <button type="button" onClick={handleExportData} disabled={filteredTransactions.length === 0} className="brutal-btn ax-btn-light" title="Ekspor data transaksi terfilter ke Excel">
+        <button type="button" onClick={handleExportData} disabled={filteredTransactions.length === 0} className="brutal-btn ax-btn-light shrink-0" title="Ekspor data transaksi terfilter ke Excel">
           <Download className="w-4 h-4" />Ekspor Excel
         </button>
       </div>
-      <div className="ax-chipset scroll" role="radiogroup" aria-label="Periode laporan">
-        {periodTabs.map(t => (
-          <button key={t.id} type="button" role="radio" aria-checked={timeRange === t.id} onClick={() => setTimeRange(t.id)}>{t.label}</button>
-        ))}
+
+      {/* BARIS KONTROL FILTER: PERIODE + AKUN + TOGGLE TRANSFER */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5">
+        <div className="ax-chipset scroll" role="radiogroup" aria-label="Periode laporan">
+          {periodTabs.map(t => (
+            <button key={t.id} type="button" role="radio" aria-checked={timeRange === t.id} onClick={() => setTimeRange(t.id)}>{t.label}</button>
+          ))}
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full lg:w-auto">
+          {/* Dropdown Filter Akun */}
+          <div className="relative flex items-center w-full sm:w-auto sm:min-w-[220px]">
+            <Wallet
+              className="w-4 h-4 absolute left-3 pointer-events-none text-[var(--text-secondary)] dark:text-[#E2B68E]"
+              aria-hidden="true"
+            />
+            <select
+              id="report-account-filter"
+              aria-label="Filter laporan berdasarkan akun"
+              value={selectedAccountId}
+              onChange={(e) => setSelectedAccountId(e.target.value)}
+              className="w-full min-h-[44px] pl-9 pr-9 py-2 rounded-[var(--radius-sm)] text-xs font-bold appearance-none cursor-pointer transition-colors bg-[var(--bg-surface)] text-[var(--text-primary)] border-2 border-[var(--border-color)] shadow-[2px_2px_0px_var(--border-color)] focus:outline-none dark:bg-[#1F2333] dark:text-[#F1F5F9] dark:border dark:border-white/[0.12] dark:shadow-none dark:hover:border-white/[0.22] dark:focus:border-[#E2B68E]"
+            >
+              <option value="all">Semua Akun ({ledgerAccounts.length})</option>
+              {ledgerAccounts.map((acc) => {
+                const typeLabel = ACCOUNT_TYPE_LABELS[acc.type] || acc.type;
+                return (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({typeLabel})
+                  </option>
+                );
+              })}
+            </select>
+            <ChevronDown
+              className="w-4 h-4 absolute right-3 pointer-events-none text-[var(--text-secondary)] dark:text-[#8B9A9F]"
+              aria-hidden="true"
+            />
+          </div>
+
+          {/* Toggle Sertakan Transfer Antar-Akun */}
+          <label
+            htmlFor="report-include-transfers"
+            title={
+              selectedAccount
+                ? `Hitung transfer masuk ke ${selectedAccount.name} sebagai pemasukan dan transfer keluar sebagai pengeluaran`
+                : 'Pilih akun spesifik agar transfer masuk/keluar akun tersebut ikut dihitung seperti mutasi rekening asli'
+            }
+            className={`inline-flex items-center justify-between sm:justify-start gap-2.5 min-h-[44px] px-3 py-2 rounded-[var(--radius-sm)] text-xs font-bold cursor-pointer select-none transition-colors border-2 w-full sm:w-auto ${
+              includeTransfers
+                ? 'border-[var(--border-color)] bg-[var(--accent-sand)] text-[#14141a] shadow-[2px_2px_0px_var(--border-color)] dark:border dark:border-[#E2B68E]/45 dark:bg-[#E2B68E]/14 dark:text-[#F1F5F9] dark:shadow-none'
+                : 'border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-[2px_2px_0px_var(--border-color)] hover:bg-[var(--bg-elevated)] dark:border dark:border-white/[0.12] dark:bg-[#1F2333] dark:text-[#F1F5F9] dark:shadow-none dark:hover:bg-[#262B3D]'
+            }`}
+          >
+            <span className="inline-flex items-center gap-2 min-w-0">
+              <input
+                id="report-include-transfers"
+                type="checkbox"
+                checked={includeTransfers}
+                onChange={(e) => setIncludeTransfers(e.target.checked)}
+                className="w-4 h-4 rounded shrink-0 accent-[#14141a] dark:accent-[#E2B68E] cursor-pointer"
+              />
+              <ArrowLeftRight
+                className={`w-3.5 h-3.5 shrink-0 ${
+                  includeTransfers
+                    ? 'text-[#14141a] dark:text-[#E2B68E]'
+                    : 'text-[var(--text-secondary)] dark:text-[#8B9A9F]'
+                }`}
+              />
+              <span className="leading-tight">Sertakan Transfer Antar-Akun</span>
+            </span>
+            {includeTransfers && !selectedAccount && (
+              <span className="font-mono text-[10px] font-semibold opacity-75 whitespace-nowrap">
+                (Pilih akun)
+              </span>
+            )}
+          </label>
+        </div>
       </div>
+
       {timeRange === 'custom' && (
         <div className="ax-panel ax-daterange">
           <div>
@@ -987,64 +1216,100 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
           <p className="ax-sec-sub">{trendData.length} titik waktu tercatat</p>
         </div>
 
-        {/* GRAFIK 2 (DOUGHNUT): KOMPOSISI PENGELUARAN PER KATEGORI */}
+        {/* GRAFIK 2 (DOUGHNUT): KOMPOSISI PENGELUARAN & PEMASUKAN PER KATEGORI */}
         <div className="ax-panel ax-sec">
           <div className="ax-secthead">
             <div>
-              <h3><PieIcon className="w-5 h-5" style={{ color: 'var(--accent-terracotta)' }} />Komposisi Pengeluaran</h3>
-              <p className="ax-sec-sub">Berdasarkan pos dan kategori belanja</p>
+              <h3>
+                <PieIcon
+                  className="w-5 h-5"
+                  style={{ color: categoryViewMode === 'income' ? 'var(--accent-sage)' : 'var(--accent-terracotta)' }}
+                />
+                {categoryViewMode === 'income' ? 'Komposisi Pemasukan' : 'Komposisi Pengeluaran'}
+              </h3>
+              <p className="ax-sec-sub">
+                {categoryViewMode === 'income'
+                  ? 'Berdasarkan sumber pendapatan dan kategori masuk'
+                  : 'Berdasarkan pos dan kategori belanja'}
+              </p>
             </div>
-            <span className="ax-tone big" data-tone="info">{categoryBreakdown.length} kategori</span>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <div className="ax-chipset" role="radiogroup" aria-label="Tipe komposisi kategori">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={categoryViewMode === 'expense'}
+                  onClick={() => setCategoryViewMode('expense')}
+                >
+                  Keluar
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={categoryViewMode === 'income'}
+                  onClick={() => setCategoryViewMode('income')}
+                >
+                  Masuk
+                </button>
+              </div>
+              <span className="ax-tone big" data-tone="info">{activeCategoryBreakdown.length} kategori</span>
+            </div>
           </div>
 
-          {/* Kewajiban rutin vs gaya hidup */}
-          <div className="ax-split">
-            <div className="ax-split-h">
-              <span><ShieldCheck className="w-3.5 h-3.5" />Kewajiban rutin vs gaya hidup</span>
-              <b>{metrics.fixedExpensePercent}% : {metrics.variableExpensePercent}%</b>
+          {/* Kewajiban rutin vs gaya hidup (khusus tampilan Pengeluaran) */}
+          {categoryViewMode === 'expense' && (
+            <div className="ax-split">
+              <div className="ax-split-h">
+                <span><ShieldCheck className="w-3.5 h-3.5" />Kewajiban rutin vs gaya hidup</span>
+                <b>{metrics.fixedExpensePercent}% : {metrics.variableExpensePercent}%</b>
+              </div>
+              <div className="ax-split-bar">
+                <i style={{ width: `${metrics.fixedExpensePercent || 0}%`, background: 'var(--accent-blue)' }}
+                  title={`Kewajiban Rutin: ${formatRupiah(metrics.fixedExpenseTotal || 0)} (${metrics.fixedExpensePercent}%)`} />
+                <i style={{ width: `${metrics.variableExpensePercent || 0}%`, background: 'var(--accent-lavender)' }}
+                  title={`Gaya Hidup / Fleksibel: ${formatRupiah(metrics.variableExpenseTotal || 0)} (${metrics.variableExpensePercent}%)`} />
+              </div>
+              <div className="ax-split-f">
+                <span><i style={{ background: 'var(--accent-blue)' }} />Kewajiban (tagihan, utang, alokasi) <b>{formatRupiah(metrics.fixedExpenseTotal || 0)}</b></span>
+                <span><i style={{ background: 'var(--accent-lavender)' }} />Gaya hidup / fleksibel <b>{formatRupiah(metrics.variableExpenseTotal || 0)}</b></span>
+              </div>
             </div>
-            <div className="ax-split-bar">
-              <i style={{ width: `${metrics.fixedExpensePercent || 0}%`, background: 'var(--accent-blue)' }}
-                title={`Kewajiban Rutin: ${formatRupiah(metrics.fixedExpenseTotal || 0)} (${metrics.fixedExpensePercent}%)`} />
-              <i style={{ width: `${metrics.variableExpensePercent || 0}%`, background: 'var(--accent-lavender)' }}
-                title={`Gaya Hidup / Fleksibel: ${formatRupiah(metrics.variableExpenseTotal || 0)} (${metrics.variableExpensePercent}%)`} />
-            </div>
-            <div className="ax-split-f">
-              <span><i style={{ background: 'var(--accent-blue)' }} />Kewajiban (tagihan, utang, alokasi) <b>{formatRupiah(metrics.fixedExpenseTotal || 0)}</b></span>
-              <span><i style={{ background: 'var(--accent-lavender)' }} />Gaya hidup / fleksibel <b>{formatRupiah(metrics.variableExpenseTotal || 0)}</b></span>
-            </div>
-          </div>
+          )}
 
           <div className="ax-rpie">
             <div className="ax-rpie-c">
-              {categoryBreakdown.length > 0 ? (
+              {activeCategoryBreakdown.length > 0 ? (
                 <>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Tooltip content={<CustomPieTooltip />} />
-                      <Pie data={categoryBreakdown} dataKey="amount" nameKey="category" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} stroke={isDark ? '#171924' : 'var(--border-color)'} strokeWidth={isDark ? 2 : 2.5}>
-                        {categoryBreakdown.map((entry, index) => (
+                      <Pie data={activeCategoryBreakdown} dataKey="amount" nameKey="category" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} stroke={isDark ? '#171924' : 'var(--border-color)'} strokeWidth={isDark ? 2 : 2.5}>
+                        {activeCategoryBreakdown.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} cursor="pointer" />
                         ))}
                       </Pie>
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="ax-rpie-t">
-                    <small>Total keluar</small>
-                    <b>{formatRupiah(metrics.totalExpense)}</b>
+                    <small>{categoryViewMode === 'income' ? 'Total masuk' : 'Total keluar'}</small>
+                    <b>{formatRupiah(categoryViewMode === 'income' ? metrics.totalIncome : metrics.totalExpense)}</b>
                   </div>
                 </>
               ) : (
                 <div className="ax-emptyh" style={{ width: '100%', height: '100%', display: 'grid', placeContent: 'center' }}>
-                  <p>Belum ada pengeluaran</p>
-                  <small>Tidak ada transaksi pengeluaran.</small>
+                  <p>{categoryViewMode === 'income' ? 'Belum ada pemasukan' : 'Belum ada pengeluaran'}</p>
+                  <small>
+                    {categoryViewMode === 'income'
+                      ? 'Tidak ada transaksi pemasukan pada filter ini.'
+                      : 'Tidak ada transaksi pengeluaran pada filter ini.'}
+                  </small>
                 </div>
               )}
             </div>
 
             <div className="ax-rlist">
-              {categoryBreakdown.length > 0 ? (
-                categoryBreakdown.slice(0, 6).map((cat, idx) => (
+              {activeCategoryBreakdown.length > 0 ? (
+                activeCategoryBreakdown.slice(0, 6).map((cat, idx) => (
                   <div key={idx} className="ax-catline">
                     <span className="sw" style={{ background: cat.color }} />
                     <b title={cat.category}>{cat.category}</b>
@@ -1058,7 +1323,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
           </div>
 
           <p className="ax-sec-sub">
-            Kategori terbesar: <b>{categoryBreakdown[0]?.category || '-'}</b>{categoryBreakdown[0] ? ` · ${categoryBreakdown[0].percentage}% pos` : ''}
+            Kategori terbesar: <b>{activeCategoryBreakdown[0]?.category || '-'}</b>{activeCategoryBreakdown[0] ? ` · ${activeCategoryBreakdown[0].percentage}% pos` : ''}
           </p>
         </div>
       </section>
@@ -1178,24 +1443,33 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       {/* 4. RINCIAN KATEGORI & TOP 5 PENGELUARAN TERBESAR                      */}
       {/* ===================================================================== */}
       <section className="ax-rgrid c21">
-        {/* RINCIAN SEMUA KATEGORI PENGELUARAN */}
+        {/* RINCIAN SEMUA KATEGORI (PENGELUARAN / PEMASUKAN) */}
         <div className="ax-panel ax-sec">
           <div className="ax-secthead">
             <div>
-              <h3><Layers className="w-5 h-5" style={{ color: 'var(--accent-blue)' }} />Rincian Pengeluaran per Pos</h3>
-              <p className="ax-sec-sub">Diurutkan dari nominal tertinggi</p>
+              <h3>
+                <Layers className="w-5 h-5" style={{ color: 'var(--accent-blue)' }} />
+                {categoryViewMode === 'income' ? 'Rincian Pemasukan per Pos' : 'Rincian Pengeluaran per Pos'}
+              </h3>
+              <p className="ax-sec-sub">
+                Diurutkan dari nominal tertinggi{selectedAccount ? ` · ${selectedAccount.name}` : ''}
+              </p>
             </div>
-            <span className="ax-tone big" data-tone="info">{categoryBreakdown.length} pos</span>
+            <span className="ax-tone big" data-tone="info">{activeCategoryBreakdown.length} pos</span>
           </div>
 
-          {categoryBreakdown.length === 0 ? (
+          {activeCategoryBreakdown.length === 0 ? (
             <div className="ax-emptyh">
-              <p>Belum ada pos pengeluaran</p>
-              <small>Tidak ada pengeluaran dalam rentang tanggal terpilih.</small>
+              <p>{categoryViewMode === 'income' ? 'Belum ada pos pemasukan' : 'Belum ada pos pengeluaran'}</p>
+              <small>
+                {categoryViewMode === 'income'
+                  ? 'Tidak ada pemasukan dalam filter terpilih.'
+                  : 'Tidak ada pengeluaran dalam filter terpilih.'}
+              </small>
             </div>
           ) : (
             <div className="ax-rlist">
-              {categoryBreakdown.map((item, idx) => (
+              {activeCategoryBreakdown.map((item, idx) => (
                 <div key={idx} className="ax-catrow" style={{ '--c': item.color } as React.CSSProperties}>
                   <div className="ax-catrow-t">
                     <span className="sw" />
@@ -1215,25 +1489,33 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
           <div className="ax-secthead">
             <div>
               <h3><AlertTriangle className="w-5 h-5" style={{ color: 'var(--accent-terracotta)' }} />Top 5 Terbesar</h3>
-              <p className="ax-sec-sub">Pengeluaran tunggal terbesar periode ini</p>
+              <p className="ax-sec-sub">
+                Pengeluaran tunggal terbesar{selectedAccount ? ` · ${selectedAccount.name}` : ' periode ini'}
+              </p>
             </div>
           </div>
 
           {topExpenses.length === 0 ? (
             <div className="ax-emptyh">
               <p>Belum ada pengeluaran</p>
-              <small>Tidak ada pengeluaran tercatat.</small>
+              <small>Tidak ada pengeluaran tercatat pada filter ini.</small>
             </div>
           ) : (
             <div className="ax-rlist">
               {topExpenses.map((tx, idx) => {
                 const acc = accounts.find(a => a.id === tx.accountId);
+                const toAcc = tx.toAccountId ? accounts.find(a => a.id === tx.toAccountId) : null;
+                const displayCategory = tx.type === 'transfer' ? 'Transfer Keluar' : tx.category;
+                const accLabel =
+                  tx.type === 'transfer' && toAcc
+                    ? `${acc?.name || 'Kas'} → ${toAcc.name}`
+                    : acc?.name || 'Kas';
                 return (
                   <div key={tx.id} className="ax-top">
                     <span className="rk">{idx + 1}</span>
                     <div>
-                      <b title={tx.note || tx.category}>{tx.note || tx.category || 'Pengeluaran'}</b>
-                      <small>{tx.date} · {tx.category} · {acc?.name || 'Kas'}</small>
+                      <b title={tx.note || displayCategory}>{tx.note || displayCategory || 'Pengeluaran'}</b>
+                      <small>{tx.date} · {displayCategory} · {accLabel}</small>
                     </div>
                     <span className="v">-{formatRupiah(tx.amount)}</span>
                   </div>
