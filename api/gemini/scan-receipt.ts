@@ -78,6 +78,23 @@ function isModelNotFoundError(err: unknown): boolean {
   return lower.includes('not_found') || lower.includes('404');
 }
 
+function isTransientUnavailableError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err || '');
+  const lower = msg.toLowerCase();
+  return (
+    lower.includes('503') ||
+    lower.includes('unavailable') ||
+    lower.includes('high demand') ||
+    lower.includes('overloaded') ||
+    lower.includes('deadline_exceeded') ||
+    lower.includes('504')
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function attachExhaustedModels(err: unknown, exhaustedModels: string[]): Error {
   const base = err instanceof Error ? err : new Error(String(err || 'Unknown Gemini error'));
   (base as Error & { exhaustedModels?: string[] }).exhaustedModels = exhaustedModels;
@@ -87,6 +104,20 @@ function attachExhaustedModels(err: unknown, exhaustedModels: string[]): Error {
 function getExhaustedModelsFromError(err: unknown): string[] {
   const list = (err as { exhaustedModels?: unknown })?.exhaustedModels;
   return Array.isArray(list) ? list.filter((x): x is string => typeof x === 'string') : [];
+}
+
+function extractReadableMessage(raw: string): string {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      const inner = parsed?.error?.message || parsed?.message;
+      if (typeof inner === 'string' && inner.trim()) return inner.trim();
+    } catch {
+      // ignore non-JSON
+    }
+  }
+  return trimmed;
 }
 
 function normalizeGeminiError(err: unknown): { status: number; message: string } {
@@ -116,6 +147,12 @@ function normalizeGeminiError(err: unknown): { status: number; message: string }
       message: 'Model Gemini AI yang dipilih tidak ditemukan atau tidak tersedia.',
     };
   }
+  if (isTransientUnavailableError(err)) {
+    return {
+      status: 503,
+      message: 'Server Gemini AI sedang mengalami lonjakan trafik sementara (503). Silakan coba pindai ulang beberapa saat lagi.',
+    };
+  }
   if (lower.includes('payload') || lower.includes('too large') || lower.includes('size')) {
     return {
       status: 413,
@@ -124,7 +161,7 @@ function normalizeGeminiError(err: unknown): { status: number; message: string }
   }
   return {
     status: 500,
-    message: msg || 'Gagal memproses permintaan dengan Gemini AI.',
+    message: extractReadableMessage(msg) || 'Gagal memproses permintaan dengan Gemini AI.',
   };
 }
 
@@ -138,24 +175,38 @@ async function generateContentWithFallback(
 
   for (let i = 0; i < models.length; i++) {
     const model = models[i];
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        ...params,
-      });
-      return { response, modelUsed: model, exhaustedModels };
-    } catch (err) {
-      lastError = err;
-      const quotaErr = isQuotaExceededError(err);
-      const notFoundErr = isModelNotFoundError(err);
-      if (quotaErr) {
-        exhaustedModels.push(model);
+    const maxAttempts = 2; // 1x retry cepat untuk lonjakan sementara 503 UNAVAILABLE
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          ...params,
+        });
+        return { response, modelUsed: model, exhaustedModels };
+      } catch (err) {
+        lastError = err;
+        const quotaErr = isQuotaExceededError(err);
+        const notFoundErr = isModelNotFoundError(err);
+        const unavailableErr = isTransientUnavailableError(err);
+
+        if (unavailableErr && attempt < maxAttempts) {
+          console.warn(`[Gemini] Model ${model} busy (503), retrying attempt ${attempt + 1}...`);
+          await sleep(800 * attempt);
+          continue;
+        }
+
+        if (quotaErr) {
+          exhaustedModels.push(model);
+        }
+
+        if ((quotaErr || notFoundErr || unavailableErr) && i < models.length - 1) {
+          const reason = quotaErr ? '429' : notFoundErr ? '404' : '503';
+          console.warn(`[Gemini] Model ${model} failed (${reason}), falling back to ${models[i + 1]}`);
+          break;
+        }
+
+        throw attachExhaustedModels(err, exhaustedModels);
       }
-      if ((quotaErr || notFoundErr) && i < models.length - 1) {
-        console.warn(`[Gemini] Model ${model} failed (${quotaErr ? '429' : '404'}), falling back to ${models[i + 1]}`);
-        continue;
-      }
-      throw attachExhaustedModels(err, exhaustedModels);
     }
   }
 
