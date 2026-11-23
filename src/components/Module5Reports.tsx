@@ -35,12 +35,19 @@ import {
   ListFilter,
   Wallet,
   ArrowLeftRight,
-  ChevronDown
+  ChevronDown,
+  SlidersHorizontal
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Transaction, Ledger, Account, ReportTimeRange, CategoryExpenseSummary, CashFlowTrendPoint, ReportMetrics } from '../types';
-import { DEFAULT_CATEGORY_BUDGETS, type CategoryBudgetMap } from '../services/settingsService';
+import {
+  DEFAULT_CATEGORY_BUDGETS,
+  resolveBudgetAllocationBucket,
+  type CategoryBudgetMap,
+} from '../services/settingsService';
 import { useUI } from '../context/UIContext';
+import { useCategories } from '../hooks/useCategories';
+import { BudgetAllocationModal } from './BudgetAllocationModal';
 
 type Tone = 'ok' | 'mid' | 'low';
 const TONE_COLOR: Record<Tone, string> = { ok: 'var(--accent-sage)', mid: 'var(--accent-sand)', low: 'var(--accent-terracotta)' };
@@ -87,7 +94,8 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
   formatDate: _formatDate,
   onNavigateToTab
 }) => {
-  const { theme } = useUI();
+  const { theme, budgetAllocationMap, updateBudgetAllocationMap } = useUI();
+  const { lists: categoryLists } = useCategories();
   const isDark = theme === 'dark';
 
   // State Filter Waktu, Akun & Transfer Internal
@@ -98,6 +106,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
   const [includeTransfers, setIncludeTransfers] = useState<boolean>(false);
   const [categoryViewMode, setCategoryViewMode] = useState<'expense' | 'income'>('expense');
   const [expenseSourcesTab, setExpenseSourcesTab] = useState<'overview' | 'detail'>('overview');
+  const [showAllocationModal, setShowAllocationModal] = useState<boolean>(false);
 
   // Daftar akun aktif pada ledger terpilih
   const ledgerAccounts = useMemo(() => {
@@ -709,49 +718,112 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       .slice(0, 5);
   }, [filteredTransactions, getEffectiveFlow]);
 
-  // Alokasi Anggaran Cerdas (Aturan Emas 50/30/20)
+  // Gabungan daftar kategori pengeluaran resmi + kategori unik dari riwayat transaksi + peta tersimpan
+  const allAllocationCategories = useMemo(() => {
+    const seen = new Set<string>();
+    const ordered: string[] = [];
+
+    const pushUnique = (raw?: string) => {
+      const name = (raw || '').trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      ordered.push(name);
+    };
+
+    // 1. Daftar kategori pengeluaran resmi milik pengguna
+    categoryLists.expense.forEach(pushUnique);
+
+    // 2. Kategori unik dari riwayat transaksi pengeluaran pada buku kas aktif
+    const historyExtras: string[] = [];
+    transactions.forEach((t) => {
+      if (activeLedger && t.ledgerId !== activeLedger.id) return;
+      if (t.type !== 'expense') return;
+      const name = (t.category || '').trim();
+      if (name && !seen.has(name.toLowerCase())) {
+        historyExtras.push(name);
+      }
+    });
+    historyExtras
+      .sort((a, b) => a.localeCompare(b, 'id-ID'))
+      .forEach(pushUnique);
+
+    // 3. Kunci tambahan yang pernah disimpan user di Firestore agar tidak hilang
+    Object.keys(budgetAllocationMap)
+      .sort((a, b) => a.localeCompare(b, 'id-ID'))
+      .forEach(pushUnique);
+
+    return ordered;
+  }, [categoryLists.expense, transactions, activeLedger, budgetAllocationMap]);
+
+  // Alokasi Anggaran Cerdas (Aturan Emas 50/30/20 berbasis peta kategori pengguna)
   const allocation503020 = useMemo(() => {
     let needs = 0;
     let wants = 0;
+    let savingsFromTx = 0;
 
-    filteredTransactions.forEach(t => {
+    filteredTransactions.forEach((t) => {
       if (getEffectiveFlow(t) === 'expense') {
-        const cat = (t.category || '').toLowerCase();
-        const isNeed =
-          t.type !== 'transfer' &&
-          Boolean(
-            t.billId ||
-            t.debtId ||
-            cat.includes('makan') ||
-            cat.includes('transport') ||
-            cat.includes('tagihan') ||
-            cat.includes('utilitas') ||
-            cat.includes('kesehatan') ||
-            cat.includes('bulanan') ||
-            cat.includes('sewa') ||
-            cat.includes('pendidikan') ||
-            cat.includes('cicilan') ||
-            cat.includes('utang')
-          );
-        if (isNeed) {
-          needs += t.amount;
+        const amt = Number(t.amount) || 0;
+        const catName = t.type === 'transfer' ? 'Transfer Keluar' : (t.category || 'Lainnya').trim();
+        const bucket = resolveBudgetAllocationBucket(catName, budgetAllocationMap);
+
+        if (bucket === 'needs') {
+          needs += amt;
+        } else if (bucket === 'savings') {
+          savingsFromTx += amt;
         } else {
-          wants += t.amount;
+          wants += amt;
         }
       }
     });
 
     const income = metrics.totalIncome || 0;
-    const totalExp = needs + wants;
-    const savings = Math.max(0, income - totalExp);
-    const base = income > 0 ? income : (totalExp > 0 ? totalExp : 1);
+    const totalExp = needs + wants + savingsFromTx;
+    // Sisa Kas Bersih (Pemasukan - Pengeluaran) otomatis ditambahkan ke keranjang Tabungan & Investasi
+    const netSurplus = Math.max(0, income - totalExp);
+    const savings = netSurplus + savingsFromTx;
+    const base = income > 0 ? income : totalExp > 0 ? totalExp : 1;
 
     const needsPct = Math.round((needs / base) * 100);
     const wantsPct = Math.round((wants / base) * 100);
     const savingsPct = Math.round((savings / base) * 100);
 
-    return { needs, wants, savings, needsPct, wantsPct, savingsPct, base };
-  }, [filteredTransactions, metrics.totalIncome, getEffectiveFlow]);
+    const needsCategories: string[] = [];
+    const wantsCategories: string[] = [];
+    const savingsCategories: string[] = [];
+
+    allAllocationCategories.forEach((cat) => {
+      const bucket = resolveBudgetAllocationBucket(cat, budgetAllocationMap);
+      if (bucket === 'needs') needsCategories.push(cat);
+      else if (bucket === 'savings') savingsCategories.push(cat);
+      else wantsCategories.push(cat);
+    });
+
+    const needsDescription =
+      needsCategories.length > 0
+        ? needsCategories.join(', ')
+        : 'Belum ada kategori dipilih untuk Kebutuhan Pokok';
+    const wantsDescription =
+      wantsCategories.length > 0
+        ? wantsCategories.join(', ')
+        : 'Belum ada kategori dipilih untuk Gaya Hidup';
+    const savingsDescription = ['Sisa kas bersih', ...savingsCategories].join(', ');
+
+    return {
+      needs,
+      wants,
+      savings,
+      needsPct,
+      wantsPct,
+      savingsPct,
+      base,
+      needsDescription,
+      wantsDescription,
+      savingsDescription,
+    };
+  }, [filteredTransactions, metrics.totalIncome, getEffectiveFlow, budgetAllocationMap, allAllocationCategories]);
 
   // Ekspor Data Transaksi ke File Excel / CSV
   const handleExportData = () => {
@@ -1333,11 +1405,23 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       {/* ===================================================================== */}
       <section className="ax-panel ax-sec">
         <div className="ax-secthead">
-          <div>
+          <div className="min-w-0">
             <h3><Sparkles className="w-5 h-5" style={{ color: 'var(--accent-sand)' }} />Alokasi Dana 50 / 30 / 20</h3>
             <p className="ax-sec-sub">Proporsi pengeluaran terhadap standar kesehatan finansial</p>
           </div>
-          <span className="ax-tone big" data-tone="mid">Aturan emas budgeting</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="ax-tone big whitespace-nowrap" data-tone="mid">Aturan emas budgeting</span>
+            <button
+              type="button"
+              onClick={() => setShowAllocationModal(true)}
+              title="Atur Kategori Alokasi 50/30/20"
+              aria-label="Atur Kategori Alokasi 50/30/20"
+              className="w-9 h-9 sm:w-auto sm:px-3 inline-flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold shrink-0 cursor-pointer transition-all bg-[#FFFDF7] border-2 border-[var(--border-color)] text-[var(--text-primary)] shadow-[2px_2px_0px_var(--border-color)] hover:-translate-y-[1px] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none dark:bg-[#1F2333] dark:border dark:border-white/[0.10] dark:text-[#F1F5F9] dark:shadow-none dark:hover:bg-[#262B3D] dark:hover:border-[#E2B68E]/45 dark:active:translate-x-0 dark:active:translate-y-0"
+            >
+              <SlidersHorizontal className="w-4 h-4 shrink-0 text-[var(--text-primary)] dark:text-[#E2B68E]" />
+              <span className="hidden sm:inline whitespace-nowrap">Atur Kategori</span>
+            </button>
+          </div>
         </div>
 
         <div className="ax-rgrid c3">
@@ -1348,7 +1432,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
             </div>
             <div className="ax-meter-v">{formatRupiah(allocation503020.needs)}</div>
             <div className="ax-prog"><i style={{ width: `${Math.min(100, allocation503020.needsPct)}%` }} /></div>
-            <p className="ax-sec-sub">Tagihan, makanan pokok, transport dan cicilan utang</p>
+            <p className="ax-sec-sub" title={allocation503020.needsDescription}>{allocation503020.needsDescription}</p>
           </div>
 
           <div className="ax-meter" style={{ '--c': 'var(--accent-terracotta)' } as React.CSSProperties}>
@@ -1358,7 +1442,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
             </div>
             <div className="ax-meter-v">{formatRupiah(allocation503020.wants)}</div>
             <div className="ax-prog"><i style={{ width: `${Math.min(100, allocation503020.wantsPct)}%` }} /></div>
-            <p className="ax-sec-sub">Hiburan, makan luar, hobi, belanja fleksibel</p>
+            <p className="ax-sec-sub" title={allocation503020.wantsDescription}>{allocation503020.wantsDescription}</p>
           </div>
 
           <div className="ax-meter" style={{ '--c': 'var(--accent-sage)' } as React.CSSProperties}>
@@ -1368,7 +1452,7 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
             </div>
             <div className="ax-meter-v" data-tone="ok">{formatRupiah(allocation503020.savings)}</div>
             <div className="ax-prog"><i style={{ width: `${Math.min(100, allocation503020.savingsPct)}%` }} /></div>
-            <p className="ax-sec-sub">Sinking funds, portofolio dan dana darurat</p>
+            <p className="ax-sec-sub" title={allocation503020.savingsDescription}>{allocation503020.savingsDescription}</p>
           </div>
         </div>
       </section>
@@ -1533,6 +1617,15 @@ export const Module5Reports: React.FC<Module5ReportsProps> = ({
       </section>
 
 
+      {showAllocationModal && (
+        <BudgetAllocationModal
+          categories={allAllocationCategories}
+          officialCategories={categoryLists.expense}
+          currentMap={budgetAllocationMap}
+          onClose={() => setShowAllocationModal(false)}
+          onSave={updateBudgetAllocationMap}
+        />
+      )}
     </div>
   );
 };

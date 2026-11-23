@@ -1,8 +1,8 @@
-import type { CSSProperties, MouseEvent, ReactNode } from 'react';
-import { Banknote, Calendar, Coins, CreditCard, History, Pencil, Receipt, Trash2, Zap, ArrowRightLeft, TrendingDown, TrendingUp } from 'lucide-react';
-import type { Account, AutomationRule, Bill, Debt, Goal, Transaction } from '../types';
+import { useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
+import { ArrowUpRight, Award, Banknote, Calendar, Coins, CreditCard, History, Lock, Pencil, Receipt, Trash2, Zap, ArrowRightLeft, TrendingDown, TrendingUp } from 'lucide-react';
+import type { Account, AutomationRule, Bill, Debt, Goal, GoalWithdrawal, Transaction } from '../types';
 import { formatRupiah, freeBalanceText } from '../utils/financeUtils';
-import { getBillDueStatus, getCycleLabel } from '../services/cashManagementService';
+import { getBillDueStatus, getCycleLabel, getGoalStatus } from '../services/cashManagementService';
 import { ModalFrame } from './ui/BaseUI';
 
 type Tone = 's' | 't' | 'b' | 'y' | 'l' | 'n';
@@ -214,49 +214,299 @@ export function DebtDetailModal(p: Base & { debt: Debt; transactions: Transactio
 }
 
 /* ========================= TARGET ========================= */
-export function GoalDetailModal(p: Base & { goal: Goal; history: Transaction[]; onAllocate: (g: Goal) => void }) {
+type GoalHistoryEntry =
+  | { kind: 'allocate'; id: string; date: string; createdAt: number; amount: number; tx: Transaction }
+  | { kind: 'withdraw'; id: string; date: string; createdAt: number; amount: number; withdrawal: GoalWithdrawal };
+
+export function GoalDetailModal(p: Base & {
+  goal: Goal;
+  history: Transaction[];
+  onAllocate: (g: Goal) => void;
+  onWithdraw: (g: Goal) => void;
+  onEditWithdrawal: (g: Goal, w: GoalWithdrawal) => void;
+  onDeleteWithdrawal: (g: Goal, w: GoalWithdrawal) => void;
+  onCloseGoal: (g: Goal) => Promise<void> | void;
+}) {
+  const [confirmingClose, setConfirmingClose] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
   const g = p.goal;
+  const status = getGoalStatus(g);
+  const isAchieved = status === 'achieved';
+  const isClosed = status === 'closed';
   const pct = g.targetAmount > 0 ? Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100)) : 0;
+  const displayPct = isAchieved ? 100 : pct;
   const remaining = Math.max(0, g.targetAmount - g.currentAmount);
   const src = p.accounts.find(a => a.id === g.sourceAccountId);
   const sinking = g.type === 'sinking_fund';
+  const withdrawals = g.withdrawals || [];
+  const totalWithdrawn = withdrawals.reduce((sum, w) => sum + (Number(w.amount) || 0), 0);
+  const accName = (id?: string) => p.accounts.find(a => a.id === id)?.name;
+
+  const unifiedHistory: GoalHistoryEntry[] = [
+    ...p.history.map((tx): GoalHistoryEntry => ({
+      kind: 'allocate',
+      id: `alloc_${tx.id}`,
+      date: tx.date || '',
+      createdAt: typeof tx.createdAt === 'number' ? tx.createdAt : Number(new Date(tx.createdAt || 0).getTime()) || 0,
+      amount: Number(tx.amount) || 0,
+      tx,
+    })),
+    ...withdrawals.map((w): GoalHistoryEntry => ({
+      kind: 'withdraw',
+      id: `wd_${w.id}`,
+      date: w.date || '',
+      createdAt: Number(w.createdAt) || 0,
+      amount: Number(w.amount) || 0,
+      withdrawal: w,
+    })),
+  ].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+
+  const canWithdraw = (Number(g.currentAmount) || 0) > 0;
+  const canAllocate = status === 'active';
+
+  async function handleConfirmCloseGoal() {
+    setIsClosing(true);
+    try {
+      await p.onCloseGoal(g);
+      setConfirmingClose(false);
+    } finally {
+      setIsClosing(false);
+    }
+  }
+
   return (
-    <DetailModal
-      {...p}
+    <ModalFrame
       title={g.name}
-      subtitle="Detail & riwayat alokasi dana"
-      tint="var(--accent-sand)"
+      subtitle="Detail, riwayat alokasi & penarikan dana"
       icon={<Coins className="w-4 h-4" />}
-      tags={[
-        { label: sinking ? 'SINKING FUND' : 'WISHLIST', tone: sinking ? 'y' : 'b' },
-        ...(g.isCompleted ? [{ label: 'TERCAPAI', tone: 's' as Tone }] : [])
-      ]}
-      heroLabel="Total dana terkumpul"
-      heroValue={formatRupiah(g.currentAmount)}
-      sideLabel="Target total"
-      sideValue={formatRupiah(g.targetAmount)}
-      progress={{ label: 'Pencapaian', right: `${pct}%`, pct, color: g.isCompleted ? 'var(--accent-sage)' : (g.colorAccent || 'var(--accent-sand)') }}
-      facts={[
-        { label: 'Sisa dana dibutuhkan', value: g.isCompleted ? 'Target selesai 🎉' : formatRupiah(remaining) },
-        { label: 'Tenggat waktu', value: g.deadline || 'Tanpa batas waktu' },
-        ...(sinking && src ? [{ label: 'Akun sumber potongan', value: src.name }] : [])
-      ]}
-      note={g.note ? { label: 'Catatan', text: g.note } : undefined}
-      historyTitle="Riwayat alokasi dana"
-      history={p.history}
-      rowStyle={() => ({ sign: '+', tone: 'pos', chip: 'var(--accent-sand)', icon: <Coins className="w-4 h-4" /> })}
-      rowTitle={tx => tx.note || tx.category || 'Alokasi tabungan'}
-      emptyTitle="Belum ada riwayat alokasi dana"
-      emptyHint='Ketuk "Alokasikan dana" untuk mulai menabung ke target ini.'
+      tint={isAchieved ? 'var(--accent-sage)' : 'var(--accent-sand)'}
+      onClose={p.onClose}
+      wide
       footer={
-        <>
-          <button type="button" className="brutal-btn brutal-btn-ghost sm" onClick={p.onClose}>Tutup</button>
-          <button type="button" className="brutal-btn brutal-btn-sand" disabled={g.isCompleted} onClick={() => p.onAllocate(g)}>
-            <Coins className="w-4 h-4" />{g.isCompleted ? 'Target tercapai 🎉' : 'Alokasikan dana'}
+        <div className="flex flex-wrap items-center gap-2 w-full">
+          <button
+            type="button"
+            className="brutal-btn brutal-btn-ghost !flex-none min-h-[44px] px-4"
+            onClick={p.onClose}
+          >
+            Tutup
           </button>
-        </>
+          <button
+            type="button"
+            className="brutal-btn brutal-btn-terracotta !flex-1 min-w-[125px] min-h-[44px]"
+            disabled={!canWithdraw}
+            onClick={() => p.onWithdraw(g)}
+            title={canWithdraw ? 'Tarik atau realisasikan dana dari target ini' : 'Dana target kosong'}
+          >
+            <ArrowUpRight className="w-4 h-4" />
+            Tarik Dana
+          </button>
+          <button
+            type="button"
+            className="brutal-btn brutal-btn-sand !flex-1 min-w-[145px] min-h-[44px]"
+            disabled={!canAllocate}
+            onClick={() => p.onAllocate(g)}
+          >
+            <Coins className="w-4 h-4" />
+            {isAchieved ? 'Target tercapai 🎉' : isClosed ? 'Target ditutup' : 'Alokasikan dana'}
+          </button>
+        </div>
       }
-    />
+    >
+      {/* STATUS & TYPE TAGS */}
+      <div className="ax-tags">
+        <span className={`ax-tag ${sinking ? 'y' : 'b'}`}>{sinking ? 'SINKING FUND' : 'WISHLIST'}</span>
+        {isAchieved && (
+          <span className="ax-tag s inline-flex items-center gap-1 dark:!text-[#34D399] dark:!border-[#34D399]/50">
+            <Award className="w-3 h-3" /> TARGET TERCAPAI
+          </span>
+        )}
+        {isClosed && (
+          <span className="ax-tag n inline-flex items-center gap-1">
+            <Lock className="w-3 h-3" /> DITUTUP
+          </span>
+        )}
+      </div>
+
+      {/* HERO SUMMARY */}
+      <div className="ax-dhero">
+        <div className="ax-dhero-top">
+          <div>
+            <small>{isAchieved && g.currentAmount === 0 ? 'Sisa dana di target' : 'Total dana terkumpul'}</small>
+            <div className={`ax-dhero-v ${isAchieved ? 'pos' : ''}`}>{formatRupiah(g.currentAmount)}</div>
+            {isAchieved && g.currentAmount === 0 && (
+              <p className="ax-dhero-sub">Seluruh dana target telah dicairkan / direalisasikan</p>
+            )}
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <small>Target total</small>
+            <div className="ax-dhero-s">{formatRupiah(g.targetAmount)}</div>
+          </div>
+        </div>
+        <div>
+          <div className="ax-ob-row">
+            <span>Pencapaian</span>
+            <b>{isAchieved ? (g.currentAmount === 0 ? '100% · Cair Penuh' : '100% · Tercapai') : `${displayPct}%`}</b>
+          </div>
+          <div className="ax-share">
+            <i
+              style={{
+                width: `${displayPct}%`,
+                background: isAchieved
+                  ? 'var(--accent-sage)'
+                  : isClosed
+                    ? 'var(--text-muted)'
+                    : (g.colorAccent || 'var(--accent-sand)'),
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* FACTS */}
+      <div className="ax-ob-list">
+        <div className="ax-ob-row2">
+          <span>Sisa dana dibutuhkan</span>
+          <b>
+            {isAchieved
+              ? (g.currentAmount === 0 ? 'Target selesai & dicairkan 🎉' : 'Target selesai 🎉')
+              : isClosed
+                ? 'Target ditutup'
+                : formatRupiah(remaining)}
+          </b>
+        </div>
+        {totalWithdrawn > 0 && (
+          <div className="ax-ob-row2">
+            <span>Total dana ditarik</span>
+            <b className="text-rose-600 dark:text-[#FB7185]">-{formatRupiah(totalWithdrawn)}</b>
+          </div>
+        )}
+        <div className="ax-ob-row2">
+          <span>Tenggat waktu</span>
+          <b>{g.deadline || 'Tanpa batas waktu'}</b>
+        </div>
+        {sinking && src && (
+          <div className="ax-ob-row2">
+            <span>Akun sumber potongan</span>
+            <b>{src.name}</b>
+          </div>
+        )}
+        {g.note && (
+          <div className="ax-ob-row2" style={{ alignItems: 'flex-start' }}>
+            <span>Catatan</span>
+            <b style={{ whiteSpace: 'normal', fontFamily: 'var(--font-body)', fontWeight: 600 }}>{g.note}</b>
+          </div>
+        )}
+      </div>
+
+      {/* TUTUP TARGET SECARA MANUAL (KHUSUS TARGET AKTIF) */}
+      {status === 'active' && (
+        <div className="rounded-xl border-2 border-[var(--border-color)] bg-[var(--bg-muted)]/60 dark:bg-[#1F2333] p-3">
+          {!confirmingClose ? (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs text-[var(--text-secondary)]">
+                <b className="text-[var(--text-primary)] block">Hentikan target di tengah jalan?</b>
+                Tutup target tanpa menghapus riwayat alokasi & penarikan.
+              </div>
+              <button
+                type="button"
+                className="brutal-btn brutal-btn-ghost min-h-[38px] text-xs px-3"
+                onClick={() => setConfirmingClose(true)}
+              >
+                <Lock className="w-3.5 h-3.5" /> Tutup Target
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              <p className="text-xs text-[var(--text-primary)] leading-relaxed">
+                <b>Konfirmasi Tutup Target:</b> Target <b>"{g.name}"</b> akan dipindahkan ke tab <b>Tercapai / Ditutup</b> dan tidak bisa menerima alokasi baru. Riwayat transaksi & penarikan tetap tersimpan.
+                {g.currentAmount > 0 && ` Sisa dana ${formatRupiah(g.currentAmount)} masih dapat Anda tarik kapan saja.`}
+              </p>
+              <div className="flex flex-wrap gap-2 justify-end">
+                <button
+                  type="button"
+                  className="brutal-btn brutal-btn-ghost min-h-[36px] text-xs px-3"
+                  disabled={isClosing}
+                  onClick={() => setConfirmingClose(false)}
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  className="brutal-btn brutal-btn-terracotta min-h-[36px] text-xs px-3"
+                  disabled={isClosing}
+                  onClick={handleConfirmCloseGoal}
+                >
+                  <Lock className="w-3.5 h-3.5" /> {isClosing ? 'Menutup...' : 'Ya, Tutup Target'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* RIWAYAT ALOKASI & PENARIKAN DANA */}
+      <div>
+        <div className="ax-dhead" style={{ marginBottom: 8 }}>
+          <h4><History className="w-4 h-4" />Riwayat alokasi & penarikan dana</h4>
+          <span className="ax-badge-s">{unifiedHistory.length} data</span>
+        </div>
+        {unifiedHistory.length === 0 ? (
+          <div className="ax-emptyh">
+            <p>Belum ada riwayat alokasi dana</p>
+            <small>Ketuk "Alokasikan dana" untuk mulai menabung ke target ini.</small>
+          </div>
+        ) : (
+          <div className="ax-hist">
+            {unifiedHistory.map(entry => {
+              if (entry.kind === 'allocate') {
+                const tx = entry.tx;
+                const acc = accName(tx.accountId);
+                return (
+                  <article key={entry.id} className="ax-tx flat">
+                    <span className="ax-txi" style={{ '--c': 'var(--accent-sand)', background: 'var(--accent-sand)' } as CSSProperties}>
+                      <Coins className="w-4 h-4" />
+                    </span>
+                    <div className="ax-txm">
+                      <b>{tx.note || tx.category || 'Alokasi tabungan'}</b>
+                      <small>{tx.date}{acc ? ` · ${acc}` : ''}</small>
+                    </div>
+                    <div className="ax-txr">
+                      <span className="pos">+{formatRupiah(tx.amount)}</span>
+                      <div className="ax-acts">
+                        <button type="button" className="ax-iconbtn" onClick={() => p.onEditTx(tx)} title="Edit alokasi ini" aria-label="Edit alokasi ini"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button type="button" className="ax-iconbtn del" onClick={() => p.onDeleteTx(tx)} title="Hapus alokasi ini" aria-label="Hapus alokasi ini"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              }
+
+              const w = entry.withdrawal;
+              return (
+                <article key={entry.id} className="ax-tx flat">
+                  <span className="ax-txi" style={{ '--c': 'var(--accent-terracotta)', background: 'var(--accent-terracotta)' } as CSSProperties}>
+                    <ArrowUpRight className="w-4 h-4" />
+                  </span>
+                  <div className="ax-txm">
+                    <b>{w.note ? `Penarikan: ${w.note}` : 'Penarikan / Realisasi dana'}</b>
+                    <small>{w.date} · Pemakaian dana target</small>
+                  </div>
+                  <div className="ax-txr">
+                    <span className="neg dark:!text-[#FB7185]">-{formatRupiah(w.amount)}</span>
+                    <div className="ax-acts">
+                      <button type="button" className="ax-iconbtn" onClick={() => p.onEditWithdrawal(g, w)} title="Edit penarikan ini" aria-label="Edit penarikan ini"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button type="button" className="ax-iconbtn del" onClick={() => p.onDeleteWithdrawal(g, w)} title="Hapus penarikan ini" aria-label="Hapus penarikan ini"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </ModalFrame>
   );
 }
 

@@ -27,6 +27,7 @@ import {
   AccountType, 
   Goal, 
   GoalType, 
+  GoalWithdrawal,
   Bill, 
   Debt, 
   BillCycle, 
@@ -56,10 +57,15 @@ import {
   executeAccountTransfer, 
   deleteTransaction,
   subscribeGoalsByLedger,
+  getGoalStatus,
   createGoal,
   updateGoalData,
   deleteGoal,
   allocateFundsToGoal,
+  withdrawFundsFromGoal,
+  updateGoalWithdrawal,
+  deleteGoalWithdrawal,
+  closeGoalManually,
   fetchGoalAllocationHistory,
   subscribeBillsByLedger,
   createBill,
@@ -94,11 +100,11 @@ import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { AutomationFormModal } from './components/AutomationModals';
 import { LedgerFormModal, AccountFormModal } from './components/LedgerAccountModals';
 import { BillDetailModal, DebtDetailModal, GoalDetailModal, AutomationDetailModal } from './components/DetailModals';
-import { AllocateGoalModal, GoalFormModal } from './components/GoalModals';
+import { AllocateGoalModal, GoalFormModal, WithdrawGoalModal } from './components/GoalModals';
 import { PayBillModal, PayDebtModal } from './components/PaymentModals';
 import { EditTransactionModal, DeleteTransactionModal } from './components/TransactionModals';
 import { AutomationsView } from './components/AutomationsView';
-import { GoalsView } from './components/GoalsView';
+import { GoalsView, type GoalFilter } from './components/GoalsView';
 import { ObligationsView } from './components/ObligationsView';
 import { AccountsView } from './components/AccountsView';
 import { DashboardPage } from './components/DashboardPage';
@@ -239,7 +245,7 @@ function AuthenticatedApp({
   // STATE MODUL 2: GOALS (WISHLIST & SINKING FUNDS)
   // =========================================================================
   const [goals, setGoals] = useState<Goal[]>([]);
-  const [goalFilter, setGoalFilter] = useState<'all' | 'sinking_fund' | 'wishlist' | 'completed'>('all');
+  const [goalFilter, setGoalFilter] = useState<GoalFilter>('active');
 
   // Modal Tambah Goal Baru
   const [isAddGoalOpen, setIsAddGoalOpen] = useState(false);
@@ -260,6 +266,15 @@ function AuthenticatedApp({
   const [allocDate, setAllocDate] = useState(() => toLocalDateStr(new Date()));
   const [allocNote, setAllocNote] = useState('');
   const [allocCalcNotice, setAllocCalcNotice] = useState<string | null>(null);
+
+  // Modal Tarik Dana / Edit Penarikan Goal (Opsi 1)
+  const [withdrawingGoal, setWithdrawingGoal] = useState<Goal | null>(null);
+  const [editingGoalWithdrawal, setEditingGoalWithdrawal] = useState<{ goal: Goal; withdrawal: GoalWithdrawal } | null>(null);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawDate, setWithdrawDate] = useState(() => toLocalDateStr(new Date()));
+  const [withdrawNote, setWithdrawNote] = useState('');
+  const [withdrawCalcNotice, setWithdrawCalcNotice] = useState<string | null>(null);
+  const [withdrawalToDelete, setWithdrawalToDelete] = useState<{ goal: Goal; withdrawal: GoalWithdrawal } | null>(null);
 
   // Modal Edit Goal
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
@@ -1179,6 +1194,119 @@ function AuthenticatedApp({
     showToast(`Target "${nextName}" berhasil diperbarui!`, 'success');
   }
 
+  function openWithdrawGoalModal(goal: Goal) {
+    setEditingGoalWithdrawal(null);
+    setWithdrawingGoal(goal);
+    setWithdrawAmount('');
+    setWithdrawDate(toLocalDateStr(new Date()));
+    setWithdrawNote('');
+    setWithdrawCalcNotice(null);
+  }
+
+  function openEditGoalWithdrawalModal(goal: Goal, withdrawal: GoalWithdrawal) {
+    setWithdrawingGoal(null);
+    setEditingGoalWithdrawal({ goal, withdrawal });
+    setWithdrawAmount(withdrawal.amount.toString());
+    setWithdrawDate(withdrawal.date || toLocalDateStr(new Date()));
+    setWithdrawNote(withdrawal.note || '');
+    setWithdrawCalcNotice(null);
+  }
+
+  function handleWithdrawAmountBlur() {
+    if (!withdrawAmount.trim()) {
+      setWithdrawCalcNotice(null);
+      return;
+    }
+    const { success, result, displayValue } = evaluateMathExpression(withdrawAmount);
+    if (success && displayValue !== withdrawAmount) {
+      setWithdrawCalcNotice(`Kalkulator: ${withdrawAmount} = ${formatRupiah(result)}`);
+      setWithdrawAmount(displayValue);
+      setTimeout(() => setWithdrawCalcNotice(null), 4000);
+    }
+  }
+
+  async function handleExecuteWithdrawGoal(e: React.FormEvent) {
+    e.preventDefault();
+    const { result: val } = evaluateMathExpression(withdrawAmount);
+    if (val <= 0) {
+      showToast('Nominal penarikan harus lebih dari 0!', 'error');
+      return;
+    }
+
+    if (editingGoalWithdrawal) {
+      const { goal, withdrawal } = editingGoalWithdrawal;
+      const latestGoal = goals.find(g => g.id === goal.id) || goal;
+      const maxAvail = (Number(latestGoal.currentAmount) || 0) + (Number(withdrawal.amount) || 0);
+      if (val > maxAvail) {
+        showToast(`Nominal melebihi dana tersedia (${formatRupiah(maxAvail)})!`, 'error');
+        return;
+      }
+      try {
+        await updateGoalWithdrawal(uid, {
+          goalId: latestGoal.id,
+          withdrawalId: withdrawal.id,
+          amount: val,
+          date: withdrawDate,
+          note: withdrawNote,
+        });
+        setEditingGoalWithdrawal(null);
+        showToast(`Riwayat penarikan pada "${latestGoal.name}" berhasil diperbarui.`, 'success');
+      } catch (err: any) {
+        showToast(err.message || 'Gagal memperbarui penarikan dana.', 'error');
+      }
+      return;
+    }
+
+    if (!withdrawingGoal) return;
+    const latestGoal = goals.find(g => g.id === withdrawingGoal.id) || withdrawingGoal;
+    if (val > latestGoal.currentAmount) {
+      showToast(`Nominal melebihi dana tersedia (${formatRupiah(latestGoal.currentAmount)})!`, 'error');
+      return;
+    }
+
+    try {
+      const { goal: updated } = await withdrawFundsFromGoal(uid, {
+        goalId: latestGoal.id,
+        amount: val,
+        date: withdrawDate,
+        note: withdrawNote,
+      });
+      setWithdrawingGoal(null);
+      const st = getGoalStatus(updated);
+      if (st === 'achieved' && updated.currentAmount === 0) {
+        showToast(`🎉 Dana ${formatRupiah(val)} dari "${updated.name}" telah dicairkan seluruhnya!`, 'success');
+      } else {
+        showToast(`Dana ${formatRupiah(val)} berhasil ditarik dari "${updated.name}".`, 'success');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Gagal menarik dana target.', 'error');
+    }
+  }
+
+  async function confirmDeleteGoalWithdrawal() {
+    if (!withdrawalToDelete) return;
+    const { goal, withdrawal } = withdrawalToDelete;
+    try {
+      await deleteGoalWithdrawal(uid, {
+        goalId: goal.id,
+        withdrawalId: withdrawal.id,
+      });
+      setWithdrawalToDelete(null);
+      showToast(`Penarikan ${formatRupiah(withdrawal.amount)} dihapus dan dana dikembalikan ke target "${goal.name}".`, 'info');
+    } catch (err: any) {
+      showToast(err.message || 'Gagal menghapus riwayat penarikan.', 'error');
+    }
+  }
+
+  async function handleCloseGoalManually(goal: Goal) {
+    try {
+      await closeGoalManually(uid, goal.id);
+      showToast(`Target "${goal.name}" telah ditutup dan dipindahkan ke tab Tercapai / Ditutup.`, 'info');
+    } catch (err: any) {
+      showToast(err.message || 'Gagal menutup target.', 'error');
+    }
+  }
+
   async function confirmExecuteDeleteGoal() {
     if (!goalToDelete) return;
     const name = goalToDelete.name;
@@ -1193,16 +1321,24 @@ function AuthenticatedApp({
   }
 
   const filteredGoals = goals.filter(g => {
-    if (goalFilter === 'all') return true;
-    if (goalFilter === 'sinking_fund') return g.type === 'sinking_fund';
-    if (goalFilter === 'wishlist') return g.type === 'wishlist';
-    if (goalFilter === 'completed') return g.isCompleted;
+    const st = getGoalStatus(g);
+    if (goalFilter === 'active') return st === 'active';
+    if (goalFilter === 'sinking_fund') return st === 'active' && g.type === 'sinking_fund';
+    if (goalFilter === 'wishlist') return st === 'active' && g.type === 'wishlist';
+    if (goalFilter === 'archived') return st === 'achieved' || st === 'closed';
     return true;
   });
 
-  const totalGoalsTarget = goals.reduce((sum, g) => sum + g.targetAmount, 0);
+  const activeGoalsOnly = goals.filter(g => getGoalStatus(g) === 'active');
+  const totalGoalsTarget = activeGoalsOnly.reduce((sum, g) => sum + g.targetAmount, 0);
   const totalGoalsSaved = goals.reduce((sum, g) => sum + g.currentAmount, 0);
-  const goalsOverallProgress = totalGoalsTarget > 0 ? Math.min(100, Math.round((totalGoalsSaved / totalGoalsTarget) * 100)) : 0;
+  const activeGoalsSaved = activeGoalsOnly.reduce((sum, g) => sum + g.currentAmount, 0);
+  const goalsOverallProgress =
+    totalGoalsTarget > 0
+      ? Math.min(100, Math.round((activeGoalsSaved / totalGoalsTarget) * 100))
+      : goals.some(g => getGoalStatus(g) === 'achieved')
+        ? 100
+        : 0;
 
   // =========================================================================
   // HANDLERS & LOGIKA MODUL 3: BILLS (TAGIHAN & LANGGANAN)
@@ -2250,6 +2386,7 @@ function AuthenticatedApp({
             onEditGoal={openEditGoalModal}
             onDeleteGoal={setGoalToDelete}
             onAllocate={openAllocateModal}
+            onWithdraw={openWithdrawGoalModal}
           />
         </div>
         {/* AKHIR KONTEN MODUL 2 */}
@@ -2635,6 +2772,64 @@ function AuthenticatedApp({
           onEditTx={openEditTransactionModal}
           onDeleteTx={setTxToDelete}
           onAllocate={(g) => { setSelectedGoalForDetail(null); openAllocateModal(g); }}
+          onWithdraw={(g) => openWithdrawGoalModal(g)}
+          onEditWithdrawal={(g, w) => openEditGoalWithdrawalModal(g, w)}
+          onDeleteWithdrawal={(g, w) => setWithdrawalToDelete({ goal: g, withdrawal: w })}
+          onCloseGoal={handleCloseGoalManually}
+        />
+      )}
+
+      {/* =================================================================== */}
+      {/* MODAL 8B: TARIK DANA / EDIT PENARIKAN TARGET (OPSI 1)               */}
+      {/* =================================================================== */}
+      {(withdrawingGoal || editingGoalWithdrawal) && (() => {
+        const activeGoal = editingGoalWithdrawal
+          ? (goals.find(g => g.id === editingGoalWithdrawal.goal.id) || editingGoalWithdrawal.goal)
+          : (goals.find(g => g.id === withdrawingGoal!.id) || withdrawingGoal!);
+        const maxAvail = editingGoalWithdrawal
+          ? (Number(activeGoal.currentAmount) || 0) + (Number(editingGoalWithdrawal.withdrawal.amount) || 0)
+          : (Number(activeGoal.currentAmount) || 0);
+        return (
+          <WithdrawGoalModal
+            mode={editingGoalWithdrawal ? 'edit' : 'create'}
+            goal={activeGoal}
+            maxWithdrawable={maxAvail}
+            amount={withdrawAmount}
+            onAmountChange={setWithdrawAmount}
+            onAmountBlur={handleWithdrawAmountBlur}
+            onSetAmount={setWithdrawAmount}
+            calcNotice={withdrawCalcNotice}
+            date={withdrawDate}
+            onDateChange={setWithdrawDate}
+            note={withdrawNote}
+            onNoteChange={setWithdrawNote}
+            onSubmit={handleExecuteWithdrawGoal}
+            onClose={() => {
+              setWithdrawingGoal(null);
+              setEditingGoalWithdrawal(null);
+            }}
+          />
+        );
+      })()}
+
+      {/* =================================================================== */}
+      {/* MODAL 8C: KONFIRMASI HAPUS RIWAYAT PENARIKAN TARGET                 */}
+      {/* =================================================================== */}
+      {withdrawalToDelete && (
+        <ConfirmDeleteModal
+          title="Hapus Riwayat Penarikan?"
+          kind="Penarikan Target"
+          name={withdrawalToDelete.withdrawal.note || `Penarikan dari ${withdrawalToDelete.goal.name}`}
+          detailLabel="Nominal dikembalikan ke target"
+          detail={formatRupiah(withdrawalToDelete.withdrawal.amount)}
+          notes={[
+            {
+              text: `Dana sebesar ${formatRupiah(withdrawalToDelete.withdrawal.amount)} akan dikembalikan ke saldo target "${withdrawalToDelete.goal.name}". Saldo akun kas/rekening utama tidak akan berubah.`,
+            },
+          ]}
+          confirmLabel="Ya, hapus penarikan"
+          onClose={() => setWithdrawalToDelete(null)}
+          onConfirm={confirmDeleteGoalWithdrawal}
         />
       )}
 

@@ -59,6 +59,16 @@ export interface Transaction {
 }
 
 export type GoalType = 'wishlist' | 'sinking_fund';
+export type GoalStatus = 'active' | 'achieved' | 'closed';
+
+export interface GoalWithdrawal {
+  id: string;
+  type: 'withdraw';
+  amount: number;
+  date: string; // YYYY-MM-DD
+  note?: string;
+  createdAt: number;
+}
 
 export interface Goal {
   id: string;
@@ -72,6 +82,10 @@ export interface Goal {
   colorAccent?: string;
   note?: string;
   isCompleted?: boolean;
+  status?: GoalStatus;
+  achievedAt?: number | string;
+  closedAt?: number | string;
+  withdrawals?: GoalWithdrawal[];
   createdAt: number | string;
 }
 

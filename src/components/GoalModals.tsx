@@ -1,8 +1,9 @@
 import { freeBalanceText, getFreeBalance } from '../utils/financeUtils';
 import type { CSSProperties, FormEvent } from 'react';
-import { AlertTriangle, Calculator, Check, Coins, Info, Pencil, Sparkles, Target } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, Award, Calculator, Check, Coins, Info, Pencil, Sparkles, Target } from 'lucide-react';
 import type { Account, Goal, GoalType } from '../types';
 import { evaluateMathExpression, formatRupiah } from '../utils/financeUtils';
+import { getGoalStatus } from '../services/cashManagementService';
 import { ModalFrame } from './ui/BaseUI';
 import { ColorPicker, calcNoteOf } from './ObligationForms';
 
@@ -280,6 +281,202 @@ export function GoalFormModal(p: GoalFormProps) {
           <input id={`${formId}-note`} type="text" className="brutal-input" value={p.note} onChange={e => p.onNote(e.target.value)}
             placeholder={create ? 'Perkiraan servis di bengkel resmi' : undefined} />
         </div>
+      </form>
+    </ModalFrame>
+  );
+}
+
+/* ========================= TARIK DANA TARGET (OPSI 1) ========================= */
+interface WithdrawProps {
+  mode?: 'create' | 'edit';
+  goal: Goal;
+  maxWithdrawable?: number;
+  amount: string;
+  onAmountChange: (v: string) => void;
+  onAmountBlur?: () => void;
+  onSetAmount: (v: string) => void;
+  calcNotice: string | null;
+  date: string;
+  onDateChange: (v: string) => void;
+  note: string;
+  onNoteChange: (v: string) => void;
+  onSubmit: (e: FormEvent) => void;
+  onClose: () => void;
+}
+
+const WITHDRAW_FORM_ID = 'withdraw-goal-form';
+
+export function WithdrawGoalModal(p: WithdrawProps) {
+  const g = p.goal;
+  const isEdit = p.mode === 'edit';
+  const isSinking = g.type === 'sinking_fund';
+  const status = getGoalStatus(g);
+  const available = Math.max(0, p.maxWithdrawable !== undefined ? p.maxWithdrawable : Number(g.currentAmount) || 0);
+  const pct = (v: number) => (g.targetAmount > 0 ? Math.min(100, Math.round((v / g.targetAmount) * 100)) : 0);
+
+  const withdrawVal = Math.max(0, evaluateMathExpression(p.amount).result);
+  const exceeds = withdrawVal > available;
+  const invalid = withdrawVal <= 0 || exceeds;
+  const afterAmount = Math.max(0, available - withdrawVal);
+
+  const quickFractions = [
+    { label: '25%', value: Math.round(available * 0.25) },
+    { label: '50%', value: Math.round(available * 0.5) },
+    { label: '75%', value: Math.round(available * 0.75) },
+  ].filter(q => q.value >= 1000 && q.value < available);
+
+  return (
+    <ModalFrame
+      title={isEdit ? 'Edit Penarikan Dana' : 'Tarik Dana Target'}
+      subtitle={`${isSinking ? 'Sinking Fund' : 'Wishlist'} · ${g.name}`}
+      icon={<ArrowUpRight className="w-4 h-4" />}
+      tint="var(--accent-terracotta)"
+      onClose={p.onClose}
+      footer={
+        <>
+          <button type="button" className="brutal-btn brutal-btn-ghost" onClick={p.onClose}>Batal</button>
+          <button type="submit" form={WITHDRAW_FORM_ID} className="brutal-btn brutal-btn-terracotta" disabled={invalid}>
+            <ArrowUpRight className="w-4 h-4" />
+            {isEdit ? 'Simpan' : 'Tarik Dana'}
+            {!invalid ? ` · ${formatRupiah(withdrawVal)}` : ''}
+          </button>
+        </>
+      }
+    >
+      <form id={WITHDRAW_FORM_ID} onSubmit={p.onSubmit} className="ax-form">
+        {/* RINGKASAN DANA TERSEDIA */}
+        <div>
+          <div className="ax-sum">
+            <div>
+              <small>{isEdit ? 'Dana tersedia (termasuk penarikan ini)' : 'Dana tersedia saat ini'}</small>
+              <b style={{ fontSize: 18 }}>{formatRupiah(available)}</b>
+            </div>
+            <div>
+              <small>Target total</small>
+              <b>{formatRupiah(g.targetAmount)}</b>
+            </div>
+          </div>
+          <div className="ax-share" aria-hidden="true" style={{ marginTop: 8 }}>
+            <i style={{ width: `${status === 'achieved' ? 100 : pct(available)}%`, background: status === 'achieved' ? 'var(--accent-sage)' : 'var(--accent-sand)' }} />
+          </div>
+          <div className="ax-ob-row" style={{ marginTop: 4 }}>
+            <span>
+              {status === 'achieved' ? (
+                <span className="inline-flex items-center gap-1 font-bold text-emerald-700 dark:text-[#34D399]">
+                  <Award className="w-3.5 h-3.5" /> Target Tercapai
+                </span>
+              ) : (
+                `${pct(available)}% terkumpul`
+              )}
+            </span>
+            <b>Maks. tarik {formatRupiah(available)}</b>
+          </div>
+        </div>
+
+        {/* NOMINAL PENARIKAN */}
+        <div className="ax-amt" data-kind="expense">
+          <label className="ax-fl" htmlFor="withdraw-amount">
+            <span><Calculator className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Nominal Penarikan</span>
+          </label>
+          <div className="ax-amt-row">
+            <span>Rp</span>
+            <input
+              id="withdraw-amount"
+              type="text"
+              inputMode="text"
+              autoComplete="off"
+              value={p.amount}
+              onChange={e => p.onAmountChange(e.target.value)}
+              onBlur={p.onAmountBlur}
+              placeholder="0"
+              required
+            />
+          </div>
+          {p.calcNotice && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{p.calcNotice}</div>}
+          <div className="ax-qs" aria-label="Pilih nominal cepat penarikan">
+            {quickFractions.map(q => (
+              <button key={q.label} type="button" onClick={() => p.onSetAmount(q.value.toString())}>
+                {q.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="ax-qs-fill"
+              disabled={available <= 0}
+              onClick={() => p.onSetAmount(available.toString())}
+            >
+              Tarik Semua
+            </button>
+          </div>
+          <p className="ax-hint">Ketuk "Tarik Semua" untuk mencairkan seluruh dana ({formatRupiah(available)}).</p>
+        </div>
+
+        {/* VALIDASI MELEBIHI SALDO */}
+        {exceeds && (
+          <div className="ax-warn t" role="alert">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>Nominal penarikan melebihi dana tersedia di target (maksimal <b>{formatRupiah(available)}</b>).</span>
+          </div>
+        )}
+
+        {/* PRATINJAU DAMPAK */}
+        {withdrawVal > 0 && !exceeds && (
+          <div className={`ax-sum ${status === 'achieved' ? 'ax-sum-ok' : ''}`}>
+            <div>
+              <small>Sisa dana di target</small>
+              <b>{formatRupiah(afterAmount)}{status !== 'achieved' ? ` · ${pct(afterAmount)}%` : ''}</b>
+            </div>
+            <div>
+              <small>Status target setelah ditarik</small>
+              <b>
+                {status === 'achieved'
+                  ? (afterAmount === 0 ? 'TERCAPAI (CAIR PENUH) 🎉' : 'TETAP TERCAPAI 🎉')
+                  : status === 'closed'
+                    ? 'DITUTUP'
+                    : 'TETAP AKTIF'}
+              </b>
+            </div>
+          </div>
+        )}
+
+        {/* TANGGAL + KETERANGAN */}
+        <div className="ax-two">
+          <div>
+            <label className="brutal-label" htmlFor="withdraw-date">Tanggal Penarikan</label>
+            <input
+              id="withdraw-date"
+              type="date"
+              className="brutal-input"
+              value={p.date}
+              onChange={e => p.onDateChange(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <label className="brutal-label" htmlFor="withdraw-note">Keterangan / Keperluan</label>
+            <input
+              id="withdraw-note"
+              type="text"
+              className="brutal-input"
+              value={p.note}
+              onChange={e => p.onNoteChange(e.target.value)}
+              placeholder="Misal: Beli tiket & hotel, DP vendor"
+            />
+          </div>
+        </div>
+
+        {/* INFO OPSI 1 */}
+        <p className="ax-warn" style={{ margin: 0 }}>
+          <Info className="w-4 h-4 shrink-0" />
+          <span>
+            <b>Pemakaian Dana Target:</b> Penarikan ini hanya mengurangi dana di target ini dan <b>tidak mengubah saldo akun kas/rekening utama</b> Anda (karena saldo rekening telah dipotong saat alokasi).
+            {status === 'active'
+              ? ' Karena target belum 100%, status tetap Aktif dan Anda masih bisa menabung lagi.'
+              : status === 'achieved'
+                ? ' Target ini tetap berstatus Tercapai meskipun dana dicairkan seluruhnya.'
+                : ''}
+          </span>
+        </p>
       </form>
     </ModalFrame>
   );

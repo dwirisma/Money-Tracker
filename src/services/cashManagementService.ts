@@ -28,6 +28,8 @@ import {
   AccountPocket,
   Transaction,
   Goal,
+  GoalStatus,
+  GoalWithdrawal,
   Bill,
   BillCycle,
   CustomIntervalUnit,
@@ -995,11 +997,27 @@ export async function updateTransactionWithBalanceSync(
         if (goalRef && goalSnap && goalSnap.exists()) {
           const g = goalSnap.data() as Goal;
           const nextCur = Math.max(0, (Number(g.currentAmount) || 0) + diff);
-          tx.update(goalRef, {
-            currentAmount: nextCur,
-            isCompleted: nextCur >= (Number(g.targetAmount) || 0),
-            updatedAt: now,
-          });
+          const prevStatus = getGoalStatus(g);
+          const targetAmt = Number(g.targetAmount) || 0;
+          const reached = targetAmt > 0 && nextCur >= targetAmt;
+          let nextStatus: GoalStatus;
+          if (prevStatus === 'closed') {
+            nextStatus = 'closed';
+          } else if (prevStatus === 'achieved' && (g.withdrawals?.length ?? 0) > 0) {
+            nextStatus = 'achieved';
+          } else {
+            nextStatus = reached ? 'achieved' : 'active';
+          }
+          tx.update(
+            goalRef,
+            stripUndefined({
+              currentAmount: nextCur,
+              status: nextStatus,
+              isCompleted: nextStatus === 'achieved',
+              ...(nextStatus === 'achieved' && !g.achievedAt ? { achievedAt: now } : {}),
+              updatedAt: now,
+            })
+          );
         }
         if (billRef && billSnap && billSnap.exists()) {
           const b = billSnap.data() as Bill;
@@ -1098,11 +1116,26 @@ export async function deleteTransaction(uid: string, txId: string): Promise<void
       if (goalRef && goalSnap && goalSnap.exists()) {
         const g = goalSnap.data() as Goal;
         const nextCur = Math.max(0, (Number(g.currentAmount) || 0) - amount);
-        tx.update(goalRef, {
-          currentAmount: nextCur,
-          isCompleted: nextCur >= (Number(g.targetAmount) || 0),
-          updatedAt: now,
-        });
+        const prevStatus = getGoalStatus(g);
+        const targetAmt = Number(g.targetAmount) || 0;
+        const reached = targetAmt > 0 && nextCur >= targetAmt;
+        let nextStatus: GoalStatus;
+        if (prevStatus === 'closed') {
+          nextStatus = 'closed';
+        } else if (prevStatus === 'achieved' && (g.withdrawals?.length ?? 0) > 0) {
+          nextStatus = 'achieved';
+        } else {
+          nextStatus = reached ? 'achieved' : 'active';
+        }
+        tx.update(
+          goalRef,
+          stripUndefined({
+            currentAmount: nextCur,
+            status: nextStatus,
+            isCompleted: nextStatus === 'achieved',
+            updatedAt: now,
+          })
+        );
       }
 
       // 3. Rollback Bill (termasuk mundurkan nextPaymentDate & lastNominal)
@@ -1161,6 +1194,18 @@ export async function deleteTransaction(uid: string, txId: string): Promise<void
 // GOALS & SINKING FUNDS (MODUL 2)
 // ============================================================================
 
+export function getGoalStatus(
+  goal: Pick<Goal, 'status' | 'isCompleted' | 'currentAmount' | 'targetAmount'>
+): GoalStatus {
+  if (goal.status === 'closed') return 'closed';
+  const target = Number(goal.targetAmount) || 0;
+  const current = Number(goal.currentAmount) || 0;
+  if (goal.status === 'achieved' || goal.isCompleted || (target > 0 && current >= target)) {
+    return 'achieved';
+  }
+  return 'active';
+}
+
 export async function createGoal(
   uid: string,
   data: Omit<Goal, 'id' | 'createdAt'>
@@ -1171,11 +1216,15 @@ export async function createGoal(
     const now = Date.now();
     const targetAmount = Number(data.targetAmount) || 0;
     const currentAmount = Number(data.currentAmount) || 0;
+    const achieved = currentAmount >= targetAmount && targetAmount > 0;
+    const status: GoalStatus = data.status || (achieved ? 'achieved' : 'active');
     const payload = stripUndefined({
       ...data,
       targetAmount,
       currentAmount,
-      isCompleted: currentAmount >= targetAmount && targetAmount > 0,
+      status,
+      isCompleted: status === 'achieved',
+      achievedAt: status === 'achieved' ? (data.achievedAt ?? now) : undefined,
       createdAt: now,
       updatedAt: now,
     });
@@ -1193,6 +1242,7 @@ export async function updateGoalData(
 ): Promise<void> {
   const path = `users/${uid}/goals/${goalId}`;
   try {
+    const now = Date.now();
     await runTransaction(db, async (tx) => {
       const ref = doc(db, 'users', uid, 'goals', goalId);
       const snap = await tx.get(ref);
@@ -1202,14 +1252,36 @@ export async function updateGoalData(
         updates.targetAmount !== undefined ? Number(updates.targetAmount) : Number(cur.targetAmount);
       const currentAmount =
         updates.currentAmount !== undefined ? Number(updates.currentAmount) : Number(cur.currentAmount);
+
+      const prevStatus = getGoalStatus(cur);
+      const reached = targetAmount > 0 && currentAmount >= targetAmount;
+      let nextStatus: GoalStatus;
+      if (updates.status) {
+        nextStatus = updates.status;
+      } else if (prevStatus === 'closed') {
+        nextStatus = 'closed';
+      } else if (reached) {
+        nextStatus = 'achieved';
+      } else if (
+        prevStatus === 'achieved' &&
+        (cur.withdrawals?.length ?? 0) > 0 &&
+        targetAmount <= (Number(cur.targetAmount) || 0)
+      ) {
+        nextStatus = 'achieved';
+      } else {
+        nextStatus = 'active';
+      }
+
       tx.update(
         ref,
         stripUndefined({
           ...updates,
           targetAmount,
           currentAmount,
-          isCompleted: currentAmount >= targetAmount && targetAmount > 0,
-          updatedAt: Date.now(),
+          status: nextStatus,
+          isCompleted: nextStatus === 'achieved',
+          ...(nextStatus === 'achieved' && !cur.achievedAt ? { achievedAt: now } : {}),
+          updatedAt: now,
         })
       );
     });
@@ -1260,10 +1332,28 @@ export async function allocateFundsToGoal(
       }
 
       const goalData = { id: goalSnap.id, ...(goalSnap.data() as Omit<Goal, 'id'>) };
-      const nextGoalAmount = (Number(goalData.currentAmount) || 0) + amount;
-      const isCompleted = nextGoalAmount >= (Number(goalData.targetAmount) || 0);
+      const prevStatus = getGoalStatus(goalData);
+      if (prevStatus === 'closed') {
+        throw new Error('Target ini sudah ditutup dan tidak dapat menerima alokasi baru.');
+      }
 
-      tx.update(goalRef, { currentAmount: nextGoalAmount, isCompleted, updatedAt: now });
+      const nextGoalAmount = (Number(goalData.currentAmount) || 0) + amount;
+      const targetAmount = Number(goalData.targetAmount) || 0;
+      const reached = targetAmount > 0 && nextGoalAmount >= targetAmount;
+      const nextStatus: GoalStatus = prevStatus === 'achieved' || reached ? 'achieved' : 'active';
+      const isCompleted = nextStatus === 'achieved';
+      const achievedAt = isCompleted ? (goalData.achievedAt ?? now) : undefined;
+
+      tx.update(
+        goalRef,
+        stripUndefined({
+          currentAmount: nextGoalAmount,
+          status: nextStatus,
+          isCompleted,
+          achievedAt,
+          updatedAt: now,
+        })
+      );
 
       let newTx: Transaction | undefined;
       if (accRef && accSnap && accSnap.exists() && params.sourceAccountId) {
@@ -1288,12 +1378,271 @@ export async function allocateFundsToGoal(
       }
 
       return {
-        goal: { ...goalData, currentAmount: nextGoalAmount, isCompleted },
+        goal: {
+          ...goalData,
+          currentAmount: nextGoalAmount,
+          status: nextStatus,
+          isCompleted,
+          ...(achievedAt ? { achievedAt } : {}),
+        },
         transaction: newTx,
       };
     });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+/**
+ * Opsi 1 (Realisasi / Pemakaian Dana Target):
+ * Mengurangi `currentAmount` pada dokumen target dan mencatat riwayat penarikan (`type: 'withdraw'`).
+ * TIDAK mengubah saldo akun kas/rekening utama karena saldo rekening sudah dipotong saat alokasi.
+ * - Jika status target masih `'active'` (belum pernah tercapai), status TETAP `'active'`.
+ * - Jika status target sudah `'achieved'`, status TETAP `'achieved'` meski saldo target menjadi 0.
+ */
+export async function withdrawFundsFromGoal(
+  uid: string,
+  params: {
+    goalId: string;
+    amount: number;
+    date: string;
+    note?: string;
+  }
+): Promise<{ goal: Goal; withdrawal: GoalWithdrawal }> {
+  const path = `users/${uid}/goals/${params.goalId}`;
+  try {
+    const amount = Number(params.amount) || 0;
+    if (amount <= 0) throw new Error('Nominal penarikan harus lebih dari 0.');
+    const now = Date.now();
+    const withdrawalId = `gw_${now}_${Math.random().toString(36).slice(2, 7)}`;
+
+    return await runTransaction(db, async (tx) => {
+      const goalRef = doc(db, 'users', uid, 'goals', params.goalId);
+      const goalSnap = await tx.get(goalRef);
+      if (!goalSnap.exists()) throw new Error('Target tabungan tidak ditemukan.');
+
+      const goalData = { id: goalSnap.id, ...(goalSnap.data() as Omit<Goal, 'id'>) };
+      const currentAmount = Number(goalData.currentAmount) || 0;
+      if (amount > currentAmount) {
+        throw new Error('Nominal penarikan tidak boleh melebihi dana terkumpul saat ini.');
+      }
+
+      const prevStatus = getGoalStatus(goalData);
+      const nextGoalAmount = Math.max(0, currentAmount - amount);
+      const nextStatus: GoalStatus = prevStatus; // active tetap active, achieved tetap achieved, closed tetap closed
+      const isCompleted = nextStatus === 'achieved';
+      const achievedAt = isCompleted ? (goalData.achievedAt ?? now) : undefined;
+
+      const withdrawal: GoalWithdrawal = stripUndefined({
+        id: withdrawalId,
+        type: 'withdraw',
+        amount,
+        date: params.date || toLocalDateStr(new Date()),
+        note: params.note?.trim() || undefined,
+        createdAt: now,
+      });
+
+      const nextWithdrawals: GoalWithdrawal[] = [withdrawal, ...(goalData.withdrawals || [])];
+
+      tx.update(
+        goalRef,
+        stripUndefined({
+          currentAmount: nextGoalAmount,
+          status: nextStatus,
+          isCompleted,
+          achievedAt,
+          withdrawals: nextWithdrawals,
+          updatedAt: now,
+        })
+      );
+
+      return {
+        goal: {
+          ...goalData,
+          currentAmount: nextGoalAmount,
+          status: nextStatus,
+          isCompleted,
+          ...(achievedAt ? { achievedAt } : {}),
+          withdrawals: nextWithdrawals,
+        },
+        withdrawal,
+      };
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export async function updateGoalWithdrawal(
+  uid: string,
+  params: {
+    goalId: string;
+    withdrawalId: string;
+    amount: number;
+    date: string;
+    note?: string;
+  }
+): Promise<Goal> {
+  const path = `users/${uid}/goals/${params.goalId}`;
+  try {
+    const newAmount = Number(params.amount) || 0;
+    if (newAmount <= 0) throw new Error('Nominal penarikan harus lebih dari 0.');
+    const now = Date.now();
+
+    return await runTransaction(db, async (tx) => {
+      const goalRef = doc(db, 'users', uid, 'goals', params.goalId);
+      const goalSnap = await tx.get(goalRef);
+      if (!goalSnap.exists()) throw new Error('Target tabungan tidak ditemukan.');
+
+      const goalData = { id: goalSnap.id, ...(goalSnap.data() as Omit<Goal, 'id'>) };
+      const list = goalData.withdrawals || [];
+      const existing = list.find((w) => w.id === params.withdrawalId);
+      if (!existing) throw new Error('Riwayat penarikan tidak ditemukan.');
+
+      const maxAvailable = (Number(goalData.currentAmount) || 0) + (Number(existing.amount) || 0);
+      if (newAmount > maxAvailable) {
+        throw new Error('Nominal penarikan melebihi dana target yang tersedia.');
+      }
+
+      const nextGoalAmount = Math.max(0, maxAvailable - newAmount);
+      const prevStatus = getGoalStatus(goalData);
+      const targetAmount = Number(goalData.targetAmount) || 0;
+      let nextStatus: GoalStatus;
+      if (prevStatus === 'closed') {
+        nextStatus = 'closed';
+      } else if (prevStatus === 'achieved' || (targetAmount > 0 && nextGoalAmount >= targetAmount)) {
+        nextStatus = 'achieved';
+      } else {
+        nextStatus = 'active';
+      }
+
+      const isCompleted = nextStatus === 'achieved';
+      const achievedAt = isCompleted ? (goalData.achievedAt ?? now) : undefined;
+      const nextWithdrawals = list.map((w) =>
+        w.id === params.withdrawalId
+          ? stripUndefined({
+              ...w,
+              amount: newAmount,
+              date: params.date || w.date,
+              note: params.note?.trim() || undefined,
+            })
+          : w
+      );
+
+      tx.update(
+        goalRef,
+        stripUndefined({
+          currentAmount: nextGoalAmount,
+          status: nextStatus,
+          isCompleted,
+          achievedAt,
+          withdrawals: nextWithdrawals,
+          updatedAt: now,
+        })
+      );
+
+      return {
+        ...goalData,
+        currentAmount: nextGoalAmount,
+        status: nextStatus,
+        isCompleted,
+        ...(achievedAt ? { achievedAt } : {}),
+        withdrawals: nextWithdrawals,
+      };
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export async function deleteGoalWithdrawal(
+  uid: string,
+  params: { goalId: string; withdrawalId: string }
+): Promise<Goal> {
+  const path = `users/${uid}/goals/${params.goalId}`;
+  try {
+    const now = Date.now();
+    return await runTransaction(db, async (tx) => {
+      const goalRef = doc(db, 'users', uid, 'goals', params.goalId);
+      const goalSnap = await tx.get(goalRef);
+      if (!goalSnap.exists()) throw new Error('Target tabungan tidak ditemukan.');
+
+      const goalData = { id: goalSnap.id, ...(goalSnap.data() as Omit<Goal, 'id'>) };
+      const list = goalData.withdrawals || [];
+      const existing = list.find((w) => w.id === params.withdrawalId);
+      if (!existing) throw new Error('Riwayat penarikan tidak ditemukan.');
+
+      const nextGoalAmount = (Number(goalData.currentAmount) || 0) + (Number(existing.amount) || 0);
+      const nextWithdrawals = list.filter((w) => w.id !== params.withdrawalId);
+      const prevStatus = getGoalStatus(goalData);
+      const targetAmount = Number(goalData.targetAmount) || 0;
+      let nextStatus: GoalStatus;
+      if (prevStatus === 'closed') {
+        nextStatus = 'closed';
+      } else if (prevStatus === 'achieved' || (targetAmount > 0 && nextGoalAmount >= targetAmount)) {
+        nextStatus = 'achieved';
+      } else {
+        nextStatus = 'active';
+      }
+
+      const isCompleted = nextStatus === 'achieved';
+      const achievedAt = isCompleted ? (goalData.achievedAt ?? now) : undefined;
+
+      tx.update(
+        goalRef,
+        stripUndefined({
+          currentAmount: nextGoalAmount,
+          status: nextStatus,
+          isCompleted,
+          achievedAt,
+          withdrawals: nextWithdrawals,
+          updatedAt: now,
+        })
+      );
+
+      return {
+        ...goalData,
+        currentAmount: nextGoalAmount,
+        status: nextStatus,
+        isCompleted,
+        ...(achievedAt ? { achievedAt } : {}),
+        withdrawals: nextWithdrawals,
+      };
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export async function closeGoalManually(uid: string, goalId: string): Promise<Goal> {
+  const path = `users/${uid}/goals/${goalId}`;
+  try {
+    const now = Date.now();
+    return await runTransaction(db, async (tx) => {
+      const goalRef = doc(db, 'users', uid, 'goals', goalId);
+      const goalSnap = await tx.get(goalRef);
+      if (!goalSnap.exists()) throw new Error('Target tabungan tidak ditemukan.');
+
+      const goalData = { id: goalSnap.id, ...(goalSnap.data() as Omit<Goal, 'id'>) };
+      tx.update(
+        goalRef,
+        stripUndefined({
+          status: 'closed' as GoalStatus,
+          isCompleted: false,
+          closedAt: now,
+          updatedAt: now,
+        })
+      );
+
+      return {
+        ...goalData,
+        status: 'closed' as GoalStatus,
+        isCompleted: false,
+        closedAt: now,
+      };
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
   }
 }
 

@@ -4,10 +4,13 @@ import { useAuth } from './AuthContext';
 import {
   DEFAULT_AI_SETTINGS,
   normalizeAiSettings,
+  normalizeBudgetAllocationMap,
   saveAiSettings,
+  saveBudgetAllocationMap,
   subscribeUserPreferences,
   updateUserPreferences,
   type AiSettings,
+  type BudgetAllocationMap,
 } from '../services/settingsService';
 
 export type Theme = 'dark' | 'light';
@@ -43,12 +46,14 @@ interface UIState {
   sidebarCollapsed: boolean;
   mobileDrawerOpen: boolean;
   aiSettings: AiSettings;
+  budgetAllocationMap: BudgetAllocationMap;
   toggleTheme: () => void;
   togglePrivacy: () => void;
   toggleSidebar: () => void;
   toggleMobileDrawer: () => void;
   setMobileDrawerOpen: (open: boolean) => void;
   updateAiSettings: (partial: Partial<AiSettings>) => Promise<void>;
+  updateBudgetAllocationMap: (nextMap: BudgetAllocationMap) => Promise<void>;
 }
 
 const UIContext = createContext<UIState | null>(null);
@@ -60,14 +65,16 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
   const [aiSettings, setAiSettings] = useState<AiSettings>({ ...DEFAULT_AI_SETTINGS });
+  const [budgetAllocationMap, setBudgetAllocationMap] = useState<BudgetAllocationMap>({});
 
-  // Sinkronisasi preferensi UI & AI real-time dari Cloud Firestore
+  // Sinkronisasi preferensi UI, AI & Pemetaan 50/30/20 real-time dari Cloud Firestore
   useEffect(() => {
     if (!uid) {
       setPrivacy(false);
       setSidebarCollapsed(false);
       setMobileDrawerOpen(false);
       setAiSettings({ ...DEFAULT_AI_SETTINGS });
+      setBudgetAllocationMap({});
       return;
     }
 
@@ -77,6 +84,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
       setPrivacy(prefs.privacy);
       setSidebarCollapsed(prefs.sidebarCollapsed);
       setAiSettings(prefs.aiSettings);
+      setBudgetAllocationMap(prefs.budgetAllocationMap || {});
     });
     return () => unsubscribe();
   }, [uid]);
@@ -137,6 +145,17 @@ export function UIProvider({ children }: { children: ReactNode }) {
     [aiSettings, uid]
   );
 
+  const updateBudgetAllocationMap = useCallback(
+    async (nextMap: BudgetAllocationMap) => {
+      const normalized = normalizeBudgetAllocationMap(nextMap);
+      setBudgetAllocationMap(normalized);
+      if (uid) {
+        await saveBudgetAllocationMap(normalized, uid);
+      }
+    },
+    [uid]
+  );
+
   const value = useMemo(
     () => ({
       theme,
@@ -144,12 +163,14 @@ export function UIProvider({ children }: { children: ReactNode }) {
       sidebarCollapsed,
       mobileDrawerOpen,
       aiSettings,
+      budgetAllocationMap,
       toggleTheme,
       togglePrivacy,
       toggleSidebar,
       toggleMobileDrawer,
       setMobileDrawerOpen,
       updateAiSettings,
+      updateBudgetAllocationMap,
     }),
     [
       theme,
@@ -157,11 +178,13 @@ export function UIProvider({ children }: { children: ReactNode }) {
       sidebarCollapsed,
       mobileDrawerOpen,
       aiSettings,
+      budgetAllocationMap,
       toggleTheme,
       togglePrivacy,
       toggleSidebar,
       toggleMobileDrawer,
       updateAiSettings,
+      updateBudgetAllocationMap,
     ]
   );
 

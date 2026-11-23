@@ -4,7 +4,13 @@
  * dan preferensi pengguna (`users/{uid}/settings/preferences`).
  */
 import { doc, getDoc, onSnapshot, runTransaction, setDoc } from 'firebase/firestore';
-import { db, OperationType, handleFirestoreError, logFirestoreListenerError } from '../config/firebase';
+import {
+  db,
+  getActiveUserDocId,
+  OperationType,
+  handleFirestoreError,
+  logFirestoreListenerError,
+} from '../config/firebase';
 import { toLocalDateStr } from '../utils/dateUtils';
 import type { AutomationEvent } from './notificationService';
 
@@ -167,6 +173,135 @@ export function normalizeAiSettings(raw: unknown): AiSettings {
 }
 
 // =============================================================================
+// 50 / 30 / 20 BUDGET ALLOCATION CATEGORY MAPPING
+// =============================================================================
+
+export type BudgetAllocationBucket = 'needs' | 'wants' | 'savings';
+export type BudgetAllocationMap = Record<string, BudgetAllocationBucket>;
+
+const SAVINGS_KEYWORDS = ['sinking fund', 'tabungan', 'investasi'];
+
+const DEFAULT_NEEDS_EXACT = new Set([
+  'makanan & minuman',
+  'transportasi',
+  'utilitas',
+  'tagihan & utilitas',
+  'belanja bulanan',
+  'kesehatan',
+  'tagihan',
+  'cicilan',
+  'utang',
+  'sewa',
+  'pendidikan',
+]);
+
+const DEFAULT_WANTS_EXACT = new Set([
+  'hiburan & hobi',
+  'jajan',
+  'lainnya',
+]);
+
+export function isSavingsCategoryName(category: string): boolean {
+  const lower = category.trim().toLowerCase();
+  return SAVINGS_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
+/**
+ * Menentukan keranjang bawaan (Reset Default) untuk suatu nama kategori:
+ * - Mengandung Sinking Fund / Tabungan / Investasi -> 'savings'
+ * - Makanan & Minuman, Transportasi, Utilitas, Belanja Bulanan, Kesehatan, Tagihan, dll -> 'needs'
+ * - Hiburan & Hobi, Jajan, Lainnya, dsb -> 'wants'
+ */
+export function getDefaultBudgetAllocationBucket(category: string): BudgetAllocationBucket {
+  const normalized = category.trim().toLowerCase();
+  if (!normalized) return 'wants';
+
+  if (isSavingsCategoryName(normalized)) {
+    return 'savings';
+  }
+
+  if (DEFAULT_WANTS_EXACT.has(normalized)) {
+    return 'wants';
+  }
+
+  if (
+    DEFAULT_NEEDS_EXACT.has(normalized) ||
+    normalized.includes('makanan') ||
+    normalized.includes('transport') ||
+    normalized.includes('utilitas') ||
+    normalized.includes('tagihan') ||
+    normalized.includes('belanja bulanan') ||
+    normalized.includes('kesehatan') ||
+    normalized.includes('cicilan') ||
+    normalized.includes('utang') ||
+    normalized.includes('sewa') ||
+    normalized.includes('pendidikan')
+  ) {
+    return 'needs';
+  }
+
+  return 'wants';
+}
+
+/**
+ * Membangun peta default lengkap untuk daftar kategori yang diberikan (digunakan tombol "Reset Default").
+ */
+export function buildDefaultBudgetAllocationMap(categories: string[]): BudgetAllocationMap {
+  const map: BudgetAllocationMap = {};
+  categories.forEach((cat) => {
+    const trimmed = cat.trim();
+    if (!trimmed) return;
+    map[trimmed] = getDefaultBudgetAllocationBucket(trimmed);
+  });
+  return map;
+}
+
+export function normalizeBudgetAllocationMap(raw: unknown): BudgetAllocationMap {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return {};
+  }
+  const result: BudgetAllocationMap = {};
+  Object.entries(raw as Record<string, unknown>).forEach(([key, val]) => {
+    const trimmedKey = key.trim();
+    if (!trimmedKey) return;
+    if (val === 'needs' || val === 'wants' || val === 'savings') {
+      result[trimmedKey] = val;
+    }
+  });
+  return result;
+}
+
+/**
+ * Menentukan keranjang alokasi 50/30/20 untuk suatu kategori berdasarkan peta pilihan user.
+ * - Jika user sudah menyimpan peta kustom: pakai pilihan user; untuk kategori baru yang belum dipetakan,
+ *   fallback cerdas: mengandung Sinking Fund / Tabungan / Investasi -> 'savings', lainnya -> 'wants'.
+ * - Jika user belum pernah menyimpan pemetaan kustom sama sekali: gunakan aturan default lengkap.
+ */
+export function resolveBudgetAllocationBucket(
+  category: string,
+  customMap?: BudgetAllocationMap
+): BudgetAllocationBucket {
+  const trimmed = category.trim();
+  const hasCustomMap = Boolean(customMap && Object.keys(customMap).length > 0);
+
+  if (hasCustomMap && customMap) {
+    const direct = customMap[trimmed];
+    if (direct === 'needs' || direct === 'wants' || direct === 'savings') {
+      return direct;
+    }
+    const lower = trimmed.toLowerCase();
+    for (const [k, v] of Object.entries(customMap)) {
+      if (k.trim().toLowerCase() === lower) {
+        return v;
+      }
+    }
+    return isSavingsCategoryName(trimmed) ? 'savings' : 'wants';
+  }
+
+  return getDefaultBudgetAllocationBucket(trimmed);
+}
+
+// =============================================================================
 // USER PREFERENCES MANAGEMENT
 // =============================================================================
 
@@ -179,6 +314,7 @@ export interface UserPreferences {
   notificationsDismissed: string[];
   automationEvents: AutomationEvent[];
   aiSettings: AiSettings;
+  budgetAllocationMap: BudgetAllocationMap;
   updatedAt: number;
 }
 
@@ -191,6 +327,7 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   notificationsDismissed: [],
   automationEvents: [],
   aiSettings: { ...DEFAULT_AI_SETTINGS },
+  budgetAllocationMap: {},
   updatedAt: 0,
 };
 
@@ -209,7 +346,11 @@ export function subscribeUserPreferences(
     ref,
     (snap) => {
       if (!snap.exists()) {
-        onData({ ...DEFAULT_USER_PREFERENCES, aiSettings: { ...DEFAULT_AI_SETTINGS } });
+        onData({
+          ...DEFAULT_USER_PREFERENCES,
+          aiSettings: { ...DEFAULT_AI_SETTINGS },
+          budgetAllocationMap: {},
+        });
         return;
       }
       const data = snap.data() as Partial<UserPreferences>;
@@ -222,6 +363,7 @@ export function subscribeUserPreferences(
         notificationsDismissed: Array.isArray(data.notificationsDismissed) ? data.notificationsDismissed : [],
         automationEvents: Array.isArray(data.automationEvents) ? data.automationEvents : [],
         aiSettings: normalizeAiSettings(data.aiSettings),
+        budgetAllocationMap: normalizeBudgetAllocationMap(data.budgetAllocationMap),
         updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : Date.now(),
       });
     },
@@ -250,6 +392,32 @@ export async function updateUserPreferences(
 export async function saveAiSettings(uid: string, next: AiSettings): Promise<void> {
   const normalized = normalizeAiSettings(next);
   await updateUserPreferences(uid, { aiSettings: normalized });
+}
+
+/**
+ * Menyimpan peta kategori Alokasi Dana 50/30/20 ke `users/${activeUserDocId}/settings/preferences`
+ * menggunakan `mergeFields` agar seluruh map ter-replace bersih tanpa menimpa preferensi lain.
+ */
+export async function saveBudgetAllocationMap(
+  map: BudgetAllocationMap,
+  uidOverride?: string
+): Promise<void> {
+  const targetUid = uidOverride || getActiveUserDocId();
+  if (!targetUid) return;
+  const path = `users/${targetUid}/settings/preferences`;
+  const normalized = normalizeBudgetAllocationMap(map);
+  try {
+    await setDoc(
+      getPreferencesRef(targetUid),
+      {
+        budgetAllocationMap: normalized,
+        updatedAt: Date.now(),
+      },
+      { mergeFields: ['budgetAllocationMap', 'updatedAt'] }
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
 }
 
 export async function appendAutomationEventCloud(

@@ -17,7 +17,7 @@ import {
   Receipt
 } from 'lucide-react';
 import type { Account, Bill, Debt, Goal, Transaction, InvestmentAsset, Ledger } from '../types';
-import { calculateNetWorthAccounts, getBillDueStatus } from '../services/cashManagementService';
+import { calculateNetWorthAccounts, getBillDueStatus, getGoalStatus } from '../services/cashManagementService';
 import { calculateInvestmentSummary } from '../services/investmentService';
 import { formatRupiah } from '../utils/financeUtils';
 import { Money } from './ui/BaseUI';
@@ -96,7 +96,7 @@ export function DashboardPage({ ledgerName, currentLedger, accounts, transaction
     const overdueCount = dueItems.filter(i => i.st.isOverdue).length;
 
     // Goals
-    const nearGoals = goals.filter(g => !g.isCompleted && g.targetAmount > 0)
+    const nearGoals = goals.filter(g => getGoalStatus(g) === 'active' && g.targetAmount > 0)
       .sort((a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999')).slice(0, 3);
 
     // Recent Transactions
