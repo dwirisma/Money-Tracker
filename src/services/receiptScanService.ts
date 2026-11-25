@@ -359,3 +359,505 @@ export async function scanReceipt(
 
   return parseReceiptData(body, categories);
 }
+
+// =============================================================================
+// LOCAL REAL-TIME RECEIPT DETECTION & AUTO-CROP (CLIENT-SIDE ONLY, 0 API CALLS)
+// =============================================================================
+
+export interface NormalizedPoint {
+  x: number;
+  y: number;
+}
+
+export interface NormalizedRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export type ReceiptQuad = [NormalizedPoint, NormalizedPoint, NormalizedPoint, NormalizedPoint];
+
+export type ReceiptDetectionStatus = 'no_document' | 'unstable_or_blurry' | 'ready';
+
+export interface ReceiptFrameAnalysis {
+  status: ReceiptDetectionStatus;
+  detected: boolean;
+  isSharp: boolean;
+  isWellLit: boolean;
+  isStable: boolean;
+  sharpness: number;
+  motion: number;
+  brightness: number;
+  bounds: NormalizedRect | null;
+  quad: ReceiptQuad | null;
+}
+
+const GRID_COLS = 36;
+const GRID_ROWS = 36;
+const SHARPNESS_THRESHOLD = 42;
+const MOTION_STABLE_THRESHOLD = 7.8;
+const MIN_PAPER_BRIGHTNESS = 96;
+
+function clamp01(v: number): number {
+  return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+/**
+ * Menganalisis frame video beresolusi ringan (misal lebar 320px) sepenuhnya di browser:
+ * - Deteksi bidang kertas struk terang/berkontras di area bingkai tengah
+ * - Estimasi 4 sudut poligon (TL, TR, BR, BL)
+ * - Cek ketajaman tepi (Laplacian variance) & pencahayaan
+ * - Cek kestabilan tangan (perbedaan intensitas antar-frame)
+ */
+export function analyzeReceiptFrame(
+  imageData: ImageData,
+  prevLuma: Uint8Array | null,
+  visibleRegion?: NormalizedRect
+): { analysis: ReceiptFrameAnalysis; luma: Uint8Array } {
+  const { data, width, height } = imageData;
+  const totalPixels = width * height;
+  const luma = new Uint8Array(totalPixels);
+  const chroma = new Uint8Array(totalPixels);
+
+  // Tentukan area ROI yang terlihat pada preview kamera (mengakomodasi object-cover)
+  const visX0 = Math.max(0, Math.floor((visibleRegion?.x ?? 0) * width));
+  const visY0 = Math.max(0, Math.floor((visibleRegion?.y ?? 0) * height));
+  const visX1 = Math.min(width, Math.ceil(((visibleRegion?.x ?? 0) + (visibleRegion?.width ?? 1)) * width));
+  const visY1 = Math.min(height, Math.ceil(((visibleRegion?.y ?? 0) + (visibleRegion?.height ?? 1)) * height));
+  const visW = Math.max(1, visX1 - visX0);
+  const visH = Math.max(1, visY1 - visY0);
+
+  // 1. Konversi RGBA ke luminance & chroma (saturasi rendah = kandidat kertas putih/termal)
+  let motionSum = 0;
+  let motionCount = 0;
+  const hist = new Uint32Array(256);
+
+  for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const y = (r * 77 + g * 150 + b * 29) >> 8;
+    luma[p] = y;
+    const maxC = r > g ? (r > b ? r : b) : g > b ? g : b;
+    const minC = r < g ? (r < b ? r : b) : g < b ? g : b;
+    chroma[p] = maxC - minC;
+  }
+
+  // Hitung histogram & skor gerakan pada area terlihat (sampling stride 2 untuk ringan di HP)
+  let rimSum = 0;
+  let rimCount = 0;
+  const rimPadX = Math.max(2, Math.floor(visW * 0.1));
+  const rimPadY = Math.max(2, Math.floor(visH * 0.1));
+  let visibleSamples = 0;
+
+  for (let y = visY0; y < visY1; y += 2) {
+    const rowOffset = y * width;
+    const isRimY = y < visY0 + rimPadY || y >= visY1 - rimPadY;
+    for (let x = visX0; x < visX1; x += 2) {
+      const idx = rowOffset + x;
+      const val = luma[idx];
+      hist[val]++;
+      visibleSamples++;
+
+      if (isRimY || x < visX0 + rimPadX || x >= visX1 - rimPadX) {
+        rimSum += val;
+        rimCount++;
+      }
+
+      if (prevLuma && prevLuma.length === totalPixels) {
+        motionSum += Math.abs(val - prevLuma[idx]);
+        motionCount++;
+      }
+    }
+  }
+
+  const motion = prevLuma && motionCount > 0 ? motionSum / motionCount : 99;
+  const isStable = prevLuma !== null && motion <= MOTION_STABLE_THRESHOLD;
+  const bgLuma = rimCount > 0 ? rimSum / rimCount : 90;
+
+  // Hitung persentil ke-60 untuk ambang adaptif kertas
+  let p60Luma = 128;
+  if (visibleSamples > 0) {
+    let acc = 0;
+    const target60 = visibleSamples * 0.6;
+    for (let v = 0; v < 256; v++) {
+      acc += hist[v];
+      if (acc >= target60) {
+        p60Luma = v;
+        break;
+      }
+    }
+  }
+
+  // 2. Agregasi blok grid (36 x 36) di dalam area terlihat
+  const cellCount = GRID_COLS * GRID_ROWS;
+  const cellLuma = new Float32Array(cellCount);
+  const cellChroma = new Float32Array(cellCount);
+  const cellEdge = new Float32Array(cellCount);
+  const cellMask = new Uint8Array(cellCount);
+
+  for (let gy = 0; gy < GRID_ROWS; gy++) {
+    const py0 = visY0 + Math.floor((gy * visH) / GRID_ROWS);
+    const py1 = Math.max(py0 + 1, visY0 + Math.floor(((gy + 1) * visH) / GRID_ROWS));
+    for (let gx = 0; gx < GRID_COLS; gx++) {
+      const px0 = visX0 + Math.floor((gx * visW) / GRID_COLS);
+      const px1 = Math.max(px0 + 1, visX0 + Math.floor(((gx + 1) * visW) / GRID_COLS));
+
+      let sumY = 0;
+      let sumC = 0;
+      let sumE = 0;
+      let cnt = 0;
+
+      for (let py = py0; py < py1; py += 2) {
+        const row = py * width;
+        const canGradY = py > 0 && py < height - 1;
+        for (let px = px0; px < px1; px += 2) {
+          const idx = row + px;
+          const val = luma[idx];
+          sumY += val;
+          sumC += chroma[idx];
+          if (canGradY && px > 0 && px < width - 1) {
+            const gxVal = Math.abs(luma[idx + 1] - luma[idx - 1]);
+            const gyVal = Math.abs(luma[idx + width] - luma[idx - width]);
+            sumE += gxVal + gyVal;
+          }
+          cnt++;
+        }
+      }
+
+      const cIdx = gy * GRID_COLS + gx;
+      if (cnt > 0) {
+        cellLuma[cIdx] = sumY / cnt;
+        cellChroma[cIdx] = sumC / cnt;
+        cellEdge[cIdx] = sumE / cnt;
+      }
+    }
+  }
+
+  // Klasifikasi sel kertas terang (kontras terhadap latar tepi, saturasi rendah seperti kertas)
+  const paperLumaThreshold = Math.min(215, Math.max(102, Math.max(bgLuma + 16, p60Luma - 4)));
+  let paperCellsTotal = 0;
+  for (let i = 0; i < cellCount; i++) {
+    const isBrightPaper = cellLuma[i] >= paperLumaThreshold && cellChroma[i] <= 58;
+    if (isBrightPaper) {
+      cellMask[i] = 1;
+      paperCellsTotal++;
+    }
+  }
+
+  // Fallback untuk struk di atas meja putih/sangat terang (jika > 86% sel terang, cari klaster teks padat)
+  const brightRatio = paperCellsTotal / cellCount;
+  if (brightRatio > 0.86 || brightRatio < 0.06) {
+    cellMask.fill(0);
+    // Hanya jalankan fallback klaster teks jika latar cukup terang
+    if (brightRatio > 0.86) {
+      for (let i = 0; i < cellCount; i++) {
+        if (cellLuma[i] >= 115 && cellChroma[i] <= 65 && cellEdge[i] >= 18) {
+          cellMask[i] = 1;
+        }
+      }
+      // Dilasi 1 sel agar baris-baris teks struk menyatu menjadi satu bidang kertas
+      const dilated = new Uint8Array(cellCount);
+      for (let gy = 1; gy < GRID_ROWS - 1; gy++) {
+        for (let gx = 1; gx < GRID_COLS - 1; gx++) {
+          let found = 0;
+          for (let dy = -1; dy <= 1 && !found; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (cellMask[(gy + dy) * GRID_COLS + (gx + dx)]) {
+                found = 1;
+                break;
+              }
+            }
+          }
+          dilated[gy * GRID_COLS + gx] = found;
+        }
+      }
+      cellMask.set(dilated);
+    }
+  }
+
+  // 3. Connected-Component Labeling (BFS) untuk menemukan bidang kertas utama di tengah bingkai
+  const visited = new Uint8Array(cellCount);
+  const queue = new Int32Array(cellCount);
+
+  let bestScore = 0;
+  let bestCells: number[] = [];
+
+  for (let start = 0; start < cellCount; start++) {
+    if (!cellMask[start] || visited[start]) continue;
+
+    let qHead = 0;
+    let qTail = 0;
+    queue[qTail++] = start;
+    visited[start] = 1;
+
+    const comp: number[] = [];
+    let minGx = GRID_COLS;
+    let maxGx = 0;
+    let minGy = GRID_ROWS;
+    let maxGy = 0;
+    let centerOverlap = 0;
+
+    while (qHead < qTail) {
+      const cur = queue[qHead++];
+      comp.push(cur);
+      const gx = cur % GRID_COLS;
+      const gy = (cur / GRID_COLS) | 0;
+      if (gx < minGx) minGx = gx;
+      if (gx > maxGx) maxGx = gx;
+      if (gy < minGy) minGy = gy;
+      if (gy > maxGy) maxGy = gy;
+      if (gx >= GRID_COLS * 0.25 && gx <= GRID_COLS * 0.75 && gy >= GRID_ROWS * 0.2 && gy <= GRID_ROWS * 0.8) {
+        centerOverlap++;
+      }
+
+      if (gx > 0 && cellMask[cur - 1] && !visited[cur - 1]) {
+        visited[cur - 1] = 1;
+        queue[qTail++] = cur - 1;
+      }
+      if (gx < GRID_COLS - 1 && cellMask[cur + 1] && !visited[cur + 1]) {
+        visited[cur + 1] = 1;
+        queue[qTail++] = cur + 1;
+      }
+      if (gy > 0 && cellMask[cur - GRID_COLS] && !visited[cur - GRID_COLS]) {
+        visited[cur - GRID_COLS] = 1;
+        queue[qTail++] = cur - GRID_COLS;
+      }
+      if (gy < GRID_ROWS - 1 && cellMask[cur + GRID_COLS] && !visited[cur + GRID_COLS]) {
+        visited[cur + GRID_COLS] = 1;
+        queue[qTail++] = cur + GRID_COLS;
+      }
+    }
+
+    const areaFrac = comp.length / cellCount;
+    const boxWFrac = (maxGx - minGx + 1) / GRID_COLS;
+    const boxHFrac = (maxGy - minGy + 1) / GRID_ROWS;
+    const fillRatio = comp.length / Math.max(1, (maxGx - minGx + 1) * (maxGy - minGy + 1));
+
+    // Filter kandidat kertas yang valid secara geometri & menyentuh area bingkai tengah
+    if (
+      areaFrac >= 0.08 &&
+      areaFrac <= 0.92 &&
+      boxWFrac >= 0.16 &&
+      boxHFrac >= 0.18 &&
+      fillRatio >= 0.42 &&
+      centerOverlap >= 6
+    ) {
+      const score = comp.length * (0.6 + fillRatio * 0.4) + centerOverlap * 2;
+      if (score > bestScore) {
+        bestScore = score;
+        bestCells = comp;
+      }
+    }
+  }
+
+  if (bestCells.length === 0) {
+    return {
+      analysis: {
+        status: 'no_document',
+        detected: false,
+        isSharp: false,
+        isWellLit: bgLuma >= 65,
+        isStable,
+        sharpness: 0,
+        motion,
+        brightness: bgLuma,
+        bounds: null,
+        quad: null,
+      },
+      luma,
+    };
+  }
+
+  // 4. Hitung bounding box & 4 sudut poligon (TL, TR, BR, BL) dalam koordinat video ternormalisasi (0..1)
+  let minGx = GRID_COLS;
+  let maxGx = 0;
+  let minGy = GRID_ROWS;
+  let maxGy = 0;
+
+  let tlSum = Infinity;
+  let trDiff = -Infinity;
+  let brSum = -Infinity;
+  let blDiff = Infinity;
+
+  let tlCell = bestCells[0];
+  let trCell = bestCells[0];
+  let brCell = bestCells[0];
+  let blCell = bestCells[0];
+
+  for (let i = 0; i < bestCells.length; i++) {
+    const c = bestCells[i];
+    const gx = c % GRID_COLS;
+    const gy = (c / GRID_COLS) | 0;
+    if (gx < minGx) minGx = gx;
+    if (gx > maxGx) maxGx = gx;
+    if (gy < minGy) minGy = gy;
+    if (gy > maxGy) maxGy = gy;
+
+    const sum = gx + gy;
+    const diff = gx - gy;
+    if (sum < tlSum) {
+      tlSum = sum;
+      tlCell = c;
+    }
+    if (diff > trDiff) {
+      trDiff = diff;
+      trCell = c;
+    }
+    if (sum > brSum) {
+      brSum = sum;
+      brCell = c;
+    }
+    if (diff < blDiff) {
+      blDiff = diff;
+      blCell = c;
+    }
+  }
+
+  const gridToNormX = (gx: number) => clamp01((visX0 + (gx / GRID_COLS) * visW) / width);
+  const gridToNormY = (gy: number) => clamp01((visY0 + (gy / GRID_ROWS) * visH) / height);
+
+  const bx0 = gridToNormX(minGx);
+  const by0 = gridToNormY(minGy);
+  const bx1 = gridToNormX(maxGx + 1);
+  const by1 = gridToNormY(maxGy + 1);
+
+  const bounds: NormalizedRect = {
+    x: bx0,
+    y: by0,
+    width: Math.max(0.05, bx1 - bx0),
+    height: Math.max(0.05, by1 - by0),
+  };
+
+  // Padukan sudut ekstrim poligon dengan sudut bounding box agar rapi namun tetap responsif terhadap kemiringan kertas
+  const blend = 0.55;
+  const cornerOf = (cell: number, rectX: number, rectY: number): NormalizedPoint => {
+    const cx = gridToNormX((cell % GRID_COLS) + 0.5);
+    const cy = gridToNormY(((cell / GRID_COLS) | 0) + 0.5);
+    return {
+      x: clamp01(cx * blend + rectX * (1 - blend)),
+      y: clamp01(cy * blend + rectY * (1 - blend)),
+    };
+  };
+
+  const quad: ReceiptQuad = [
+    cornerOf(tlCell, bx0, by0),
+    cornerOf(trCell, bx1, by0),
+    cornerOf(brCell, bx1, by1),
+    cornerOf(blCell, bx0, by1),
+  ];
+
+  // 5. Hitung ketajaman (Laplacian Variance) & kecerahan di dalam area dokumen terdeteksi
+  const docX0 = Math.max(1, Math.floor(bounds.x * width));
+  const docY0 = Math.max(1, Math.floor(bounds.y * height));
+  const docX1 = Math.min(width - 2, Math.ceil((bounds.x + bounds.width) * width));
+  const docY1 = Math.min(height - 2, Math.ceil((bounds.y + bounds.height) * height));
+
+  let lapSum = 0;
+  let lapSqSum = 0;
+  let docLumaSum = 0;
+  let docSamples = 0;
+
+  for (let y = docY0; y <= docY1; y += 2) {
+    const row = y * width;
+    for (let x = docX0; x <= docX1; x += 2) {
+      const idx = row + x;
+      const c = luma[idx];
+      docLumaSum += c;
+      const lap = -4 * c + luma[idx - 1] + luma[idx + 1] + luma[idx - width] + luma[idx + width];
+      lapSum += lap;
+      lapSqSum += lap * lap;
+      docSamples++;
+    }
+  }
+
+  const docBrightness = docSamples > 0 ? docLumaSum / docSamples : 0;
+  const lapMean = docSamples > 0 ? lapSum / docSamples : 0;
+  const sharpness = docSamples > 0 ? lapSqSum / docSamples - lapMean * lapMean : 0;
+
+  const isSharp = sharpness >= SHARPNESS_THRESHOLD;
+  const isWellLit = docBrightness >= MIN_PAPER_BRIGHTNESS;
+  const status: ReceiptDetectionStatus = isSharp && isWellLit && isStable ? 'ready' : 'unstable_or_blurry';
+
+  return {
+    analysis: {
+      status,
+      detected: true,
+      isSharp,
+      isWellLit,
+      isStable,
+      sharpness,
+      motion,
+      brightness: docBrightness,
+      bounds,
+      quad,
+    },
+    luma,
+  };
+}
+
+/**
+ * Mengambil frame video beresolusi penuh, melakukan auto-crop sesuai area struk terdeteksi
+ * (dengan margin aman), dan mengembalikannya sebagai File JPEG siap dikirim ke scanReceipt().
+ */
+export async function cropVideoFrameToReceiptFile(
+  video: HTMLVideoElement,
+  bounds: NormalizedRect | null,
+  options?: {
+    margin?: number;
+    quality?: number;
+    fileName?: string;
+  }
+): Promise<File> {
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  if (!vw || !vh) {
+    throw new Error('Frame kamera belum siap.');
+  }
+
+  const margin = options?.margin ?? 0.045;
+  let sx = 0;
+  let sy = 0;
+  let sw = vw;
+  let sh = vh;
+
+  if (bounds && bounds.width > 0.12 && bounds.height > 0.12) {
+    const padX = Math.max(bounds.width * 0.08, margin);
+    const padY = Math.max(bounds.height * 0.08, margin);
+    const x0 = clamp01(bounds.x - padX);
+    const y0 = clamp01(bounds.y - padY);
+    const x1 = clamp01(bounds.x + bounds.width + padX);
+    const y1 = clamp01(bounds.y + bounds.height + padY);
+
+    sx = Math.round(x0 * vw);
+    sy = Math.round(y0 * vh);
+    sw = Math.max(64, Math.round((x1 - x0) * vw));
+    sh = Math.max(64, Math.round((y1 - y0) * vh));
+
+    if (sx + sw > vw) sw = vw - sx;
+    if (sy + sh > vh) sh = vh - sy;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = sw;
+  canvas.height = sh;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('Canvas tidak tersedia untuk mengambil foto struk.');
+  }
+
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
+
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob((b) => resolve(b), 'image/jpeg', options?.quality ?? 0.92)
+  );
+  if (!blob) {
+    throw new Error('Gagal menghasilkan gambar dari kamera.');
+  }
+
+  return new File([blob], options?.fileName || `struk-autoscan-${Date.now()}.jpg`, {
+    type: 'image/jpeg',
+  });
+}
+

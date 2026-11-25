@@ -30,7 +30,7 @@ import { saveCategoryBudgets, type CategoryBudgetMap } from '../services/setting
 import { scanReceipt, formatFileSize, type ReceiptData } from '../services/receiptScanService';
 import { useUI } from '../context/UIContext';
 import type { ModuleId } from './layout/Navigation';
-import { ModalFrame } from './ui/BaseUI';
+import { ModalFrame, NominalPreview } from './ui/BaseUI';
 import { CameraCaptureModal } from './CameraCaptureModal';
 
 interface Props {
@@ -581,7 +581,8 @@ export function AddTransactionView({
                   <span>Rp</span>
                   <input id="tx-amount-input" type="text" inputMode="text" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} onBlur={handleAmountBlur} placeholder="0" required />
                 </div>
-                {calcNotice && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{calcNotice}</div>}
+                <NominalPreview amount={amount} />
+                {calcNotice && <p className="ax-hint" style={{ marginTop: 4 }}>{calcNotice}</p>}
                 <div className="ax-qs" aria-label="Tambah nominal cepat">
                   {[10000, 20000, 50000, 100000, 500000].map(amt => (
                     <button key={amt} type="button" onClick={() => addQuickAmount(amt)}>+{amt >= 1000 ? `${amt / 1000}k` : amt}</button>
@@ -676,7 +677,8 @@ export function AddTransactionView({
                   <span>Rp</span>
                   <input id="tf-amount" type="text" inputMode="text" autoComplete="off" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} onBlur={handleTransferAmountBlur} placeholder="0" required />
                 </div>
-                {transferCalcNotice && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{transferCalcNotice}</div>}
+                <NominalPreview amount={transferAmount} />
+                {transferCalcNotice && <p className="ax-hint" style={{ marginTop: 4 }}>{transferCalcNotice}</p>}
                 <div className="ax-qs" aria-label="Tambah nominal cepat">
                   {[50000, 100000, 250000, 500000, 1000000].map(amt => (
                     <button key={amt} type="button" onClick={() => addQuickTransferAmount(amt)}>+{amt >= 1000 ? `${amt / 1000}k` : amt}</button>
@@ -814,6 +816,7 @@ export function AddTransactionView({
                               aria-label={`Pagu ${cat}`}
                             />
                           </div>
+                          <NominalPreview amount={val} />
                         </div>
                       );
                     })}

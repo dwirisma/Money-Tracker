@@ -1,8 +1,8 @@
 import type { CSSProperties, FormEvent } from 'react';
 import { Calculator, Check, FolderPlus, Info, Landmark, Pencil, Smartphone, Wallet, CreditCard, Banknote } from 'lucide-react';
 import type { AccountType } from '../types';
-import { ModalFrame } from './ui/BaseUI';
-import { ColorPicker, calcNoteOf } from './ObligationForms';
+import { ModalFrame, NominalPreview } from './ui/BaseUI';
+import { ColorPicker } from './ObligationForms';
 
 const ACCENT_COLORS = [
   { color: '#2dd4a7', label: 'Hijau' },
@@ -94,7 +94,6 @@ export function AccountFormModal(p: AccountFormProps) {
   const create = p.mode === 'create';
   const formId = create ? 'add-account-form' : 'edit-account-form';
   const isCredit = p.type === 'credit_card';
-  const note = calcNoteOf(p.balance);
   return (
     <ModalFrame
       title={create ? 'Tambah Akun Baru' : 'Ubah Akun'}
@@ -140,7 +139,7 @@ export function AccountFormModal(p: AccountFormProps) {
             <input id={`${formId}-bal`} type="text" inputMode="text" autoComplete="off" value={p.balance} onChange={e => p.onBalance(e.target.value)}
               placeholder="0" required />
           </div>
-          {note && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{note}</div>}
+          <NominalPreview amount={p.balance} />
           <p className="ax-hint">
             {create ? 'Mendukung kalkulator, contoh: 1500000+250000.' : 'Samakan dengan saldo sebenarnya di akun. Mendukung kalkulator.'}
           </p>

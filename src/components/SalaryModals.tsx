@@ -2,8 +2,7 @@ import type { CSSProperties, FormEvent, MouseEvent } from 'react';
 import type { Account } from '../types';
 import { freeBalanceText } from '../utils/financeUtils';
 import { Archive, Banknote, CalendarDays, Check, Clock, FileText, Gift, Plus, RefreshCw, RotateCcw, Settings, Trash2, Utensils, Zap } from 'lucide-react';
-import { ModalFrame } from './ui/BaseUI';
-import { calcNoteOf } from './ObligationForms';
+import { ModalFrame, NominalPreview } from './ui/BaseUI';
 
 /* ============================ ARSIP RIWAYAT GAJI ============================ */
 export interface HistoryItem {
@@ -205,6 +204,7 @@ function NumField(p: { id: string; label: string; value: number | string; onChan
         <span>Rp</span>
         <input id={p.id} type="number" step={p.step} className="brutal-input" value={p.value} onChange={e => p.onChange(e.target.value)} placeholder={p.placeholder} />
       </div>
+      <NominalPreview amount={p.value} />
       {p.hint && <p className="ax-fieldhint">{p.hint}</p>}
     </div>
   );
@@ -374,7 +374,6 @@ interface AddOnProps {
 }
 
 export function AddOnModal(p: AddOnProps) {
-  const note = p.calcNotice ?? calcNoteOf(p.amount);
   return (
     <ModalFrame
       title={p.editing ? 'Ubah Komponen Tambahan' : 'Tambah Komponen Tambahan'}
@@ -403,7 +402,7 @@ export function AddOnModal(p: AddOnProps) {
             <input id="addon-amount" type="text" inputMode="text" autoComplete="off" value={p.amount} onChange={e => p.onAmount(e.target.value)}
               onBlur={p.onAmountBlur} placeholder="0" required />
           </div>
-          {note && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{note}</div>}
+          <NominalPreview amount={p.amount} />
           <p className="ax-hint">Mendukung ekspresi, contoh: 5000000 + 2000000.</p>
         </div>
 

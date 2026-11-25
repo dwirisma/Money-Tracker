@@ -27,10 +27,9 @@ import {
   calculateAssetReturn
 } from '../services/investmentService';
 import { evaluateMathExpression, formatRupiah } from '../utils/financeUtils';
-import { ModalFrame } from './ui/BaseUI';
+import { ModalFrame, NominalPreview } from './ui/BaseUI';
 import { AssetDetailModal, AssetEntryModal, KIND_META, type EntryValues } from './InvestmentModals';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
-import { calcNoteOf } from './ObligationForms';
 
 interface Props {
   uid: string;
@@ -486,8 +485,6 @@ export function InvestmentPortfolioView({
       {(isAddOpen || editingAsset) && (() => {
         const close = () => { setIsAddOpen(false); setEditingAsset(null); };
         const formId = editingAsset ? 'edit-asset-form' : 'add-asset-form';
-        const capNote = calcNoteOf(capital);
-        const valNote = calcNoteOf(currentValue);
         const capNum = evaluateMathExpression(capital);
         const valNum = evaluateMathExpression(currentValue);
         const gain = capNum.success && valNum.success ? valNum.result - capNum.result : null;
@@ -545,7 +542,7 @@ export function InvestmentPortfolioView({
                     <input id={`${formId}-cap`} type="text" inputMode="text" autoComplete="off" value={capital} onChange={(e) => setCapital(e.target.value)}
                       onBlur={handleCapitalBlur} placeholder="10000000" required />
                   </div>
-                  {capNote && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{capNote}</div>}
+                  <NominalPreview amount={capital} />
                 </div>
                 <div className="ax-amt" data-kind="income">
                   <label className="ax-fl" htmlFor={`${formId}-val`}><span><Calculator className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Nilai pasar terkini</span></label>
@@ -554,7 +551,7 @@ export function InvestmentPortfolioView({
                     <input id={`${formId}-val`} type="text" inputMode="text" autoComplete="off" value={currentValue} onChange={(e) => setCurrentValue(e.target.value)}
                       onBlur={handleCurrentValueBlur} placeholder="11450000" required />
                   </div>
-                  {valNote && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{valNote}</div>}
+                  <NominalPreview amount={currentValue} />
                 </div>
               </div>
 
@@ -615,7 +612,7 @@ export function InvestmentPortfolioView({
                 <input id="quick-asset-val" type="text" inputMode="text" autoComplete="off" value={quickValue} onChange={(e) => setQuickValue(e.target.value)}
                   placeholder="Total nilai saat ini" autoFocus required />
               </div>
-              {calcNoteOf(quickValue) && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{calcNoteOf(quickValue)}</div>}
+              <NominalPreview amount={quickValue} />
             </div>
           </form>
         </ModalFrame>

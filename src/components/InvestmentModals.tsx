@@ -5,8 +5,7 @@ import type { Account, InvestmentAsset, InvestmentEntry, InvestmentEntryKind } f
 import { evaluateMathExpression, formatRupiah } from '../utils/financeUtils';
 import { freeBalanceText } from '../utils/financeUtils';
 import { suggestCapitalReduced, type AssetReturn } from '../services/investmentService';
-import { ModalFrame } from './ui/BaseUI';
-import { calcNoteOf } from './ObligationForms';
+import { ModalFrame, NominalPreview } from './ui/BaseUI';
 
 const ACC_TYPE: Record<string, string> = { cash: 'Dompet', bank: 'Bank', ewallet: 'E-Wallet', credit_card: 'Kartu Kredit' };
 const today = () => toLocalDateStr(new Date());
@@ -162,7 +161,6 @@ export function AssetEntryModal(p: EntryProps) {
   const cap = Math.min(base.initialCapital, Math.max(0, Math.round(num(capText))));
   const formId = 'asset-entry-form';
   const over = p.kind === 'withdraw' && amt > base.currentValue;
-  const amountNote = calcNoteOf(amount);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -197,7 +195,7 @@ export function AssetEntryModal(p: EntryProps) {
             <span>Rp</span>
             <input id="ie-amount" type="text" inputMode="text" autoComplete="off" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" required autoFocus />
           </div>
-          {amountNote && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{amountNote}</div>}
+          <NominalPreview amount={amount} />
           {p.kind === 'close' && !editing && <p className="ax-hint">Terisi nilai pasar saat ini. Ubah bila hasil penjualan berbeda.</p>}
         </div>
 
@@ -220,6 +218,7 @@ export function AssetEntryModal(p: EntryProps) {
               <input id="ie-cap" type="text" inputMode="text" autoComplete="off" className="brutal-input" value={capText}
                 onChange={e => { setCapText(e.target.value); setCapTouched(true); }} />
             </div>
+            <NominalPreview amount={capText} />
             <p className="ax-fieldhint">
               Terisi otomatis secara proporsional ({formatRupiah(suggested)}). Ubah bila Anda punya cara hitung sendiri.
               {capTouched && <> <button type="button" className="ax-link" onClick={() => { setCapTouched(false); setCapText(String(suggested)); }}>Kembalikan proporsional</button></>}

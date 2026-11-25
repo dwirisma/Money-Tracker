@@ -2,7 +2,7 @@ import type { CSSProperties, FormEvent } from 'react';
 import { Banknote, Calculator, Check, Pencil, Receipt } from 'lucide-react';
 import type { Account, BillCycle, CustomIntervalUnit } from '../types';
 import { evaluateMathExpression, formatRupiah, freeBalanceText } from '../utils/financeUtils';
-import { ModalFrame } from './ui/BaseUI';
+import { ModalFrame, NominalPreview } from './ui/BaseUI';
 
 const CYCLES: { id: BillCycle; label: string }[] = [
   { id: 'daily', label: 'Harian' },
@@ -101,7 +101,6 @@ interface AddBillProps {
 
 export function AddBillModal(p: AddBillProps) {
   const fixed = p.pricingType === 'fixed';
-  const notice = fixed ? p.calcNotice : p.lastNominalNotice;
   return (
     <ModalFrame
       wide
@@ -149,7 +148,7 @@ export function AddBillModal(p: AddBillProps) {
               ? <input id="ab-amount" type="text" inputMode="text" autoComplete="off" value={p.amount} onChange={e => p.onAmount(e.target.value)} placeholder="186000 atau 54000+10000" required />
               : <input id="ab-amount" type="text" inputMode="text" autoComplete="off" value={p.lastNominal} onChange={e => p.onLastNominal(e.target.value)} placeholder="450000 atau 200000+50000" required />}
           </div>
-          {notice && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{notice}</div>}
+          <NominalPreview amount={fixed ? p.amount : p.lastNominal} />
           <p className="ax-hint">
             {fixed ? 'Mendukung kalkulator, contoh: 54000+10000'
               : 'Tampil di kartu sebagai estimasi bulan lalu dan otomatis diperbarui saat Anda membayar tagihan aktual berikutnya.'}
@@ -244,7 +243,7 @@ export function AddDebtModal(p: AddDebtProps) {
             <span>Rp</span>
             <input id="ad-total" type="text" inputMode="text" autoComplete="off" value={p.total} onChange={e => p.onTotal(e.target.value)} placeholder="10000000" required />
           </div>
-          {p.calcNotice && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{p.calcNotice}</div>}
+          <NominalPreview amount={p.total} />
           <p className="ax-hint">Mendukung kalkulator. Sisa pokok otomatis mengikuti total awal.</p>
         </div>
 
@@ -254,6 +253,7 @@ export function AddDebtModal(p: AddDebtProps) {
             <span>Rp</span>
             <input id="ad-rem" type="number" className="brutal-input" value={p.remaining} onChange={e => p.onRemaining(e.target.value)} placeholder="Sisa belum lunas" required />
           </div>
+          <NominalPreview amount={p.remaining} />
           <p className="ax-fieldhint">Ubah bila sebagian sudah pernah dibayar.</p>
         </div>
 
@@ -312,7 +312,6 @@ interface EditBillProps {
 
 export function EditBillModal(p: EditBillProps) {
   const fixed = p.pricingType === 'fixed';
-  const notice = fixed ? calcNoteOf(p.amount) : p.lastNominalNotice;
   return (
     <ModalFrame
       wide
@@ -359,7 +358,7 @@ export function EditBillModal(p: EditBillProps) {
               ? <input id="eb-amount" type="text" inputMode="text" autoComplete="off" value={p.amount} onChange={e => p.onAmount(e.target.value)} placeholder="186000 atau 54000+10000" required />
               : <input id="eb-amount" type="text" inputMode="text" autoComplete="off" value={p.lastNominal} onChange={e => p.onLastNominal(e.target.value)} placeholder="450000 atau 200000+50000" />}
           </div>
-          {notice && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{notice}</div>}
+          <NominalPreview amount={fixed ? p.amount : p.lastNominal} />
           <p className="ax-hint">Mendukung kalkulator, contoh: 54000+10000</p>
         </div>
 
@@ -418,8 +417,6 @@ interface EditDebtProps {
 }
 
 export function EditDebtModal(p: EditDebtProps) {
-  const totalNote = calcNoteOf(p.total);
-  const remainNote = calcNoteOf(p.remaining);
   return (
     <ModalFrame
       wide
@@ -453,7 +450,7 @@ export function EditDebtModal(p: EditDebtProps) {
             <span>Rp</span>
             <input id="ed-total" type="text" inputMode="text" autoComplete="off" value={p.total} onChange={e => p.onTotal(e.target.value)} required />
           </div>
-          {totalNote && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{totalNote}</div>}
+          <NominalPreview amount={p.total} />
         </div>
 
         <div>
@@ -462,7 +459,8 @@ export function EditDebtModal(p: EditDebtProps) {
             <span>Rp</span>
             <input id="ed-rem" type="text" inputMode="text" autoComplete="off" className="brutal-input" value={p.remaining} onChange={e => p.onRemaining(e.target.value)} required />
           </div>
-          <p className="ax-fieldhint">{remainNote ?? 'Sisa yang belum dibayar. Mendukung kalkulator.'}</p>
+          <NominalPreview amount={p.remaining} />
+          <p className="ax-fieldhint">Sisa yang belum dibayar. Mendukung kalkulator.</p>
         </div>
 
         <div>

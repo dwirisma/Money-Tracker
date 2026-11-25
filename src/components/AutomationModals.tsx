@@ -2,7 +2,7 @@ import { freeBalanceText } from '../utils/financeUtils';
 import type { CSSProperties, FormEvent, ReactNode } from 'react';
 import { ArrowRightLeft, Calculator, Check, Info, Landmark, Pencil, PiggyBank, Receipt, TrendingDown, TrendingUp, Zap } from 'lucide-react';
 import type { Account, AutomationCycle, AutomationType, CustomIntervalUnit } from '../types';
-import { ModalFrame } from './ui/BaseUI';
+import { ModalFrame, NominalPreview } from './ui/BaseUI';
 import { CyclePicker } from './ObligationForms';
 
 const ACC_TYPE: Record<string, string> = { cash: 'Dompet', bank: 'Bank', ewallet: 'E-Wallet', credit_card: 'Kartu Kredit' };
@@ -132,7 +132,7 @@ export function AutomationFormModal(p: Props) {
                 <input id={`${formId}-amt`} type="text" inputMode="text" autoComplete="off" value={p.amount} onChange={e => p.onAmount(e.target.value)}
                   placeholder="1000000" required />
               </div>
-              {p.calcNotice && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{p.calcNotice}</div>}
+              <NominalPreview amount={p.amount} />
               <p className="ax-hint">Mendukung kalkulator, contoh: 5000000+500000.</p>
             </div>
 

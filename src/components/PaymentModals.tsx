@@ -1,9 +1,9 @@
 import { freeBalanceText, getFreeBalance } from '../utils/financeUtils';
 import type { FormEvent } from 'react';
-import { Banknote, Calculator, Check, CreditCard, Info, RotateCw, AlertTriangle } from 'lucide-react';
+import { Banknote, Calculator, CreditCard, Info, RotateCw, AlertTriangle } from 'lucide-react';
 import type { Account, Bill, Debt } from '../types';
 import { evaluateMathExpression, formatRupiah } from '../utils/financeUtils';
-import { ModalFrame } from './ui/BaseUI';
+import { ModalFrame, NominalPreview } from './ui/BaseUI';
 
 const ACC_TYPE: Record<string, string> = { cash: 'Dompet', bank: 'Bank', ewallet: 'E-Wallet', credit_card: 'Kartu Kredit' };
 const CYCLE_LABEL: Record<string, string> = { daily: 'harian', weekly: 'mingguan', monthly: 'bulanan', yearly: 'tahunan', custom: 'kustom' };
@@ -68,7 +68,7 @@ export function PayBillModal(p: PayBillProps) {
             <span>Rp</span>
             <input id="pay-bill-amount" type="text" inputMode="text" autoComplete="off" value={p.amount} onChange={e => p.onAmountChange(e.target.value)} placeholder="150000 atau 75000+2500" required />
           </div>
-          {p.calcNotice && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{p.calcNotice}</div>}
+          <NominalPreview amount={p.amount} />
           {suggest > 0 && (
             <div className="ax-qs" aria-label="Nominal cepat">
               <button type="button" onClick={() => p.onAmountChange(String(suggest))}>
@@ -192,7 +192,7 @@ export function PayDebtModal(p: PayDebtProps) {
             <span>Rp</span>
             <input id="pay-debt-amount" type="text" inputMode="text" autoComplete="off" value={p.amount} onChange={e => p.onAmountChange(e.target.value)} placeholder="500000 atau 250000*2" required />
           </div>
-          {p.calcNotice && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{p.calcNotice}</div>}
+          <NominalPreview amount={p.amount} />
           <div className="ax-qs" aria-label="Tambah nominal cepat">
             {[250000, 500000, 1000000].map(amt => (
               <button key={amt} type="button" onClick={() => {

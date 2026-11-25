@@ -4,8 +4,8 @@ import { AlertTriangle, ArrowUpRight, Award, Calculator, Check, Coins, Info, Pen
 import type { Account, Goal, GoalType } from '../types';
 import { evaluateMathExpression, formatRupiah } from '../utils/financeUtils';
 import { getGoalStatus } from '../services/cashManagementService';
-import { ModalFrame } from './ui/BaseUI';
-import { ColorPicker, calcNoteOf } from './ObligationForms';
+import { ModalFrame, NominalPreview } from './ui/BaseUI';
+import { ColorPicker } from './ObligationForms';
 
 const ACC_TYPE: Record<string, string> = { cash: 'Dompet', bank: 'Bank', ewallet: 'E-Wallet', credit_card: 'Kartu Kredit' };
 
@@ -81,7 +81,7 @@ export function AllocateGoalModal(p: AllocateProps) {
             <span>Rp</span>
             <input id="alloc-amount" type="text" inputMode="text" autoComplete="off" value={p.amount} onChange={e => p.onAmountChange(e.target.value)} onBlur={p.onAmountBlur} placeholder="0 atau hitung ekspresi" required />
           </div>
-          {p.calcNotice && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{p.calcNotice}</div>}
+          <NominalPreview amount={p.amount} />
           <div className="ax-qs" aria-label="Tambah nominal cepat">
             {[50000, 100000, 250000, 500000, 1000000].map(amt => (
               <button key={amt} type="button" onClick={() => {
@@ -186,8 +186,6 @@ export function GoalFormModal(p: GoalFormProps) {
   const create = p.mode === 'create';
   const formId = create ? 'add-goal-form' : 'edit-goal-form';
   const sinking = p.type === 'sinking_fund';
-  const targetNote = p.calcNotice ?? calcNoteOf(p.target);
-  const fundsNote = calcNoteOf(p.funds);
   return (
     <ModalFrame
       wide
@@ -237,7 +235,7 @@ export function GoalFormModal(p: GoalFormProps) {
             <input id={`${formId}-target`} type="text" inputMode="text" autoComplete="off" value={p.target} onChange={e => p.onTarget(e.target.value)}
               onBlur={p.onTargetBlur} placeholder="0" required />
           </div>
-          {targetNote && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{targetNote}</div>}
+          <NominalPreview amount={p.target} />
           <p className="ax-hint">Mendukung kalkulator, contoh: 5000000+1500000.</p>
         </div>
 
@@ -249,7 +247,7 @@ export function GoalFormModal(p: GoalFormProps) {
               <input id={`${formId}-funds`} type="text" inputMode="text" autoComplete="off" className="brutal-input" value={p.funds}
                 onChange={e => p.onFunds(e.target.value)} placeholder="0" required={!create} />
             </div>
-            {fundsNote && <p className="ax-fieldhint">{fundsNote}</p>}
+            <NominalPreview amount={p.funds} />
           </div>
           <div>
             <label className="brutal-label" htmlFor={`${formId}-deadline`}>Tenggat waktu</label>
@@ -392,7 +390,7 @@ export function WithdrawGoalModal(p: WithdrawProps) {
               required
             />
           </div>
-          {p.calcNotice && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{p.calcNotice}</div>}
+          <NominalPreview amount={p.amount} />
           <div className="ax-qs" aria-label="Pilih nominal cepat penarikan">
             {quickFractions.map(q => (
               <button key={q.label} type="button" onClick={() => p.onSetAmount(q.value.toString())}>

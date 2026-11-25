@@ -11,11 +11,9 @@ import {
   type AutopilotResult,
   type AutopilotRule,
 } from '../services/autopilotService';
-import { Money } from './ui/BaseUI';
-import { ModalFrame } from './ui/BaseUI';
+import { ModalFrame, Money, NominalPreview } from './ui/BaseUI';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { getBillDueStatus } from '../services/cashManagementService';
-import { calcNoteOf } from './ObligationForms';
 
 export const KIND_LABEL: Record<AutopilotKind, string> = {
   goal_topup: 'Top-up Sinking Fund',
@@ -112,7 +110,6 @@ export function AutopilotFields({
       ? 'Tagihan yang dibayar'
       : 'Utang yang dicicil';
   const sourceValue = draft.sourceId || accs[0]?.id || '';
-  const note = draft.amount.trim() ? calcNoteOf(draft.amount) : null;
 
   return (
     <>
@@ -184,12 +181,7 @@ export function AutopilotFields({
             required={kind !== 'pay_bill'}
           />
         </div>
-        {note && (
-          <div className="ax-calc">
-            <Check className="w-3.5 h-3.5" />
-            {note}
-          </div>
-        )}
+        <NominalPreview amount={draft.amount} />
         {kind === 'pay_bill' && (
           <p className="ax-hint">Dikosongkan, nominal mengikuti tagihan saat jatuh tempo.</p>
         )}

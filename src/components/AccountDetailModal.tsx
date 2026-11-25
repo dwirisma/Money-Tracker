@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import type { Account, AccountPocket, Transaction } from '../types';
 import { formatRupiah } from '../utils/financeUtils';
-import { ModalFrame } from './ui/BaseUI';
+import { ModalFrame, NominalPreview } from './ui/BaseUI';
 
 interface Props {
   isOpen: boolean;
@@ -318,6 +318,7 @@ export function AccountDetailModal({
               <div>
                 <label className="brutal-label" htmlFor="pk-amt">Nominal dipindahkan (Rp)</label>
                 <input id="pk-amt" type="number" required min="1" placeholder="500000" className="brutal-input" value={pocketTransferAmount} onChange={e => setPocketTransferAmount(e.target.value)} />
+                <NominalPreview amount={pocketTransferAmount} />
               </div>
               <div className="ax-btnrow">
                 <button type="button" className="brutal-btn brutal-btn-ghost" onClick={() => setIsTransferringPocket(false)}>Batal</button>
@@ -345,6 +346,7 @@ export function AccountDetailModal({
               <div>
                 <label className="brutal-label" htmlFor="pk-bal">Saldo alokasi pos ini (Rp)</label>
                 <input id="pk-bal" type="number" placeholder="0" className="brutal-input" value={pocketBalance} onChange={e => setPocketBalance(e.target.value)} />
+                <NominalPreview amount={pocketBalance} />
               </div>
               <div className="ax-btnrow">
                 <button type="button" className="brutal-btn brutal-btn-ghost" onClick={() => { setIsAddingPocket(false); setEditingPocketId(null); }}>Batal</button>

@@ -1,8 +1,8 @@
 import type { FormEvent } from 'react';
-import { ArrowRightLeft, Calculator, Check, Info, Pencil, Trash2, TrendingDown, TrendingUp } from 'lucide-react';
+import { ArrowRightLeft, Calculator, Info, Pencil, Trash2, TrendingDown, TrendingUp } from 'lucide-react';
 import type { Account, Transaction } from '../types';
 import { formatRupiah, freeBalanceText } from '../utils/financeUtils';
-import { ModalFrame } from './ui/BaseUI';
+import { ModalFrame, NominalPreview } from './ui/BaseUI';
 
 interface EditProps {
   tx: Transaction;
@@ -71,7 +71,8 @@ export function EditTransactionModal(p: EditProps) {
             <span>Rp</span>
             <input id="edit-tx-amount" type="text" inputMode="text" autoComplete="off" value={p.amount} onChange={e => p.onAmountChange(e.target.value)} onBlur={p.onAmountBlur} required />
           </div>
-          {p.calcNotice && <div className="ax-calc"><Check className="w-3.5 h-3.5" />{p.calcNotice}</div>}
+          <NominalPreview amount={p.amount} />
+          {p.calcNotice && <p className="ax-hint" style={{ marginTop: 4 }}>{p.calcNotice}</p>}
         </div>
 
         {/* AKUN */}

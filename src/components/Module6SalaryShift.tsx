@@ -31,6 +31,7 @@ import {
 } from '../types';
 import { evaluateMathExpression } from '../utils/financeUtils';
 import { SalaryHistorySection, EditDayModal, SalarySettingsModal, AddOnModal, type HistoryItem } from './SalaryModals';
+import { NominalPreview } from './ui/BaseUI';
 import { 
   generateShiftCalendar,
   refreshShiftLogsMetadata,
@@ -1286,30 +1287,33 @@ export const Module6SalaryShift: React.FC<Module6SalaryShiftProps> = ({
                 {!isMedicalBikEnabled && <span className="ax-sl-zero">Rp 0</span>}
               </div>
               {isMedicalBikEnabled && (
-                <div className="ax-plain-amt" style={{ marginTop: 8 }}>
-                  <span>Rp</span>
-                  <input
-                    type="text"
-                    className="brutal-input"
-                    value={medicalBikInput}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      setMedicalBikInput(raw);
-                      const parsed = parseFloat(raw.replace(/[^0-9]/g, '')) || 0;
-                      setMedicalBikAmount(parsed);
-                    }}
-                    onBlur={() => {
-                      const { success, result, displayValue } = evaluateMathExpression(medicalBikInput);
-                      if (success && result >= 0) {
-                        setMedicalBikInput(displayValue);
-                        setMedicalBikAmount(result);
-                      }
-                    }}
-                    placeholder="1500000"
-                    aria-label="Nominal Medical Allowance BIK"
-                    title="Ubah nominal Medical Allowance BIK (Gross)"
-                  />
-                </div>
+                <>
+                  <div className="ax-plain-amt" style={{ marginTop: 8 }}>
+                    <span>Rp</span>
+                    <input
+                      type="text"
+                      className="brutal-input"
+                      value={medicalBikInput}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setMedicalBikInput(raw);
+                        const parsed = parseFloat(raw.replace(/[^0-9]/g, '')) || 0;
+                        setMedicalBikAmount(parsed);
+                      }}
+                      onBlur={() => {
+                        const { success, result, displayValue } = evaluateMathExpression(medicalBikInput);
+                        if (success && result >= 0) {
+                          setMedicalBikInput(displayValue);
+                          setMedicalBikAmount(result);
+                        }
+                      }}
+                      placeholder="1500000"
+                      aria-label="Nominal Medical Allowance BIK"
+                      title="Ubah nominal Medical Allowance BIK (Gross)"
+                    />
+                  </div>
+                  <NominalPreview amount={medicalBikInput} />
+                </>
               )}
             </div>
 
