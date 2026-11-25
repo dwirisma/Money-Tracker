@@ -244,7 +244,7 @@ export function TransactionHistoryView({
                           {tx.debtId && <span className="ax-tag l">Cicilan Utang</span>}
                         </b>
                         <small>{tx.type === 'transfer' ? `${sourceName} → ${destName}` : sourceName}</small>
-                        {tx.note && <em>"{tx.note}"</em>}
+                        {tx.note && <em title={tx.note}>"{tx.note}"</em>}
                       </div>
                       <div className="ax-txr">
                         <span className={tx.type === 'income' ? 'pos' : tx.type === 'expense' ? 'neg' : 'blu'}>

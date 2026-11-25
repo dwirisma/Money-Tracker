@@ -126,7 +126,14 @@ export function EditTransactionModal(p: EditProps) {
           </div>
           <div>
             <label className="brutal-label" htmlFor="edit-tx-note">Catatan</label>
-            <input id="edit-tx-note" type="text" className="brutal-input" value={p.note} onChange={e => p.onNoteChange(e.target.value)} placeholder="Opsional" />
+            <textarea
+              id="edit-tx-note"
+              rows={p.note.includes('\n') ? Math.min(8, Math.max(4, p.note.split('\n').length)) : 2}
+              className="brutal-textarea w-full resize-y leading-relaxed max-h-[220px] overflow-y-auto"
+              value={p.note}
+              onChange={e => p.onNoteChange(e.target.value)}
+              placeholder="Opsional"
+            />
           </div>
         </div>
 

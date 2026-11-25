@@ -27,7 +27,12 @@ import type { Account, Ledger, Transaction } from '../types';
 import { evaluateMathExpression, formatRupiah, freeBalanceText } from '../utils/financeUtils';
 import { useCategories, LOCKED_CATEGORY } from '../hooks/useCategories';
 import { saveCategoryBudgets, type CategoryBudgetMap } from '../services/settingsService';
-import { scanReceipt, formatFileSize, type ReceiptData } from '../services/receiptScanService';
+import {
+  scanReceipt,
+  formatFileSize,
+  formatReceiptItemsNote,
+  type ReceiptData,
+} from '../services/receiptScanService';
 import { useUI } from '../context/UIContext';
 import type { ModuleId } from './layout/Navigation';
 import { ModalFrame, NominalPreview } from './ui/BaseUI';
@@ -79,6 +84,7 @@ export function AddTransactionView({
   const [category, setCategory] = useState('Makanan & Minuman');
   const [date, setDate] = useState(() => toLocalDateStr(new Date()));
   const [note, setNote] = useState('');
+  const noteTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [calcNotice, setCalcNotice] = useState<string | null>(null);
 
   // Form Transfer
@@ -159,6 +165,16 @@ export function AddTransactionView({
       if (!list.includes(category)) setCategory(list[0] || 'Lainnya');
     }
   }, [activeTab, categories.lists]);
+
+  // Auto-resize tinggi textarea Catatan saat diisi daftar item hasil scan struk
+  useEffect(() => {
+    const el = noteTextareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    if (note) {
+      el.style.height = `${Math.min(260, el.scrollHeight)}px`;
+    }
+  }, [note, activeTab]);
 
   // Math Calculator on blur
   function handleAmountBlur() {
@@ -245,10 +261,15 @@ export function AddTransactionView({
       setAmount(String(r.amount));
       if (r.date) setDate(r.date);
       if (r.category) setCategory(r.category);
-      if (r.note) setNote(r.note);
+      const formattedNote = formatReceiptItemsNote(r);
+      if (formattedNote) setNote(formattedNote);
       setScannedResult(r);
       setScanStatus('success');
-      showToast(`Struk terbaca! Rp ${r.amount.toLocaleString('id-ID')} (${r.note || r.merchantName || 'Belanja'})`, 'success');
+      const itemSummary = r.items && r.items.length > 0 ? ` · ${r.items.length} item` : '';
+      showToast(
+        `Struk terbaca! Rp ${r.amount.toLocaleString('id-ID')} (${r.merchantName || r.note || 'Belanja'}${itemSummary})`,
+        'success'
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Gagal membaca struk atau dokumen.';
       setScanError(msg);
@@ -561,7 +582,7 @@ export function AddTransactionView({
                       <div>
                         {scannedResult.items.map((item, idx) => (
                           <span key={idx} className="ax-scan-pill">
-                            {item.qty && item.qty > 1 ? `${item.qty}× ` : ''}
+                            {item.qty > 1 ? `${item.qty}x ` : ''}
                             {item.name}
                             {item.price > 0 ? ` · ${formatRupiah(item.price)}` : ''}
                           </span>
@@ -633,7 +654,15 @@ export function AddTransactionView({
                 </div>
                 <div>
                   <label className="brutal-label" htmlFor="tx-note">Catatan (opsional)</label>
-                  <input id="tx-note" type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Misal: makan siang kantor" className="brutal-input" />
+                  <textarea
+                    ref={noteTextareaRef}
+                    id="tx-note"
+                    rows={note.includes('\n') ? Math.min(8, Math.max(4, note.split('\n').length)) : 2}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="Misal: makan siang kantor atau rincian belanja struk"
+                    className="brutal-textarea w-full resize-y leading-relaxed max-h-[260px] overflow-y-auto"
+                  />
                 </div>
               </div>
 

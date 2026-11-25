@@ -7,7 +7,7 @@ import { recordAiApiUsage } from './settingsService';
 
 export interface ReceiptItem {
   name: string;
-  qty?: number;
+  qty: number;
   price: number;
 }
 
@@ -271,15 +271,41 @@ export function parseReceiptData(raw: any, categories: string[]): ReceiptData {
       ? data.paymentMethod.trim().slice(0, 30)
       : null;
 
+  const parseItemQty = (rawQty: unknown): number => {
+    if (typeof rawQty === 'number' && Number.isFinite(rawQty) && rawQty > 0) {
+      return Math.round(rawQty * 100) / 100;
+    }
+    if (typeof rawQty === 'string') {
+      const cleaned = rawQty.replace(',', '.').replace(/[^0-9.]/g, '');
+      const parsed = parseFloat(cleaned);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return Math.round(parsed * 100) / 100;
+      }
+    }
+    return 1;
+  };
+
+  const parseItemPrice = (rawPrice: unknown): number => {
+    if (typeof rawPrice === 'number' && Number.isFinite(rawPrice)) {
+      return Math.max(0, Math.round(rawPrice));
+    }
+    if (typeof rawPrice === 'string') {
+      const cleaned = rawPrice.replace(/[^0-9]/g, '');
+      const parsed = parseInt(cleaned, 10);
+      return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+    }
+    return 0;
+  };
+
   const items: ReceiptItem[] | undefined = Array.isArray(data?.items)
     ? data.items
         .filter((it: any) => it && typeof it.name === 'string' && it.name.trim())
-        .map((it: any) => ({
+        .map((it: any): ReceiptItem => ({
           name: String(it.name).trim(),
-          qty: typeof it.qty === 'number' && it.qty > 0 ? it.qty : undefined,
-          price: typeof it.price === 'number' ? Math.round(it.price) : 0,
+          qty: parseItemQty(it.qty),
+          price: parseItemPrice(it.price),
         }))
-        .slice(0, 20)
+        .slice(0, 40)
     : undefined;
 
   return {
@@ -291,6 +317,40 @@ export function parseReceiptData(raw: any, categories: string[]): ReceiptData {
     paymentMethod,
     items: items && items.length > 0 ? items : undefined,
   };
+}
+
+const receiptIdrFormatter = new Intl.NumberFormat('id-ID', {
+  maximumFractionDigits: 0,
+});
+
+/**
+ * Menyusun teks terstruktur untuk kolom "Catatan (Opsional)" dari hasil scan struk:
+ * - Jika ada daftar item:
+ *   [Nama Merchant/Toko] ([Jumlah] item):
+ *   • [Nama Item] ([qty]x) - Rp [Harga terformat titik]
+ * - Jika tidak ada item (misal bukti transfer): gunakan ringkasan deskripsi singkat seperti sebelumnya.
+ */
+export function formatReceiptItemsNote(
+  data: Pick<ReceiptData, 'merchantName' | 'note' | 'items'>
+): string {
+  const items = Array.isArray(data.items)
+    ? data.items.filter((it) => it && it.name && it.name.trim().length > 0)
+    : [];
+
+  if (items.length === 0) {
+    return (data.note || data.merchantName || '').trim();
+  }
+
+  const merchantLabel = data.merchantName?.trim() || 'Belanja Struk';
+  const header = `${merchantLabel} (${items.length} item):`;
+  const lines = items.map((item) => {
+    const qty = Number.isFinite(item.qty) && item.qty > 0 ? item.qty : 1;
+    const price = Number.isFinite(item.price) && item.price > 0 ? Math.round(item.price) : 0;
+    const formattedPrice = receiptIdrFormatter.format(price);
+    return `• ${item.name.trim()} (${qty}x) - Rp ${formattedPrice}`;
+  });
+
+  return [header, ...lines].join('\n');
 }
 
 export interface ReceiptScanAiOptions {

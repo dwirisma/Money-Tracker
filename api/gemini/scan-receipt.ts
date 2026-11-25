@@ -275,7 +275,10 @@ Instruksi Analisis Dokumen/Foto Struk:
 5. Temukan NAMA TOKO / MERCHANT / PENERIMA (misal: "Indomaret", "Alfamart", "Superindo", "Pertamina", "GrabFood", "PLN", "BCA Transfer ke ...").
 6. Pilih SATU kategori yang paling relevan dari daftar kategori di atas.
 7. Buat ringkasan singkat untuk catatan transaksi (field "note") maksimal 60 karakter, misalnya nama merchant + item utama.
-8. Jika rincian item belanja terlihat, daftarkan pada array "items" (nama item, qty, harga subtotal item tersebut dalam integer).`;
+8. Jika rincian item belanja terlihat pada struk atau faktur, daftarkan SELURUH item secara akurat pada array "items". Setiap item wajib memiliki:
+   - "name": nama produk/item secara bersih tanpa teks kuantitas (misal jika tertulis "2 x Cimory 4.000", maka name = "Cimory").
+   - "qty": jumlah kuantitas item berupa angka (wajib isi 1 jika tidak tertera jumlah khusus; jika tertulis "2 x Cimory 4.000" atau "Cimory 2 2.000 4.000", maka qty = 2).
+   - "price": harga subtotal akhir untuk item tersebut dalam Rupiah bulat integer (misal "2 x Cimory 4.000" -> price = 4000).`;
 
   try {
     const { response, modelUsed, exhaustedModels } = await generateContentWithFallback(
@@ -327,10 +330,20 @@ Instruksi Analisis Dokumen/Foto Struk:
                 items: {
                   type: Type.OBJECT,
                   properties: {
-                    name: { type: Type.STRING },
-                    qty: { type: Type.NUMBER },
-                    price: { type: Type.INTEGER },
+                    name: {
+                      type: Type.STRING,
+                      description: 'Nama produk/item tanpa teks kuantitas.',
+                    },
+                    qty: {
+                      type: Type.NUMBER,
+                      description: 'Jumlah kuantitas item (default 1 jika tidak tertera jumlah khusus).',
+                    },
+                    price: {
+                      type: Type.INTEGER,
+                      description: 'Harga subtotal akhir item tersebut dalam Rupiah bulat.',
+                    },
                   },
+                  required: ['name', 'qty', 'price'],
                 },
               },
             },

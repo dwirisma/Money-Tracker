@@ -210,7 +210,7 @@ h2[class*="text-2xl"], h2[class*="text-xl"] {
     box-shadow: 3px 3px 0 var(--accent-blue);
     background-color: var(--bg-surface);
   }
-  .brutal-input::placeholder { color: var(--text-muted); }
+  .brutal-input::placeholder, .brutal-textarea::placeholder { color: var(--text-muted); }
   .brutal-input-num { font-family: var(--font-mono); font-size: 1.05rem; font-weight: 600; letter-spacing: -0.02em; }
   .brutal-label {
     display: block; font-family: var(--font-heading); font-weight: 800; font-size: .68rem;
